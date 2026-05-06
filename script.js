@@ -52,13 +52,30 @@ function montarMensagem() {
 
 btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
-    if(!conteudo) return alert("Cole o link!");
+    if(!conteudo) return alert("Cole o link ou o texto da oferta!");
 
     loader.style.display = 'flex';
     displayDe.value = "R$ 0,00";
     displayPor.value = "R$ 0,00";
     displayProduto.value = "Buscando dados...";
 
+    // 1. TENTA EXTRAIR PREÇOS DIRETO DO TEXTO COLADO (MAIS RÁPIDO)
+    const regexPreco = /R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/g;
+    const precosEncontrados = conteudo.match(regexPreco);
+
+    if (precosEncontrados) {
+        let valores = precosEncontrados.map(p => 
+            parseFloat(p.replace("R$", "").replace(/\./g, "").replace(",", ".").trim())
+        );
+        if (valores.length >= 2) {
+            displayDe.value = "R$ " + Math.max(...valores).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            displayPor.value = "R$ " + Math.min(...valores).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        } else {
+            displayPor.value = precosEncontrados[0];
+        }
+    }
+
+    // 2. BUSCA TÍTULO E PREÇO COMPLEMENTAR VIA API
     try {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
@@ -67,26 +84,27 @@ btnPuxar.onclick = async () => {
             const json = await response.json();
             
             if (json.data) {
+                // Atualiza o Título
                 displayProduto.value = (json.data.title || "").replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
-
-                let precoFinal = "";
-                // Tenta buscar o preço completo com centavos na descrição
-                if (json.data.description) {
-                    const matchDesc = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
-                    if (matchDesc) precoFinal = matchDesc[0];
-                }
-
-                if (!precoFinal && json.data.price) {
-                    precoFinal = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                }
-
-                if (precoFinal) {
-                    displayPor.value = precoFinal.replace(/<[^>]*>?/gm, '').trim();
+                
+                // Se o preço ainda estiver zerado, tenta pegar da descrição da API
+                if (displayPor.value === "R$ 0,00") {
+                    let precoAPI = "";
+                    if (json.data.description) {
+                        const matchDesc = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
+                        if (matchDesc) precoAPI = matchDesc[0];
+                    }
+                    if (!precoAPI && json.data.price) {
+                        precoAPI = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    }
+                    if (precoAPI) {
+                        displayPor.value = precoAPI.replace(/<[^>]*>?/gm, '').trim();
+                    }
                 }
             }
         }
     } catch (e) {
-        alert("Erro ao buscar dados. Tente novamente.");
+        console.log("Erro na busca remota, usando dados locais.");
     } finally {
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
