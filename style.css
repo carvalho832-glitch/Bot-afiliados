@@ -62,7 +62,7 @@ button {
     white-space: pre-wrap;
 }
 
-/* --- ESTILO DO NOVO LOADER --- */
+/* --- ESTILO DO NOVO LOADER ANIMADO QUE SE MOVE --- */
 .loader-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(13, 17, 23, 0.95);
@@ -77,53 +77,94 @@ button {
     padding: 30px;
     text-align: center;
     width: 250px;
+    position: relative; /* Necessário para a animação lateral */
+    overflow: hidden; /* Garante que o robô não saia da modal */
 }
 
-.robot-icon {
-    font-size: 50px;
-    margin-bottom: 10px;
-    animation: pulse 1s infinite alternate;
+/* Contêiner animado lateralmente */
+.robot-and-bubble {
+    width: 100%;
+    position: absolute; bottom: 30px; left: -100px; /* Inicia fora da tela */
+    display: flex; flex-direction: column; align-items: center;
+    animation: move-robot 4s infinite linear;
 }
 
-@keyframes pulse {
-    from { transform: scale(1); }
-    to { transform: scale(1.2); }
+@keyframes move-robot {
+    from { left: -100px; }
+    to { left: 250px; } /* Atravessa a modal lateralmente */
+}
+
+.robot-vector {
+    width: 50px; height: 50px;
+    animation: robot-wobble 1s infinite alternate; /* Animação secundária de balanço */
+}
+
+@keyframes robot-wobble {
+    from { transform: rotate(-5deg); }
+    to { transform: rotate(5deg); }
 }
 
 .speech-bubble {
     background: #30363d;
-    padding: 10px;
+    padding: 8px 12px;
     border-radius: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 5px;
     position: relative;
-    font-size: 14px;
+    font-size: 13px;
+    color: #e6edf3;
+    opacity: 0; /* Inicia invisível */
+    animation: fade-bubble 4s infinite linear;
+}
+
+@keyframes fade-bubble {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 .speech-bubble::after {
     content: '';
-    position: absolute; top: -10px; left: 50%;
-    border-left: 10px solid transparent;
-    border-right: 10px solid transparent;
-    border-bottom: 10px solid #30363d;
+    position: absolute; bottom: -8px; left: 50%;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #30363d;
     transform: translateX(-50%);
 }
 
 .progress-bar-container {
-    width: 100%;
-    height: 6px;
+    width: 100%; height: 6px;
     background: #30363d;
     border-radius: 10px;
     overflow: hidden;
+    margin-top: 50px; /* Dá espaço para o robô se mover */
 }
 
 .progress-bar-animated {
-    width: 40%;
-    height: 100%;
+    width: 40%; height: 100%;
     background: linear-gradient(90deg, #f97316, #ef4444);
-    animation: slide 1.5s infinite linear;
+    animation: slide-bar 1.5s infinite linear;
 }
 
-@keyframes slide {
+@keyframes slide-bar {
     from { margin-left: -40%; }
     to { margin-left: 100%; }
+}
+
+/* Efeito Máquina de Escrever para o Texto */
+.typewriter {
+    overflow: hidden;
+    white-space: nowrap;
+    border-right: 2px solid #f97316;
+    animation: typing 3s steps(20, end) infinite, blink-caret .75s step-end infinite;
+    display: inline-block;
+}
+
+@keyframes typing {
+    from { width: 0; }
+    to { width: 100%; }
+}
+@keyframes blink-caret {
+    from, to { border-color: transparent }
+    50% { border-color: #f97316; }
 }
