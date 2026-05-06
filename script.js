@@ -50,68 +50,64 @@ function montarMensagem() {
     return msg;
 }
 
-btnPuxar.addEventListener('click', async () => {
+btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
     if(!conteudo) return alert("Cole o link!");
 
     loader.style.display = 'flex';
-    displayDe.value = "";
-    displayPor.value = "";
+    displayDe.value = "R$ 0,00";
+    displayPor.value = "R$ 0,00";
+    displayProduto.value = "Carregando...";
 
     try {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
-            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}`);
-            const json = await res.json();
+            const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}`);
+            const json = await response.json();
             
-            if (json.data && json.data.title) {
-                displayProduto.value = json.data.title.replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
-            }
+            if (json.data) {
+                // Título
+                displayProduto.value = (json.data.title || "Produto sem título").replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
 
-            let precoFinal = "";
-            
-            // Tenta achar preço completo na descrição (ex: R$ 2.898,90)
-            if (json.data.description) {
-                const matchDesc = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
-                if (matchDesc) precoFinal = matchDesc[0];
-            }
-
-            // Se não achou, tenta o campo price da API
-            if (!precoFinal && json.data.price) {
-                precoFinal = json.data.price.toString();
-            }
-
-            if (precoFinal) {
-                // Limpa qualquer tag HTML que tenha sobrado
-                let limpo = precoFinal.replace(/<[^>]*>?/gm, '').trim();
-                displayPor.value = limpo.includes("R$") ? limpo : "R$ " + limpo;
+                // Busca Preço na Descrição ou Título (mais garantido para centavos)
+                let textoParaPreco = (json.data.description || "") + (json.data.title || "");
+                const matchPreco = textoParaPreco.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
+                
+                if (matchPreco) {
+                    displayPor.value = matchPreco[0];
+                } else if (json.data.price) {
+                    displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                } else {
+                    displayPor.value = "R$ 0,00";
+                }
             }
         }
-    } catch (e) {
-        console.log("Erro na busca.");
+    } catch (error) {
+        alert("Erro ao conectar com o servidor de preços.");
+        displayProduto.value = "";
     } finally {
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
     }
-});
+};
 
-btnGerar.addEventListener('click', () => {
-    if(!displayProduto.value) return alert("Puxe os dados primeiro!");
+btnGerar.onclick = () => {
+    if(!displayProduto.value || displayProduto.value === "Carregando...") return alert("Puxe os dados primeiro!");
     const msg = montarMensagem();
     messageBox.innerText = msg;
     navigator.clipboard.writeText(msg);
     btnGerar.innerText = "📋 COPIADO!";
     setTimeout(() => btnGerar.innerText = "GERAR MENSAGEM", 2000);
-});
+};
 
-btnSalvar.addEventListener('click', () => {
+btnSalvar.onclick = () => {
     if(!displayProduto.value) return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
     alert("Salvo no Histórico! 💾");
-});
+};
 
 function renderizarOfertas() {
     listaSalvas.innerHTML = "";
