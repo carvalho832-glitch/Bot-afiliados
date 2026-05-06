@@ -57,46 +57,59 @@ btnPuxar.onclick = async () => {
     loader.style.display = 'flex';
     displayDe.value = "R$ 0,00";
     displayPor.value = "R$ 0,00";
-    displayProduto.value = "Buscando...";
+    displayProduto.value = "Buscando dados...";
 
     try {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
             
-            // Seletores combinados: Amazon + Mercado Livre
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__part .andes-money-amount__fraction&data.centavos.selector=.a-price-fraction,.ui-pdp-price__part .andes-money-amount__cents&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike,.ui-pdp-price__original-value .andes-money-amount__fraction`;
+            // Seletores Híbridos (Amazon + Mercado Livre)
+            // .a-price-whole (Amazon) | .ui-pdp-price__second-line .andes-money-amount__fraction (Mercado Livre)
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__second-line .andes-money-amount__fraction&data.centavos.selector=.a-price-fraction,.ui-pdp-price__second-line .andes-money-amount__cents&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike,.ui-pdp-price__original-value .andes-money-amount__fraction`;
             
             const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                // Título: Remove excessos do ML e Amazon
+                // Título Limpo
                 displayProduto.value = (json.data.title || "")
                     .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
                     .replace(/\|\s?Mercado\s?Livre/gi, "")
-                    .replace(/ - Mercado Livre/gi, "")
+                    .replace(/- Mercado Livre/gi, "")
+                    .replace(/Frete grátis/gi, "")
                     .trim();
 
-                // 1. Puxa o preço "POR" (Atual)
+                let valorPor = "";
+                let valorDe = "";
+
+                // 1. Lógica de Preço Atual (POR)
                 if (json.data.reais) {
                     let r = json.data.reais.toString().replace(/\D/g, "");
                     let c = json.data.centavos ? json.data.centavos.toString().replace(/\D/g, "") : "00";
-                    displayPor.value = "R$ " + r + "," + c;
+                    valorPor = "R$ " + r + "," + c;
                 } else if (json.data.price) {
-                    displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    valorPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
 
-                // 2. Puxa o preço "DE" (Riscado) - ML e Amazon
+                // 2. Lógica de Preço Riscado (DE)
                 if (json.data.preco_de) {
-                    let pDe = json.data.preco_de.toString().replace(/[^\d,]/g, "").trim();
-                    if (!pDe.includes(",")) pDe += ",00";
-                    displayDe.value = "R$ " + pDe;
+                    let pDe = json.data.preco_de.toString().replace(/[^\d]/g, "");
+                    if (pDe) valorDe = "R$ " + (parseInt(pDe)/1).toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
+
+                // 3. Segurança para ML (Se o Scraper falhar, olha na descrição)
+                if (!valorPor || valorPor === "R$ 0,00") {
+                    const matchPreco = (json.data.description || "").match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
+                    if (matchPreco) valorPor = matchPreco[0];
+                }
+
+                displayPor.value = valorPor || "R$ 0,00";
+                displayDe.value = valorDe || "R$ 0,00";
             }
         }
     } catch (e) {
-        console.log("Erro no Scraping");
+        console.log("Erro ao processar.");
     } finally {
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
@@ -104,7 +117,7 @@ btnPuxar.onclick = async () => {
 };
 
 btnGerar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
+    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Puxe os dados primeiro!");
     const msg = montarMensagem();
     messageBox.innerText = msg;
     navigator.clipboard.writeText(msg);
