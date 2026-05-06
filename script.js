@@ -64,7 +64,7 @@ btnPuxar.onclick = async () => {
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
             
-            // ANZÓIS SEPARADOS: Amazon e ML rodam independentes agora
+            // ANZÓIS SEPARADOS: Amazon e ML rodam independentes
             const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.amz_por_r.selector=.a-price-whole&data.amz_por_c.selector=.a-price-fraction&data.amz_de.selector=.basisPrice .a-offscreen,.a-text-strike&data.ml_de_r.selector=.andes-money-amount--previous .andes-money-amount__fraction&data.ml_de_c.selector=.andes-money-amount--previous .andes-money-amount__cents&data.ml_por_r.selector=.andes-money-amount--cents-superscript .andes-money-amount__fraction,.ui-pdp-price--size-large .andes-money-amount__fraction&data.ml_por_c.selector=.andes-money-amount--cents-superscript .andes-money-amount__cents,.ui-pdp-price--size-large .andes-money-amount__cents&prerender=true`;
             
             const res = await fetch(query);
@@ -81,30 +81,34 @@ btnPuxar.onclick = async () => {
                 let vPor = "R$ 0,00";
                 let vDe = "R$ 0,00";
 
-                // 1. LÓGICA AMAZON (Mantida intocada e funcionando)
+                // 1. LÓGICA AMAZON
                 if (json.data.amz_por_r) {
-                    let r = json.data.amz_por_r.toString().replace(/\D/g, "");
+                    // Pega o número inteiro e coloca o ponto de milhar (Ex: 5998 -> 5.998)
+                    let rNum = parseInt(json.data.amz_por_r.toString().replace(/\D/g, ""));
                     let c = json.data.amz_por_c ? json.data.amz_por_c.toString().replace(/\D/g, "") : "00";
-                    vPor = "R$ " + r + "," + c;
+                    vPor = "R$ " + rNum.toLocaleString('pt-BR') + "," + c;
                     
                     if (json.data.amz_de) {
-                        let pDe = json.data.amz_de.toString().replace(/\D/g, "");
-                        vDe = "R$ " + (parseInt(pDe)).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        // Correção cirúrgica: converte texto com vírgula para valor real corretamente
+                        let pDeStr = json.data.amz_de.toString();
+                        let pDeMatch = pDeStr.match(/[\d,.]+/);
+                        if (pDeMatch) {
+                            let pDeNum = parseFloat(pDeMatch[0].replace(/\./g, '').replace(',', '.'));
+                            vDe = "R$ " + pDeNum.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        }
                     }
                 } 
-                // 2. LÓGICA MERCADO LIVRE (Revisada com precisão)
+                // 2. LÓGICA MERCADO LIVRE
                 else if (json.data.ml_por_r || json.data.ml_de_r) {
-                    // Puxa o "Por" (Agora busca pela classe de centavos sobrescritos)
                     if (json.data.ml_por_r) {
-                        let r = json.data.ml_por_r.toString().replace(/\D/g, "");
+                        let rNum = parseInt(json.data.ml_por_r.toString().replace(/\D/g, ""));
                         let c = json.data.ml_por_c ? json.data.ml_por_c.toString().replace(/\D/g, "") : "00";
-                        vPor = "R$ " + r + "," + c;
+                        vPor = "R$ " + rNum.toLocaleString('pt-BR') + "," + c;
                     }
-                    // Puxa o "De" (Agora pesca os centavos corretamente)
                     if (json.data.ml_de_r) {
-                        let r = json.data.ml_de_r.toString().replace(/\D/g, "");
+                        let rNum = parseInt(json.data.ml_de_r.toString().replace(/\D/g, ""));
                         let c = json.data.ml_de_c ? json.data.ml_de_c.toString().replace(/\D/g, "") : "00";
-                        vDe = "R$ " + r + "," + c;
+                        vDe = "R$ " + rNum.toLocaleString('pt-BR') + "," + c;
                     }
                 }
 
