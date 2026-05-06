@@ -52,59 +52,54 @@ function montarMensagem() {
 
 btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
-    if(!conteudo) return alert("Cole o link ou o texto da oferta!");
+    if(!conteudo) return alert("Cole o link!");
 
     loader.style.display = 'flex';
     displayDe.value = "R$ 0,00";
     displayPor.value = "R$ 0,00";
-    displayProduto.value = "Buscando dados...";
+    displayProduto.value = "Buscando...";
 
-    // 1. TENTA EXTRAIR PREÇOS DIRETO DO TEXTO COLADO (MAIS RÁPIDO)
-    const regexPreco = /R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/g;
-    const precosEncontrados = conteudo.match(regexPreco);
-
-    if (precosEncontrados) {
-        let valores = precosEncontrados.map(p => 
-            parseFloat(p.replace("R$", "").replace(/\./g, "").replace(",", ".").trim())
-        );
-        if (valores.length >= 2) {
-            displayDe.value = "R$ " + Math.max(...valores).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-            displayPor.value = "R$ " + Math.min(...valores).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        } else {
-            displayPor.value = precosEncontrados[0];
-        }
-    }
-
-    // 2. BUSCA TÍTULO E PREÇO COMPLEMENTAR VIA API
     try {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
-            const response = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}`);
-            const json = await response.json();
+            
+            // BUSCA TURBINADA: Tenta ler o preço em seletores específicos da Amazon e Mercado Livre
+            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.preco_texto.selector=.a-price-whole,.ui-pdp-price__part&data.centavos.selector=.a-price-fraction`);
+            const json = await res.json();
             
             if (json.data) {
-                // Atualiza o Título
-                displayProduto.value = (json.data.title || "").replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
-                
-                // Se o preço ainda estiver zerado, tenta pegar da descrição da API
-                if (displayPor.value === "R$ 0,00") {
-                    let precoAPI = "";
-                    if (json.data.description) {
-                        const matchDesc = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
-                        if (matchDesc) precoAPI = matchDesc[0];
-                    }
-                    if (!precoAPI && json.data.price) {
-                        precoAPI = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                    }
-                    if (precoAPI) {
-                        displayPor.value = precoAPI.replace(/<[^>]*>?/gm, '').trim();
-                    }
+                // 1. TÍTULO
+                displayProduto.value = (json.data.title || "").replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").replace(" | Mercado Livre", "").trim();
+
+                // 2. LÓGICA DE PREÇO (A CAÇA AOS CENTAVOS)
+                let precoFinal = "";
+
+                // Tentativa A: Descrição completa (Geralmente a mais certeira para centavos)
+                if (json.data.description) {
+                    const matchDesc = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
+                    if (matchDesc) precoFinal = matchDesc[0];
+                }
+
+                // Tentativa B: Juntar a parte inteira com os centavos (Específico Amazon)
+                if (!precoFinal && json.data.preco_texto) {
+                    let parteInteira = json.data.preco_texto.toString().replace(/<[^>]*>?/gm, '').replace(/\D/g, '');
+                    let centavos = json.data.centavos ? json.data.centavos.toString().replace(/<[^>]*>?/gm, '').replace(/\D/g, '') : "00";
+                    if (parteInteira) precoFinal = "R$ " + parteInteira + "," + centavos;
+                }
+
+                // Tentativa C: Preço padrão da API
+                if (!precoFinal && json.data.price) {
+                    precoFinal = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                }
+
+                if (precoFinal) {
+                    displayPor.value = precoFinal.trim();
                 }
             }
         }
     } catch (e) {
-        console.log("Erro na busca remota, usando dados locais.");
+        console.log("Erro na busca.");
     } finally {
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
@@ -112,7 +107,7 @@ btnPuxar.onclick = async () => {
 };
 
 btnGerar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Puxe os dados primeiro!");
+    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
     const msg = montarMensagem();
     messageBox.innerText = msg;
     navigator.clipboard.writeText(msg);
@@ -121,7 +116,7 @@ btnGerar.onclick = () => {
 };
 
 btnSalvar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Nada para salvar!");
+    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
