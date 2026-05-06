@@ -64,8 +64,10 @@ btnPuxar.onclick = async () => {
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
             
-            // Scraping Inteligente: Puxa todos os fragmentos de preço da página
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.precos.selector=.andes-money-amount__fraction,.a-price-whole&data.cents.selector=.andes-money-amount__cents,.a-price-fraction&prerender=true`;
+            // ANZÓIS ESPECÍFICOS:
+            // data.precos_atuais -> Pega o preço de venda (Amazon e ML)
+            // data.precos_antigos -> Pega o preço riscado (Amazon e ML)
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.precos_atuais.selector=.a-price-whole,.ui-pdp-price__second-line .andes-money-amount__fraction&data.centavos_atuais.selector=.a-price-fraction,.ui-pdp-price__second-line .andes-money-amount__cents&data.precos_antigos.selector=.basisPrice .a-offscreen,.a-text-strike,.andes-money-amount--previous .andes-money-amount__fraction&prerender=true`;
             
             const res = await fetch(query);
             const json = await res.json();
@@ -78,33 +80,20 @@ btnPuxar.onclick = async () => {
                     .replace(/- Mercado Livre/gi, "")
                     .trim();
 
-                // Processamento de Preços
-                if (json.data.precos) {
-                    let listaPrecos = Array.isArray(json.data.precos) ? json.data.precos : [json.data.precos];
-                    let listaCentavos = Array.isArray(json.data.cents) ? json.data.cents : [json.data.cents];
-
-                    // Converte os textos em números reais (ex: "33" e "55" vira 33.55)
-                    let valoresNumericos = listaPrecos.map((p, index) => {
-                        let parteInteira = p.toString().replace(/\D/g, "");
-                        let parteCentavo = listaCentavos[index] ? listaCentavos[index].toString().replace(/\D/g, "") : "00";
-                        return parseFloat(parteInteira + "." + parteCentavo);
-                    }).filter(v => !isNaN(v));
-
-                    if (valoresNumericos.length > 0) {
-                        let menorPreco = Math.min(...valoresNumericos);
-                        let maiorPreco = Math.max(...valoresNumericos);
-
-                        // Se achou dois preços diferentes (De/Por)
-                        if (valoresNumericos.length >= 2 && maiorPreco > menorPreco) {
-                            displayDe.value = "R$ " + maiorPreco.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                            displayPor.value = "R$ " + menorPreco.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                        } else {
-                            // Só achou um preço
-                            displayPor.value = "R$ " + menorPreco.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                        }
-                    }
+                // 1. PROCESSAR PREÇO "POR" (ATUAL)
+                if (json.data.precos_atuais) {
+                    let r = json.data.precos_atuais.toString().replace(/\D/g, "");
+                    let c = json.data.centavos_atuais ? json.data.centavos_atuais.toString().replace(/\D/g, "") : "00";
+                    displayPor.value = "R$ " + r + "," + c;
                 } else if (json.data.price) {
                     displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                }
+
+                // 2. PROCESSAR PREÇO "DE" (RISCADO)
+                if (json.data.precos_antigos) {
+                    let pDe = json.data.precos_antigos.toString().replace(/\D/g, "");
+                    // Formata com centavos ,00 se for valor inteiro do ML
+                    displayDe.value = "R$ " + (parseInt(pDe)).toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
             }
         }
