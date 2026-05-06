@@ -64,8 +64,8 @@ btnPuxar.onclick = async () => {
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
             
-            // SUPER QUERY: Captura estrutura da Amazon e Mercado Livre simultaneamente
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__second-line .andes-money-amount__fraction&data.centavos.selector=.a-price-fraction,.ui-pdp-price__second-line .andes-money-amount__cents&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike,.ui-pdp-price__original-value .andes-money-amount__fraction&prerender=true`;
+            // Query Otimizada: Seletores Universais para Amazon e Mercado Livre
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.andes-money-amount__fraction&data.centavos.selector=.a-price-fraction,.andes-money-amount__cents&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike,.ui-pdp-price__original-value .andes-money-amount__fraction&prerender=true`;
             
             const res = await fetch(query);
             const json = await res.json();
@@ -76,34 +76,23 @@ btnPuxar.onclick = async () => {
                     .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
                     .replace(/\|\s?Mercado\s?Livre/gi, "")
                     .replace(/- Mercado Livre/gi, "")
-                    .replace(/Frete grátis/gi, "")
-                    .replace(/Enviando hoje/gi, "")
                     .trim();
 
-                let valorPor = "R$ 0,00";
-                let valorDe = "R$ 0,00";
-
-                // 1. Lógica do Preço Atual (Por)
+                // Lógica de Preço "POR"
                 if (json.data.reais) {
                     let r = json.data.reais.toString().replace(/\D/g, "");
                     let c = json.data.centavos ? json.data.centavos.toString().replace(/\D/g, "") : "00";
-                    valorPor = "R$ " + r + "," + c;
+                    displayPor.value = "R$ " + r + "," + c;
                 } else if (json.data.price) {
-                    valorPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
 
-                // 2. Lógica do Preço Anterior (De)
+                // Lógica de Preço "DE" (Riscado)
                 if (json.data.preco_de) {
                     let pDe = json.data.preco_de.toString().replace(/\D/g, "");
-                    if (pDe) {
-                        // Converte para centavos se o valor for muito grande ou limpa formatação
-                        let numDe = parseInt(pDe);
-                        valorDe = "R$ " + (numDe).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                    }
+                    // Ajuste para formatar corretamente o preço riscado do ML
+                    displayDe.value = "R$ " + (parseInt(pDe)).toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
-
-                displayPor.value = valorPor;
-                displayDe.value = valorDe;
             }
         }
     } catch (e) {
