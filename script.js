@@ -64,16 +64,21 @@ btnPuxar.onclick = async () => {
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
             
-            // Adicionamos seletores para o preço "De" (Riscado)
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__part&data.centavos.selector=.a-price-fraction&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike`;
+            // Seletores combinados: Amazon + Mercado Livre
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__part .andes-money-amount__fraction&data.centavos.selector=.a-price-fraction,.ui-pdp-price__part .andes-money-amount__cents&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike,.ui-pdp-price__original-value .andes-money-amount__fraction`;
             
             const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                displayProduto.value = (json.data.title || "").replace(/Amazon\.com\.br\s?:?\s?/gi, "").trim();
+                // Título: Remove excessos do ML e Amazon
+                displayProduto.value = (json.data.title || "")
+                    .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
+                    .replace(/\|\s?Mercado\s?Livre/gi, "")
+                    .replace(/ - Mercado Livre/gi, "")
+                    .trim();
 
-                // 1. Puxa o preço "POR" (Preço atual com centavos)
+                // 1. Puxa o preço "POR" (Atual)
                 if (json.data.reais) {
                     let r = json.data.reais.toString().replace(/\D/g, "");
                     let c = json.data.centavos ? json.data.centavos.toString().replace(/\D/g, "") : "00";
@@ -82,10 +87,10 @@ btnPuxar.onclick = async () => {
                     displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
 
-                // 2. Puxa o preço "DE" (Riscado)
+                // 2. Puxa o preço "DE" (Riscado) - ML e Amazon
                 if (json.data.preco_de) {
                     let pDe = json.data.preco_de.toString().replace(/[^\d,]/g, "").trim();
-                    if (!pDe.includes(",")) pDe += ",00"; // Garante centavos se não vier
+                    if (!pDe.includes(",")) pDe += ",00";
                     displayDe.value = "R$ " + pDe;
                 }
             }
