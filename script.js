@@ -10,9 +10,9 @@ const displayProduto = document.getElementById('display-produto');
 const displayDe = document.getElementById('display-de');
 const displayPor = document.getElementById('display-por');
 const displayCupom = document.getElementById('display-cupom');
-const messageBox = document.querySelector('.message-output-box p');
+const messageBox = document.getElementById('msg-preview');
 
-const slogans = ["Oferta boa assim voa! 💸", "Preço de banana! 🍌", "Aproveite agora! 🚀", "Estoque baixo! 🏃‍♂️", "Achado do dia! ⭐", "Direto no alvo! 🎯", "Caiu o preço! 📉", "Pechincha bruta! 🔨", "Garanta o seu! 🛒"];
+const slogans = ["Oferta boa assim voa! 💸", "Preço de banana! 🍌", "Aproveite agora! 🚀", "Achado do dia! ⭐", "Pechincha bruta! 🔨"];
 
 let ofertasSet = JSON.parse(localStorage.getItem('ofertas_achou_levou')) || [];
 renderizarOfertas();
@@ -37,8 +37,7 @@ function calcularPorcentagem(de, por) {
 function montarMensagem() {
     const desc = calcularPorcentagem(displayDe.value, displayPor.value);
     const slogan = slogans[Math.floor(Math.random() * slogans.length)];
-    const urlMatch = inputLink.value.match(/https?:\/\/[^\s]+/);
-    const linkFinal = urlMatch ? urlMatch[0] : inputLink.value;
+    const linkFinal = inputLink.value.match(/https?:\/\/[^\s]+/)?.[0] || inputLink.value;
 
     let msg = `🚨 *${selectGrupo.value.toUpperCase()}* 🚨\n`;
     if (desc >= 2) msg += `🔥 *${desc}% DE DESCONTO!* 🔥\n`;
@@ -63,42 +62,27 @@ btnPuxar.onclick = async () => {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
-            
-            // ANZÓIS SEPARADOS: Amazon e ML rodam independentes
             const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.amz_por_r.selector=.a-price-whole&data.amz_por_c.selector=.a-price-fraction&data.amz_de.selector=.basisPrice .a-offscreen,.a-text-strike&data.ml_de_r.selector=.andes-money-amount--previous .andes-money-amount__fraction&data.ml_de_c.selector=.andes-money-amount--previous .andes-money-amount__cents&data.ml_por_r.selector=.andes-money-amount--cents-superscript .andes-money-amount__fraction,.ui-pdp-price--size-large .andes-money-amount__fraction&data.ml_por_c.selector=.andes-money-amount--cents-superscript .andes-money-amount__cents,.ui-pdp-price--size-large .andes-money-amount__cents&prerender=true`;
             
             const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                // Título Limpo
-                displayProduto.value = (json.data.title || "")
-                    .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
-                    .replace(/\|\s?Mercado\s?Livre/gi, "")
-                    .replace(/- Mercado Livre/gi, "")
-                    .trim();
+                displayProduto.value = (json.data.title || "").replace(/Amazon\.com\.br\s?:?\s?/gi, "").replace(/\|\s?Mercado\s?Livre/gi, "").trim();
 
                 let vPor = "R$ 0,00";
                 let vDe = "R$ 0,00";
 
-                // 1. LÓGICA AMAZON
                 if (json.data.amz_por_r) {
-                    // Pega o número inteiro e coloca o ponto de milhar (Ex: 5998 -> 5.998)
                     let rNum = parseInt(json.data.amz_por_r.toString().replace(/\D/g, ""));
                     let c = json.data.amz_por_c ? json.data.amz_por_c.toString().replace(/\D/g, "") : "00";
                     vPor = "R$ " + rNum.toLocaleString('pt-BR') + "," + c;
                     
                     if (json.data.amz_de) {
-                        // Correção cirúrgica: converte texto com vírgula para valor real corretamente
-                        let pDeStr = json.data.amz_de.toString();
-                        let pDeMatch = pDeStr.match(/[\d,.]+/);
-                        if (pDeMatch) {
-                            let pDeNum = parseFloat(pDeMatch[0].replace(/\./g, '').replace(',', '.'));
-                            vDe = "R$ " + pDeNum.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                        }
+                        let pDeNum = parseFloat(json.data.amz_de.toString().match(/[\d,.]+/)?.[0].replace(/\./g, '').replace(',', '.') || 0);
+                        vDe = "R$ " + pDeNum.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                     }
                 } 
-                // 2. LÓGICA MERCADO LIVRE
                 else if (json.data.ml_por_r || json.data.ml_de_r) {
                     if (json.data.ml_por_r) {
                         let rNum = parseInt(json.data.ml_por_r.toString().replace(/\D/g, ""));
@@ -112,25 +96,17 @@ btnPuxar.onclick = async () => {
                     }
                 }
 
-                // 3. REDE DE SEGURANÇA
-                if (vPor === "R$ 0,00" && json.data.price) {
-                    vPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                }
+                if (vPor === "R$ 0,00" && json.data.price) vPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
 
                 displayPor.value = vPor;
                 displayDe.value = vDe;
             }
         }
-    } catch (e) {
-        console.log("Erro no processamento.");
-    } finally {
-        [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
-        loader.style.display = 'none';
-    }
+    } catch (e) { alert("Erro ao buscar dados."); }
+    finally { loader.style.display = 'none'; }
 };
 
 btnGerar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
     const msg = montarMensagem();
     messageBox.innerText = msg;
     navigator.clipboard.writeText(msg);
@@ -139,32 +115,21 @@ btnGerar.onclick = () => {
 };
 
 btnSalvar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
-    alert("Salvo! 💾");
 };
 
 function renderizarOfertas() {
     listaSalvas.innerHTML = "";
     ofertasSet.forEach(o => {
         const div = document.createElement('div');
-        div.className = "saved-card";
-        div.style = "background:#111827; padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; border: 1px solid #30363d;";
-        div.innerHTML = `<pre style="font-size:10px; color:#d1d5db; white-space:pre-wrap; margin:0; flex:1;">${o.texto}</pre>
-            <div style="display:flex; flex-direction:column; gap:5px; margin-left:10px;">
-                <button onclick="copiarTexto('${encodeURIComponent(o.texto)}')" style="width:60px; background:#25D366; font-size:9px; padding:5px; color:white; border-radius:4px;">COPIAR</button>
-                <button onclick="apagar(${o.id})" style="width:30px; background:#ef4444; font-size:9px; padding:5px; color:white; border-radius:4px;">X</button>
-            </div>`;
+        div.innerHTML = `<div style="background:#161b22; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #30363d; font-size:11px;">
+            <pre style="white-space:pre-wrap;">${o.texto}</pre>
+            <button onclick="navigator.clipboard.writeText('${encodeURIComponent(o.texto)}'); alert('Copiado!')" style="padding:5px; font-size:10px; background:#238636;">COPIAR</button>
+        </div>`;
         listaSalvas.appendChild(div);
     });
 }
 
-window.copiarTexto = (t) => { navigator.clipboard.writeText(decodeURIComponent(t)); alert("Copiado!"); };
-window.apagar = (id) => { 
-    ofertasSet = ofertasSet.filter(o => o.id !== id); 
-    localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet)); 
-    renderizarOfertas(); 
-};
 btnLimparCampos.onclick = () => { location.reload(); };
