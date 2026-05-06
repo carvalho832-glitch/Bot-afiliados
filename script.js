@@ -50,7 +50,6 @@ function montarMensagem() {
     return msg;
 }
 
-// --- FUNÇÃO COM SCRAPING DE SELETORES ---
 btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
     if(!conteudo) return alert("Cole o link!");
@@ -65,35 +64,29 @@ btnPuxar.onclick = async () => {
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
             
-            // Aqui é onde a mágica do Scraping acontece:
-            // .a-price-whole (Parte inteira na Amazon)
-            // .a-price-fraction (Centavos na Amazon)
-            // .ui-pdp-price__part (Mercado Livre)
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__part&data.centavos.selector=.a-price-fraction&data.desc.selector=meta[name='description']@content`;
+            // Adicionamos seletores para o preço "De" (Riscado)
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__part&data.centavos.selector=.a-price-fraction&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike`;
             
             const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                // Título
                 displayProduto.value = (json.data.title || "").replace(/Amazon\.com\.br\s?:?\s?/gi, "").trim();
 
-                let valorFinal = "";
-
-                // 1. Tenta montar o preço via Scraping Direto (Reais + Centavos)
+                // 1. Puxa o preço "POR" (Preço atual com centavos)
                 if (json.data.reais) {
                     let r = json.data.reais.toString().replace(/\D/g, "");
                     let c = json.data.centavos ? json.data.centavos.toString().replace(/\D/g, "") : "00";
-                    valorFinal = "R$ " + r + "," + c;
-                } 
-                // 2. Se falhar, tenta pegar da meta-descrição que a gente configurou no scraper
-                else if (json.data.desc) {
-                    const match = json.data.desc.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
-                    if (match) valorFinal = match[0];
+                    displayPor.value = "R$ " + r + "," + c;
+                } else if (json.data.price) {
+                    displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
 
-                if (valorFinal && valorFinal !== "R$ ,00") {
-                    displayPor.value = valorFinal;
+                // 2. Puxa o preço "DE" (Riscado)
+                if (json.data.preco_de) {
+                    let pDe = json.data.preco_de.toString().replace(/[^\d,]/g, "").trim();
+                    if (!pDe.includes(",")) pDe += ",00"; // Garante centavos se não vier
+                    displayDe.value = "R$ " + pDe;
                 }
             }
         }
