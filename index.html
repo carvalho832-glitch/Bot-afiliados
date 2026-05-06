@@ -2,82 +2,77 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Achou Levou 🚀</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Achou Levou - Afiliados</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#ff9800">
 </head>
 <body>
 
-<div class="app-card">
-    <div id="loader-global" class="loader-overlay" style="display:none;">
-        <div class="loader-content">
-            <div class="robot-icon">🤖</div>
-            <p id="loader-text">Iniciando protocolo...</p>
-            <div class="progress-bar"><div class="progress-fill"></div></div>
-        </div>
-    </div>
+    <div class="container">
+        <header>
+            <h1>ACHOU LEVOU 🚀</h1>
+        </header>
 
-    <header class="header-banner">
-        <h1 id="titulo-dinamico">Achou Levou 🚀</h1>
-    </header>
-
-    <main class="app-body">
-        <div class="input-group">
+        <div class="input-box">
             <label>📱 Postar em qual grupo?</label>
-            <select id="select-grupo" class="main-input">
-                <option value="Achou Levou">Achou Levou 🚀</option>
-                <option value="Oferta Bruta">Oferta Bruta 🔥</option>
+            <select id="select-grupo">
+                <option value="Achou Levou 🚀">Achou Levou 🚀</option>
+                <option value="Oferta Bruta 🔨">Oferta Bruta 🔨</option>
             </select>
-        </div>
 
-        <div class="input-group">
             <label>Link do produto</label>
-            <input type="text" id="input-link" placeholder="Cole o link aqui..." class="main-input">
+            <input type="text" id="input-link" placeholder="Cole o link da Amazon ou ML aqui...">
+            
+            <button id="btn-puxar">PUXAR DADOS</button>
         </div>
 
-        <button class="btn-dark" id="btn-puxar">PUXAR DADOS</button>
-        <button class="btn-orange-grad" id="btn-gerar">GERAR MENSAGEM</button>
-        <button class="btn-save" id="btn-salvar">💾 SALVAR NO ARQUIVO</button>
-
-        <div class="input-group">
-            <label>Produto</label>
-            <input type="text" id="display-produto" placeholder="..." class="main-input readonly" readonly>
+        <div class="actions">
+            <button id="btn-gerar" class="orange-btn">GERAR MENSAGEM</button>
+            <button id="btn-salvar" class="blue-btn">💾 SALVAR NO ARQUIVO</button>
         </div>
 
-        <div class="grid-row" style="display:flex; gap:10px;">
-            <div class="input-group" style="flex:1;">
-                <label>De:</label>
-                <input type="text" id="display-de" placeholder="R$ 0,00" class="main-input">
+        <div class="fields-grid">
+            <div class="field">
+                <label>Produto</label>
+                <input type="text" id="display-produto" readonly>
             </div>
-            <div class="input-group" style="flex:1;">
-                <label>Por:</label>
-                <input type="text" id="display-por" placeholder="R$ 0,00" class="main-input" style="color:#ff9800; font-weight:bold;">
+            <div class="row">
+                <div class="field">
+                    <label>De:</label>
+                    <input type="text" id="display-de" placeholder="R$ 0,00">
+                </div>
+                <div class="field">
+                    <label>Por:</label>
+                    <input type="text" id="display-por" placeholder="R$ 0,00" class="highlight-price">
+                </div>
             </div>
-        </div>
-
-        <div class="input-group">
-            <label>🎫 Cupom</label>
-            <input type="text" id="display-cupom" placeholder="Ex: COMPRANOAPP" class="main-input">
+            <div class="field">
+                <label>🎫 Cupom</label>
+                <input type="text" id="display-cupom" placeholder="Ex: COMPRANOAPP">
+            </div>
         </div>
 
         <div class="message-output-box">
-            <p>Aguardando geração...</p>
+            <p id="msg-preview">Aguardando geração...</p>
         </div>
 
-        <div class="saved-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 style="margin: 0; font-size: 16px; color: #ff9800;">📌 Ofertas Fixadas</h3>
-                <button id="limpar-historico" style="width: auto; background: #4b5563; padding: 5px 10px; font-size: 10px;">APAGAR TUDO</button>
+        <div id="lista-salvas"></div>
+
+        <button id="btn-limpar-campos" class="red-btn">LIMPAR CAMPOS 🗑️</button>
+    </div>
+
+    <div id="loader-global" class="loader-overlay" style="display: none;">
+        <div class="loader-card">
+            <div class="robot-icon">🤖</div>
+            <div class="speech-bubble">
+                <span class="typewriter">Pescando a oferta...</span>
             </div>
-            <div id="lista-salvas"></div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-animated"></div>
+            </div>
         </div>
+    </div>
 
-        <button class="btn-danger" id="btn-limpar-campos">LIMPAR CAMPOS 🗑️</button>
-    </main>
-</div>
-
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
