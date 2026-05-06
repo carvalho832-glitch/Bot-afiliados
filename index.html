@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Achou Levou 🚀</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f97316">
+    <link rel="apple-touch-icon" href="icon.png">
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -88,5 +93,15 @@
     </div>
 
     <script src="script.js"></script>
+    
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('PWA ativado!', reg))
+                    .catch(err => console.log('Falha no PWA:', err));
+            });
+        }
+    </script>
 </body>
 </html>
