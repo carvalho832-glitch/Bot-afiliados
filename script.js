@@ -44,20 +44,62 @@ function montarMensagem() {
     if(displayDe.value && displayDe.value !== "R$ 0,00") msg += `❌ De: ~${displayDe.value}~\n`;
     msg += `✅ *Por apenas: ${displayPor.value}* \n\n`; 
     if(displayCupom.value) msg += `🎫 Usar Cupom: *${displayCupom.value}*\n\n`;
-    msg += `🛒 *Compre aqui:* ${inputLink.value}`;
+    
+    // Extrai apenas a URL pura para a mensagem final, caso o usuário tenha colado texto + link
+    const urlMatch = inputLink.value.match(/https?:\/\/[^\s]+/);
+    const linkFinal = urlMatch ? urlMatch[0] : inputLink.value;
+    
+    msg += `🛒 *Compre aqui:* ${linkFinal}`;
     return msg;
 }
 
+// --- FUNÇÃO TURBINADA DE PUXAR DADOS ---
 btnPuxar.addEventListener('click', async () => {
-    if(!inputLink.value) return alert("Cole o link!");
+    const conteudo = inputLink.value.trim();
+    if(!conteudo) return alert("Cole o link ou o texto da oferta!");
+
     loader.style.display = 'flex';
+
+    // 1. TURBO: Tentar extrair preços via Regex se houver "R$" no texto colado
+    const regexPreco = /R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/g;
+    const precosEncontrados = conteudo.match(regexPreco);
+
+    if (precosEncontrados) {
+        // Converte os preços para números para comparar quem é maior
+        let valoresNumericos = precosEncontrados.map(p => 
+            parseFloat(p.replace("R$", "").replace(/\./g, "").replace(",", ".").trim())
+        );
+
+        if (valoresNumericos.length >= 2) {
+            // Se achou dois preços, o maior vai para o "De" e o menor para o "Por"
+            const valorDe = Math.max(...valoresNumericos);
+            const valorPor = Math.min(...valoresNumericos);
+            displayDe.value = "R$ " + valorDe.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            displayPor.value = "R$ " + valorPor.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        } else if (valoresNumericos.length === 1) {
+            // Se achou só um, coloca direto no preço atual (Por)
+            displayPor.value = "R$ " + valoresNumericos[0].toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        }
+    }
+
+    // 2. BUSCA DO TÍTULO (Mantendo o sistema anterior)
     try {
-        const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(inputLink.value)}`);
-        const json = await res.json();
-        displayProduto.value = (json.data.title || "").replace("Amazon.com.br : ", "").trim();
+        // Pega apenas a URL de dentro do conteúdo (caso tenha vindo texto junto)
+        const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
+        if (urlMatch) {
+            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlMatch[0])}`);
+            const json = await res.json();
+            if (json.data && json.data.title) {
+                displayProduto.value = json.data.title.replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
+            }
+        }
+    } catch (e) {
+        console.log("Erro ao buscar título, mas os preços podem ter sido extraídos manualmente.");
+    } finally {
+        // Libera os campos para edição manual se necessário
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
-    } catch (e) { alert("Erro ao carregar dados."); }
-    loader.style.display = 'none';
+        loader.style.display = 'none';
+    }
 });
 
 btnGerar.addEventListener('click', () => {
