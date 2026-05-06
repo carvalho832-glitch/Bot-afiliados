@@ -52,54 +52,43 @@ function montarMensagem() {
 
 btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
-    if(!conteudo) return alert("Cole o link!");
+    if(!conteudo) return alert("Cole o link ou o texto da oferta!");
 
     loader.style.display = 'flex';
     displayDe.value = "R$ 0,00";
     displayPor.value = "R$ 0,00";
     displayProduto.value = "Buscando...";
 
+    // 1. EXTRAÇÃO DE PREÇO POR TEXTO (O TURBO QUE NÃO FALHA)
+    const regexPreco = /R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/g;
+    const achados = conteudo.match(regexPreco);
+    if (achados) {
+        let v = achados.map(p => parseFloat(p.replace("R$", "").replace(/\./g, "").replace(",", ".").trim()));
+        if (v.length >= 2) {
+            displayDe.value = "R$ " + Math.max(...v).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+            displayPor.value = "R$ " + Math.min(...v).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        } else {
+            displayPor.value = achados[0];
+        }
+    }
+
+    // 2. BUSCA DE TÍTULO
     try {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
-            const urlAlvo = urlMatch[0];
-            
-            // BUSCA TURBINADA: Tenta ler o preço em seletores específicos da Amazon e Mercado Livre
-            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.preco_texto.selector=.a-price-whole,.ui-pdp-price__part&data.centavos.selector=.a-price-fraction`);
+            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlMatch[0])}`);
             const json = await res.json();
-            
-            if (json.data) {
-                // 1. TÍTULO
-                displayProduto.value = (json.data.title || "").replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").replace(" | Mercado Livre", "").trim();
-
-                // 2. LÓGICA DE PREÇO (A CAÇA AOS CENTAVOS)
-                let precoFinal = "";
-
-                // Tentativa A: Descrição completa (Geralmente a mais certeira para centavos)
-                if (json.data.description) {
-                    const matchDesc = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
-                    if (matchDesc) precoFinal = matchDesc[0];
-                }
-
-                // Tentativa B: Juntar a parte inteira com os centavos (Específico Amazon)
-                if (!precoFinal && json.data.preco_texto) {
-                    let parteInteira = json.data.preco_texto.toString().replace(/<[^>]*>?/gm, '').replace(/\D/g, '');
-                    let centavos = json.data.centavos ? json.data.centavos.toString().replace(/<[^>]*>?/gm, '').replace(/\D/g, '') : "00";
-                    if (parteInteira) precoFinal = "R$ " + parteInteira + "," + centavos;
-                }
-
-                // Tentativa C: Preço padrão da API
-                if (!precoFinal && json.data.price) {
-                    precoFinal = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                }
-
-                if (precoFinal) {
-                    displayPor.value = precoFinal.trim();
+            if (json.data && json.data.title) {
+                let t = json.data.title;
+                if (t === "Galeria de produtos" || t.includes("Robot")) {
+                    displayProduto.value = "Título não encontrado (digite aqui)";
+                } else {
+                    displayProduto.value = t.replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
                 }
             }
         }
     } catch (e) {
-        console.log("Erro na busca.");
+        displayProduto.value = "Erro na busca (digite manual)";
     } finally {
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
@@ -120,7 +109,7 @@ btnSalvar.onclick = () => {
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
-    alert("Salvo no Histórico! 💾");
+    alert("Salvo! 💾");
 };
 
 function renderizarOfertas() {
