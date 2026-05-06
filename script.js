@@ -17,7 +17,6 @@ const slogans = ["Oferta boa assim voa! 💸", "Preço de banana! 🍌", "Aprove
 let ofertasSet = JSON.parse(localStorage.getItem('ofertas_achou_levou')) || [];
 renderizarOfertas();
 
-// Máscara de Moeda (Digitação Manual)
 function formatarMoeda(e) {
     let v = e.target.value.replace(/\D/g, ""); 
     v = (v / 100).toFixed(2) + "";
@@ -51,7 +50,7 @@ function montarMensagem() {
     return msg;
 }
 
-// --- FUNÇÃO DE BUSCA REVISADA ---
+// --- FUNÇÃO COM SCRAPING DE SELETORES ---
 btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
     if(!conteudo) return alert("Cole o link!");
@@ -59,56 +58,55 @@ btnPuxar.onclick = async () => {
     loader.style.display = 'flex';
     displayDe.value = "R$ 0,00";
     displayPor.value = "R$ 0,00";
-    displayProduto.value = "Buscando dados...";
+    displayProduto.value = "Buscando...";
 
     try {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
-            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}`);
+            
+            // Aqui é onde a mágica do Scraping acontece:
+            // .a-price-whole (Parte inteira na Amazon)
+            // .a-price-fraction (Centavos na Amazon)
+            // .ui-pdp-price__part (Mercado Livre)
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__part&data.centavos.selector=.a-price-fraction&data.desc.selector=meta[name='description']@content`;
+            
+            const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                // Título: Filtro de SPAM da Amazon
-                let tituloOriginal = json.data.title || "";
-                displayProduto.value = tituloOriginal
-                    .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
-                    .replace(/:\s?Eletrônicos/gi, "")
-                    .replace(/\|\s?Mercado\s?Livre/gi, "")
-                    .trim();
+                // Título
+                displayProduto.value = (json.data.title || "").replace(/Amazon\.com\.br\s?:?\s?/gi, "").trim();
 
-                // Preço: Busca Híbrida
-                let precoFinal = "";
+                let valorFinal = "";
 
-                // 1. Prioridade: Campo Price da API
-                if (json.data.price) {
-                    precoFinal = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                // 1. Tenta montar o preço via Scraping Direto (Reais + Centavos)
+                if (json.data.reais) {
+                    let r = json.data.reais.toString().replace(/\D/g, "");
+                    let c = json.data.centavos ? json.data.centavos.toString().replace(/\D/g, "") : "00";
+                    valorFinal = "R$ " + r + "," + c;
                 } 
-                // 2. Fallback: Scanner na Descrição
-                else if (json.data.description) {
-                    const regex = /R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/;
-                    const match = json.data.description.match(regex);
-                    if (match) precoFinal = match[0];
+                // 2. Se falhar, tenta pegar da meta-descrição que a gente configurou no scraper
+                else if (json.data.desc) {
+                    const match = json.data.desc.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
+                    if (match) valorFinal = match[0];
                 }
 
-                if (precoFinal) {
-                    displayPor.value = precoFinal;
-                } else {
-                    displayPor.value = "R$ 0,00"; // Caso não ache, o usuário preenche
+                if (valorFinal && valorFinal !== "R$ ,00") {
+                    displayPor.value = valorFinal;
                 }
             }
         }
     } catch (e) {
-        alert("Erro na conexão. Verifique o link.");
+        console.log("Erro no Scraping");
     } finally {
-        // Libera os campos e esconde o loader independente de erro
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
     }
 };
 
 btnGerar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Puxe os dados primeiro!");
+    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
     const msg = montarMensagem();
     messageBox.innerText = msg;
     navigator.clipboard.writeText(msg);
@@ -117,11 +115,11 @@ btnGerar.onclick = () => {
 };
 
 btnSalvar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Nada para salvar!");
+    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
-    alert("Oferta Salva! 💾");
+    alert("Salvo! 💾");
 };
 
 function renderizarOfertas() {
