@@ -57,45 +57,57 @@ btnPuxar.onclick = async () => {
     loader.style.display = 'flex';
     displayDe.value = "R$ 0,00";
     displayPor.value = "R$ 0,00";
-    displayProduto.value = "Buscando dados...";
+    displayProduto.value = "Buscando...";
 
     try {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
             
-            // Adicionamos seletores específicos e forçamos a busca do Mercado Livre
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__part+.andes-money-amount__fraction&data.centavos.selector=.a-price-fraction,.ui-pdp-price__part+.andes-money-amount__cents&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike,.ui-pdp-price__original-value .andes-money-amount__fraction&prerender=true`;
+            // SUPER QUERY: Captura estrutura da Amazon e Mercado Livre simultaneamente
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__second-line .andes-money-amount__fraction&data.centavos.selector=.a-price-fraction,.ui-pdp-price__second-line .andes-money-amount__cents&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike,.ui-pdp-price__original-value .andes-money-amount__fraction&prerender=true`;
             
             const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                // Título: Limpeza para ML
+                // Título Limpo
                 displayProduto.value = (json.data.title || "")
                     .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
                     .replace(/\|\s?Mercado\s?Livre/gi, "")
                     .replace(/- Mercado Livre/gi, "")
+                    .replace(/Frete grátis/gi, "")
+                    .replace(/Enviando hoje/gi, "")
                     .trim();
 
-                // Preço POR
+                let valorPor = "R$ 0,00";
+                let valorDe = "R$ 0,00";
+
+                // 1. Lógica do Preço Atual (Por)
                 if (json.data.reais) {
                     let r = json.data.reais.toString().replace(/\D/g, "");
                     let c = json.data.centavos ? json.data.centavos.toString().replace(/\D/g, "") : "00";
-                    displayPor.value = "R$ " + r + "," + c;
+                    valorPor = "R$ " + r + "," + c;
                 } else if (json.data.price) {
-                    displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    valorPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
 
-                // Preço DE
+                // 2. Lógica do Preço Anterior (De)
                 if (json.data.preco_de) {
-                    let pDe = json.data.preco_de.toString().replace(/[^\d]/g, "");
-                    if (pDe) displayDe.value = "R$ " + (parseInt(pDe)).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    let pDe = json.data.preco_de.toString().replace(/\D/g, "");
+                    if (pDe) {
+                        // Converte para centavos se o valor for muito grande ou limpa formatação
+                        let numDe = parseInt(pDe);
+                        valorDe = "R$ " + (numDe).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    }
                 }
+
+                displayPor.value = valorPor;
+                displayDe.value = valorDe;
             }
         }
     } catch (e) {
-        console.log("Erro no processamento.");
+        console.log("Erro no Scraping");
     } finally {
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
@@ -103,7 +115,7 @@ btnPuxar.onclick = async () => {
 };
 
 btnGerar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Puxe os dados primeiro!");
+    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
     const msg = montarMensagem();
     messageBox.innerText = msg;
     navigator.clipboard.writeText(msg);
@@ -112,7 +124,7 @@ btnGerar.onclick = () => {
 };
 
 btnSalvar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Nada para salvar!");
+    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
