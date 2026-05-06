@@ -17,6 +17,7 @@ const slogans = ["Oferta boa assim voa! 💸", "Preço de banana! 🍌", "Aprove
 let ofertasSet = JSON.parse(localStorage.getItem('ofertas_achou_levou')) || [];
 renderizarOfertas();
 
+// Máscara de Moeda (Digitação Manual)
 function formatarMoeda(e) {
     let v = e.target.value.replace(/\D/g, ""); 
     v = (v / 100).toFixed(2) + "";
@@ -50,53 +51,64 @@ function montarMensagem() {
     return msg;
 }
 
+// --- FUNÇÃO DE BUSCA REVISADA ---
 btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
-    if(!conteudo) return alert("Cole o link ou o texto da oferta!");
+    if(!conteudo) return alert("Cole o link!");
 
     loader.style.display = 'flex';
     displayDe.value = "R$ 0,00";
     displayPor.value = "R$ 0,00";
-    displayProduto.value = "Buscando...";
+    displayProduto.value = "Buscando dados...";
 
-    // 1. EXTRAÇÃO DE PREÇO POR TEXTO (O TURBO QUE NÃO FALHA)
-    const regexPreco = /R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/g;
-    const achados = conteudo.match(regexPreco);
-    if (achados) {
-        let v = achados.map(p => parseFloat(p.replace("R$", "").replace(/\./g, "").replace(",", ".").trim()));
-        if (v.length >= 2) {
-            displayDe.value = "R$ " + Math.max(...v).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-            displayPor.value = "R$ " + Math.min(...v).toLocaleString('pt-BR', {minimumFractionDigits: 2});
-        } else {
-            displayPor.value = achados[0];
-        }
-    }
-
-    // 2. BUSCA DE TÍTULO
     try {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
-            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlMatch[0])}`);
+            const urlAlvo = urlMatch[0];
+            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}`);
             const json = await res.json();
-            if (json.data && json.data.title) {
-                let t = json.data.title;
-                if (t === "Galeria de produtos" || t.includes("Robot")) {
-                    displayProduto.value = "Título não encontrado (digite aqui)";
+            
+            if (json.data) {
+                // Título: Filtro de SPAM da Amazon
+                let tituloOriginal = json.data.title || "";
+                displayProduto.value = tituloOriginal
+                    .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
+                    .replace(/:\s?Eletrônicos/gi, "")
+                    .replace(/\|\s?Mercado\s?Livre/gi, "")
+                    .trim();
+
+                // Preço: Busca Híbrida
+                let precoFinal = "";
+
+                // 1. Prioridade: Campo Price da API
+                if (json.data.price) {
+                    precoFinal = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                } 
+                // 2. Fallback: Scanner na Descrição
+                else if (json.data.description) {
+                    const regex = /R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/;
+                    const match = json.data.description.match(regex);
+                    if (match) precoFinal = match[0];
+                }
+
+                if (precoFinal) {
+                    displayPor.value = precoFinal;
                 } else {
-                    displayProduto.value = t.replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
+                    displayPor.value = "R$ 0,00"; // Caso não ache, o usuário preenche
                 }
             }
         }
     } catch (e) {
-        displayProduto.value = "Erro na busca (digite manual)";
+        alert("Erro na conexão. Verifique o link.");
     } finally {
+        // Libera os campos e esconde o loader independente de erro
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
     }
 };
 
 btnGerar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
+    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Puxe os dados primeiro!");
     const msg = montarMensagem();
     messageBox.innerText = msg;
     navigator.clipboard.writeText(msg);
@@ -105,11 +117,11 @@ btnGerar.onclick = () => {
 };
 
 btnSalvar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
+    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
-    alert("Salvo! 💾");
+    alert("Oferta Salva! 💾");
 };
 
 function renderizarOfertas() {
