@@ -4,7 +4,6 @@ const btnPuxar = document.getElementById('btn-puxar');
 const btnGerar = document.getElementById('btn-gerar');
 const btnSalvar = document.getElementById('btn-salvar');
 const btnLimparCampos = document.getElementById('btn-limpar-campos');
-const btnApagarTudo = document.getElementById('limpar-historico');
 const listaSalvas = document.getElementById('lista-salvas');
 const inputLink = document.getElementById('input-link');
 const displayProduto = document.getElementById('display-produto');
@@ -70,21 +69,22 @@ btnPuxar.addEventListener('click', async () => {
                 displayProduto.value = json.data.title.replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
             }
 
-            // Busca preço na descrição (onde costuma estar completo: R$ 2.898,90)
-            let precoDetectado = "";
+            let precoFinal = "";
+            
+            // Tenta achar preço completo na descrição (ex: R$ 2.898,90)
             if (json.data.description) {
-                const matchPreco = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
-                if (matchPreco) precoDetectado = matchPreco[0];
+                const matchDesc = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
+                if (matchDesc) precoFinal = matchDesc[0];
             }
 
-            // Se não achou na descrição, tenta o campo de preço da API
-            if (!precoDetectado && json.data.price) {
-                precoDetectado = json.data.price.toString();
+            // Se não achou, tenta o campo price da API
+            if (!precoFinal && json.data.price) {
+                precoFinal = json.data.price.toString();
             }
 
-            if (precoDetectado) {
-                // Limpa HTML e garante o formato R$
-                let limpo = precoDetectado.replace(/<[^>]*>?/gm, '').trim();
+            if (precoFinal) {
+                // Limpa qualquer tag HTML que tenha sobrado
+                let limpo = precoFinal.replace(/<[^>]*>?/gm, '').trim();
                 displayPor.value = limpo.includes("R$") ? limpo : "R$ " + limpo;
             }
         }
