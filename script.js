@@ -17,6 +17,7 @@ const slogans = ["Oferta boa assim voa! 💸", "Preço de banana! 🍌", "Aprove
 let ofertasSet = JSON.parse(localStorage.getItem('ofertas_achou_levou')) || [];
 renderizarOfertas();
 
+// Formatação automática enquanto digita
 function formatarMoeda(e) {
     let v = e.target.value.replace(/\D/g, ""); 
     v = (v / 100).toFixed(2) + "";
@@ -62,27 +63,33 @@ btnPuxar.onclick = async () => {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
+            
+            // Anzóis específicos revisados para Amazon e Mercado Livre
             const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.amz_por_r.selector=.a-price-whole&data.amz_por_c.selector=.a-price-fraction&data.amz_de.selector=.basisPrice .a-offscreen,.a-text-strike&data.ml_de_r.selector=.andes-money-amount--previous .andes-money-amount__fraction&data.ml_de_c.selector=.andes-money-amount--previous .andes-money-amount__cents&data.ml_por_r.selector=.andes-money-amount--cents-superscript .andes-money-amount__fraction,.ui-pdp-price--size-large .andes-money-amount__fraction&data.ml_por_c.selector=.andes-money-amount--cents-superscript .andes-money-amount__cents,.ui-pdp-price--size-large .andes-money-amount__cents&prerender=true`;
             
             const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                displayProduto.value = (json.data.title || "").replace(/Amazon\.com\.br\s?:?\s?/gi, "").replace(/\|\s?Mercado\s?Livre/gi, "").trim();
+                // Título sem sujeira
+                displayProduto.value = (json.data.title || "").replace(/Amazon\.com\.br\s?:?\s?/gi, "").replace(/\|\s?Mercado\s?Livre/gi, "").replace(/- Mercado Livre/gi, "").trim();
 
                 let vPor = "R$ 0,00";
                 let vDe = "R$ 0,00";
 
+                // Lógica Amazon
                 if (json.data.amz_por_r) {
                     let rNum = parseInt(json.data.amz_por_r.toString().replace(/\D/g, ""));
                     let c = json.data.amz_por_c ? json.data.amz_por_c.toString().replace(/\D/g, "") : "00";
                     vPor = "R$ " + rNum.toLocaleString('pt-BR') + "," + c;
                     
                     if (json.data.amz_de) {
-                        let pDeNum = parseFloat(json.data.amz_de.toString().match(/[\d,.]+/)?.[0].replace(/\./g, '').replace(',', '.') || 0);
+                        let pDeStr = json.data.amz_de.toString();
+                        let pDeNum = parseFloat(pDeStr.match(/[\d,.]+/)?.[0].replace(/\./g, '').replace(',', '.') || 0);
                         vDe = "R$ " + pDeNum.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                     }
                 } 
+                // Lógica Mercado Livre
                 else if (json.data.ml_por_r || json.data.ml_de_r) {
                     if (json.data.ml_por_r) {
                         let rNum = parseInt(json.data.ml_por_r.toString().replace(/\D/g, ""));
@@ -96,17 +103,24 @@ btnPuxar.onclick = async () => {
                     }
                 }
 
-                if (vPor === "R$ 0,00" && json.data.price) vPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                // Segurança extra
+                if (vPor === "R$ 0,00" && json.data.price) {
+                    vPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                }
 
                 displayPor.value = vPor;
                 displayDe.value = vDe;
             }
         }
-    } catch (e) { alert("Erro ao buscar dados."); }
-    finally { loader.style.display = 'none'; }
+    } catch (e) {
+        console.log("Erro no processamento.");
+    } finally {
+        loader.style.display = 'none';
+    }
 };
 
 btnGerar.onclick = () => {
+    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
     const msg = montarMensagem();
     messageBox.innerText = msg;
     navigator.clipboard.writeText(msg);
@@ -115,21 +129,46 @@ btnGerar.onclick = () => {
 };
 
 btnSalvar.onclick = () => {
+    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
+    alert("Oferta Salva! 💾");
 };
 
 function renderizarOfertas() {
     listaSalvas.innerHTML = "";
     ofertasSet.forEach(o => {
         const div = document.createElement('div');
-        div.innerHTML = `<div style="background:#161b22; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #30363d; font-size:11px;">
-            <pre style="white-space:pre-wrap;">${o.texto}</pre>
-            <button onclick="navigator.clipboard.writeText('${encodeURIComponent(o.texto)}'); alert('Copiado!')" style="padding:5px; font-size:10px; background:#238636;">COPIAR</button>
-        </div>`;
+        div.style = "background:#161b22; padding:15px; border-radius:8px; margin-bottom:15px; border: 1px solid #30363d;";
+        
+        div.innerHTML = `
+            <pre style="font-size:13px; color:#e6edf3; white-space:pre-wrap; margin:0 0 15px 0; font-family: monospace;">${o.texto}</pre>
+            <div style="display:flex; gap:10px;">
+                <button onclick="copiarTexto('${encodeURIComponent(o.texto)}')" style="flex: 1; background:#238636; border:none; padding:12px; color:white; border-radius:6px; font-weight:bold; font-size:14px; margin:0;">COPIAR</button>
+                <button onclick="apagar(${o.id})" style="width:50px; background:#da3633; border:none; padding:12px; color:white; border-radius:6px; font-size:16px; margin:0;">🗑️</button>
+            </div>`;
+            
         listaSalvas.appendChild(div);
     });
 }
 
-btnLimparCampos.onclick = () => { location.reload(); };
+// Funções globais expostas para os botões da lista
+window.copiarTexto = (t) => {
+    navigator.clipboard.writeText(decodeURIComponent(t));
+    alert("Copiado! ✅");
+};
+
+window.apagar = (id) => {
+    if(confirm("Deseja excluir esta oferta?")) {
+        ofertasSet = ofertasSet.filter(o => o.id !== id);
+        localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
+        renderizarOfertas();
+    }
+};
+
+btnLimparCampos.onclick = () => {
+    if(confirm("Deseja limpar todos os campos e recarregar?")) {
+        location.reload();
+    }
+};
