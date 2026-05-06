@@ -64,10 +64,8 @@ btnPuxar.onclick = async () => {
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
             
-            // ANZÓIS ESPECÍFICOS:
-            // data.precos_atuais -> Pega o preço de venda (Amazon e ML)
-            // data.precos_antigos -> Pega o preço riscado (Amazon e ML)
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.precos_atuais.selector=.a-price-whole,.ui-pdp-price__second-line .andes-money-amount__fraction&data.centavos_atuais.selector=.a-price-fraction,.ui-pdp-price__second-line .andes-money-amount__cents&data.precos_antigos.selector=.basisPrice .a-offscreen,.a-text-strike,.andes-money-amount--previous .andes-money-amount__fraction&prerender=true`;
+            // ANZÓIS SEPARADOS: Amazon e ML rodam independentes agora
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.amz_por_r.selector=.a-price-whole&data.amz_por_c.selector=.a-price-fraction&data.amz_de.selector=.basisPrice .a-offscreen,.a-text-strike&data.ml_de_r.selector=.andes-money-amount--previous .andes-money-amount__fraction&data.ml_de_c.selector=.andes-money-amount--previous .andes-money-amount__cents&data.ml_por_r.selector=.andes-money-amount--cents-superscript .andes-money-amount__fraction,.ui-pdp-price--size-large .andes-money-amount__fraction&data.ml_por_c.selector=.andes-money-amount--cents-superscript .andes-money-amount__cents,.ui-pdp-price--size-large .andes-money-amount__cents&prerender=true`;
             
             const res = await fetch(query);
             const json = await res.json();
@@ -80,21 +78,43 @@ btnPuxar.onclick = async () => {
                     .replace(/- Mercado Livre/gi, "")
                     .trim();
 
-                // 1. PROCESSAR PREÇO "POR" (ATUAL)
-                if (json.data.precos_atuais) {
-                    let r = json.data.precos_atuais.toString().replace(/\D/g, "");
-                    let c = json.data.centavos_atuais ? json.data.centavos_atuais.toString().replace(/\D/g, "") : "00";
-                    displayPor.value = "R$ " + r + "," + c;
-                } else if (json.data.price) {
-                    displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                let vPor = "R$ 0,00";
+                let vDe = "R$ 0,00";
+
+                // 1. LÓGICA AMAZON (Mantida intocada e funcionando)
+                if (json.data.amz_por_r) {
+                    let r = json.data.amz_por_r.toString().replace(/\D/g, "");
+                    let c = json.data.amz_por_c ? json.data.amz_por_c.toString().replace(/\D/g, "") : "00";
+                    vPor = "R$ " + r + "," + c;
+                    
+                    if (json.data.amz_de) {
+                        let pDe = json.data.amz_de.toString().replace(/\D/g, "");
+                        vDe = "R$ " + (parseInt(pDe)).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    }
+                } 
+                // 2. LÓGICA MERCADO LIVRE (Revisada com precisão)
+                else if (json.data.ml_por_r || json.data.ml_de_r) {
+                    // Puxa o "Por" (Agora busca pela classe de centavos sobrescritos)
+                    if (json.data.ml_por_r) {
+                        let r = json.data.ml_por_r.toString().replace(/\D/g, "");
+                        let c = json.data.ml_por_c ? json.data.ml_por_c.toString().replace(/\D/g, "") : "00";
+                        vPor = "R$ " + r + "," + c;
+                    }
+                    // Puxa o "De" (Agora pesca os centavos corretamente)
+                    if (json.data.ml_de_r) {
+                        let r = json.data.ml_de_r.toString().replace(/\D/g, "");
+                        let c = json.data.ml_de_c ? json.data.ml_de_c.toString().replace(/\D/g, "") : "00";
+                        vDe = "R$ " + r + "," + c;
+                    }
                 }
 
-                // 2. PROCESSAR PREÇO "DE" (RISCADO)
-                if (json.data.precos_antigos) {
-                    let pDe = json.data.precos_antigos.toString().replace(/\D/g, "");
-                    // Formata com centavos ,00 se for valor inteiro do ML
-                    displayDe.value = "R$ " + (parseInt(pDe)).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                // 3. REDE DE SEGURANÇA
+                if (vPor === "R$ 0,00" && json.data.price) {
+                    vPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
+
+                displayPor.value = vPor;
+                displayDe.value = vDe;
             }
         }
     } catch (e) {
