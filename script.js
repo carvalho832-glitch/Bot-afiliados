@@ -51,7 +51,7 @@ function montarMensagem() {
     return msg;
 }
 
-// --- FUNÇÃO TURBO ATUALIZADA (AMAZON & ML) ---
+// --- FUNÇÃO TURBO LIMPA (CORREÇÃO DE TAGS) ---
 btnPuxar.addEventListener('click', async () => {
     const conteudo = inputLink.value.trim();
     if(!conteudo) return alert("Cole o link!");
@@ -64,45 +64,33 @@ btnPuxar.addEventListener('click', async () => {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
-            
-            // Busca títulos e tenta forçar a captura de preços via seletores de classe
-            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.price.selector=.a-price-whole,.ui-pdp-price__part,.price-tag-fraction`);
+            const res = await fetch(`https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.price.selector=.a-price-whole,.ui-pdp-price__part`);
             const json = await res.json();
             
-            // 1. Título Inteligente
             if (json.data && json.data.title) {
-                displayProduto.value = json.data.title
-                    .replace("Amazon.com.br : ", "")
-                    .replace(" | Amazon.com.br", "")
-                    .replace(" | Mercado Livre", "")
-                    .replace(" - Mercado Livre", "")
-                    .trim();
+                displayProduto.value = json.data.title.replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").replace(" | Mercado Livre", "").trim();
             }
 
-            // 2. Captura de Preço (Tentativa em 3 níveis)
-            let precoFinal = null;
+            let precoFinal = json.data.price;
 
-            // Nível A: Preço direto da API
-            if (json.data.price) {
-                precoFinal = json.data.price;
-            } 
-            // Nível B: Procurar R$ na descrição ou metadados
-            else if (json.data.description) {
+            if (!precoFinal && json.data.description) {
                 const achado = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
                 if (achado) precoFinal = achado[0];
             }
 
-            // Formatação final do preço capturado
             if (precoFinal) {
+                // LIMPEZA DE TAGS HTML (O PULO DO GATO)
+                let precoLimpo = precoFinal.toString().replace(/<[^>]*>?/gm, '').trim();
+                
                 if (typeof precoFinal === 'number') {
                     displayPor.value = "R$ " + precoFinal.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 } else {
-                    displayPor.value = precoFinal.toString().startsWith("R$") ? precoFinal : "R$ " + precoFinal;
+                    displayPor.value = precoLimpo.startsWith("R$") ? precoLimpo : "R$ " + precoLimpo;
                 }
             }
         }
     } catch (e) {
-        console.log("Erro na busca automática.");
+        console.log("Erro na busca.");
     } finally {
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
