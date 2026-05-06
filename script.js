@@ -64,52 +64,38 @@ btnPuxar.onclick = async () => {
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
             
-            // Seletores Híbridos (Amazon + Mercado Livre)
-            // .a-price-whole (Amazon) | .ui-pdp-price__second-line .andes-money-amount__fraction (Mercado Livre)
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__second-line .andes-money-amount__fraction&data.centavos.selector=.a-price-fraction,.ui-pdp-price__second-line .andes-money-amount__cents&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike,.ui-pdp-price__original-value .andes-money-amount__fraction`;
+            // Adicionamos seletores específicos e forçamos a busca do Mercado Livre
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.reais.selector=.a-price-whole,.ui-pdp-price__part+.andes-money-amount__fraction&data.centavos.selector=.a-price-fraction,.ui-pdp-price__part+.andes-money-amount__cents&data.preco_de.selector=.basisPrice .a-offscreen,.a-text-strike,.ui-pdp-price__original-value .andes-money-amount__fraction&prerender=true`;
             
             const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                // Título Limpo
+                // Título: Limpeza para ML
                 displayProduto.value = (json.data.title || "")
                     .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
                     .replace(/\|\s?Mercado\s?Livre/gi, "")
                     .replace(/- Mercado Livre/gi, "")
-                    .replace(/Frete grátis/gi, "")
                     .trim();
 
-                let valorPor = "";
-                let valorDe = "";
-
-                // 1. Lógica de Preço Atual (POR)
+                // Preço POR
                 if (json.data.reais) {
                     let r = json.data.reais.toString().replace(/\D/g, "");
                     let c = json.data.centavos ? json.data.centavos.toString().replace(/\D/g, "") : "00";
-                    valorPor = "R$ " + r + "," + c;
+                    displayPor.value = "R$ " + r + "," + c;
                 } else if (json.data.price) {
-                    valorPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
 
-                // 2. Lógica de Preço Riscado (DE)
+                // Preço DE
                 if (json.data.preco_de) {
                     let pDe = json.data.preco_de.toString().replace(/[^\d]/g, "");
-                    if (pDe) valorDe = "R$ " + (parseInt(pDe)/1).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    if (pDe) displayDe.value = "R$ " + (parseInt(pDe)).toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
-
-                // 3. Segurança para ML (Se o Scraper falhar, olha na descrição)
-                if (!valorPor || valorPor === "R$ 0,00") {
-                    const matchPreco = (json.data.description || "").match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
-                    if (matchPreco) valorPor = matchPreco[0];
-                }
-
-                displayPor.value = valorPor || "R$ 0,00";
-                displayDe.value = valorDe || "R$ 0,00";
             }
         }
     } catch (e) {
-        console.log("Erro ao processar.");
+        console.log("Erro no processamento.");
     } finally {
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
@@ -126,7 +112,7 @@ btnGerar.onclick = () => {
 };
 
 btnSalvar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
+    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
