@@ -57,7 +57,7 @@ btnPuxar.onclick = async () => {
     loader.style.display = 'flex';
     displayDe.value = "R$ 0,00";
     displayPor.value = "R$ 0,00";
-    displayProduto.value = "Carregando...";
+    displayProduto.value = "Buscando dados...";
 
     try {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
@@ -67,25 +67,26 @@ btnPuxar.onclick = async () => {
             const json = await response.json();
             
             if (json.data) {
-                // Título
-                displayProduto.value = (json.data.title || "Produto sem título").replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
+                displayProduto.value = (json.data.title || "").replace("Amazon.com.br : ", "").replace(" | Amazon.com.br", "").trim();
 
-                // Busca Preço na Descrição ou Título (mais garantido para centavos)
-                let textoParaPreco = (json.data.description || "") + (json.data.title || "");
-                const matchPreco = textoParaPreco.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
-                
-                if (matchPreco) {
-                    displayPor.value = matchPreco[0];
-                } else if (json.data.price) {
-                    displayPor.value = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
-                } else {
-                    displayPor.value = "R$ 0,00";
+                let precoFinal = "";
+                // Tenta buscar o preço completo com centavos na descrição
+                if (json.data.description) {
+                    const matchDesc = json.data.description.match(/R\$\s?(\d{1,3}(\.\d{3})*,\d{2})/);
+                    if (matchDesc) precoFinal = matchDesc[0];
+                }
+
+                if (!precoFinal && json.data.price) {
+                    precoFinal = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                }
+
+                if (precoFinal) {
+                    displayPor.value = precoFinal.replace(/<[^>]*>?/gm, '').trim();
                 }
             }
         }
-    } catch (error) {
-        alert("Erro ao conectar com o servidor de preços.");
-        displayProduto.value = "";
+    } catch (e) {
+        alert("Erro ao buscar dados. Tente novamente.");
     } finally {
         [displayProduto, displayDe, displayPor].forEach(el => el.removeAttribute('readonly'));
         loader.style.display = 'none';
@@ -93,7 +94,7 @@ btnPuxar.onclick = async () => {
 };
 
 btnGerar.onclick = () => {
-    if(!displayProduto.value || displayProduto.value === "Carregando...") return alert("Puxe os dados primeiro!");
+    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Puxe os dados primeiro!");
     const msg = montarMensagem();
     messageBox.innerText = msg;
     navigator.clipboard.writeText(msg);
@@ -102,7 +103,7 @@ btnGerar.onclick = () => {
 };
 
 btnSalvar.onclick = () => {
-    if(!displayProduto.value) return alert("Nada para salvar!");
+    if(!displayProduto.value || displayProduto.value === "Buscando dados...") return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: montarMensagem() });
     localStorage.setItem('ofertas_achou_levou', JSON.stringify(ofertasSet));
     renderizarOfertas();
