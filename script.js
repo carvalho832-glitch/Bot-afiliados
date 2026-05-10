@@ -40,10 +40,12 @@ function calcularPorcentagem(de, por) {
 // --- INTEGRAÇÃO COM INTELIGÊNCIA ARTIFICIAL (GEMINI) ---
 
 async function gerarTextoIA(produto, precoPor) {
-    const prompt = `Aja como um vendedor especialista em ofertas de WhatsApp. 
-    Crie um texto extremamente curto (máximo 130 caracteres) e muito chamativo para o produto: ${produto}. 
-    O preço é ${precoPor}. Use emojis de fogo ou foguete. 
-    Retorne APENAS o texto da oferta, sem aspas e sem introduções.`;
+    // Se o preço estiver zerado no visor, mandamos uma frase genérica para a IA não bugar
+    const precoContexto = (precoPor === "R$ 0,00" || !precoPor) ? "um preço imperdível" : precoPor;
+    
+    const prompt = `Aja como um vendedor especialista em ofertas de WhatsApp e Telegram. 
+    Crie uma frase de UMA LINHA, muito chamativa e persuasiva, para vender este produto: ${produto}. 
+    O preço é ${precoContexto}. Use emojis. Retorne APENAS a frase, sem aspas.`;
 
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
@@ -58,10 +60,9 @@ async function gerarTextoIA(produto, precoPor) {
         if (data.candidates && data.candidates[0].content) {
             return data.candidates[0].content.parts[0].text.trim();
         }
-        return "Oferta imperdível detectada! Confira os detalhes abaixo:";
+        return "Essa oferta está voando! Garanta o seu antes que acabe! 🔥";
     } catch (error) {
-        console.error("Erro na IA:", error);
-        return "Preço incrível! Aproveite enquanto durarem os estoques:";
+        return "Preço imbatível e qualidade garantida. Confira agora! 🚀";
     }
 }
 
@@ -80,37 +81,44 @@ btnPuxar.onclick = async () => {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&prerender=true`;
+            // Query otimizada para tentar burlar bloqueios de robôs
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&prerender=true&data.price.selector=.a-price-whole,.ui-pdp-price__part--medium .andes-money-amount__fraction&data.title.selector=h1,#productTitle`;
             
             const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                displayProduto.value = (json.data.title || "")
+                // Limpeza básica do título
+                displayProduto.value = (json.data.title || json.metadata.title || "")
                     .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
                     .replace(/\|\s?Mercado\s?Livre/gi, "")
                     .replace(/- Mercado Livre/gi, "")
                     .trim();
 
-                let vPor = "R$ 0,00";
-                if (json.data.price) {
-                    vPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                // Tentativa de pegar o preço de várias fontes do JSON
+                let precoFinal = json.data.price || (json.metadata && json.metadata.price);
+                
+                if (precoFinal) {
+                    // Converte para número e formata
+                    const num = parseFloat(precoFinal.toString().replace(',', '.'));
+                    displayPor.value = "R$ " + num.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
-                displayPor.value = vPor;
             }
         }
     } catch (e) {
         console.log("Erro ao puxar dados.");
-        alert("Não foi possível puxar os dados automaticamente. Você pode preencher os campos manualmente.");
     } finally {
         loader.style.display = 'none';
+        if(displayPor.value === "R$ 0,00") {
+             alert("O preço não foi detectado automaticamente. Por favor, preencha o valor manualmente antes de gerar a mensagem.");
+        }
     }
 };
 
 btnGerar.onclick = async () => {
     if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
     
-    btnGerar.innerText = "🤖 IA PENSANDO...";
+    btnGerar.innerText = "🤖 IA CRIANDO TEXTO...";
     btnGerar.disabled = true;
 
     const desc = calcularPorcentagem(displayDe.value, displayPor.value);
@@ -123,10 +131,16 @@ btnGerar.onclick = async () => {
     msg += `\n${textoIA}\n\n`;
     msg += `📦 *Produto:* ${displayProduto.value}\n\n`; 
     
-    if(displayDe.value && displayDe.value !== "R$ 0,00") msg += `❌ De: ~${displayDe.value}~\n`;
+    if(displayDe.value && displayDe.value !== "R$ 0,00") {
+        msg += `❌ De: ~${displayDe.value}~\n`;
+    }
+    
     msg += `✅ *Por apenas: ${displayPor.value}* \n\n`; 
     
-    if(displayCupom.value) msg += `🎫 Cupom: *${displayCupom.value}*\n\n`;
+    if(displayCupom.value) {
+        msg += `🎫 Cupom: *${displayCupom.value}*\n\n`;
+    }
+    
     msg += `🛒 *Compre aqui:* ${linkFinal}`;
 
     messageBox.innerText = msg;
