@@ -1,8 +1,6 @@
 // --- CONFIGURAÇÕES INICIAIS ---
-// Chave de API do Gemini para processamento de linguagem natural
 const GEMINI_API_KEY = "AIzaSyAAnce2NJmvD57anz7zq99TGAO6F-qyV58";
 
-// Mapeamento de elementos do DOM
 const loader = document.getElementById('loader-global');
 const selectGrupo = document.getElementById('select-grupo');
 const btnPuxar = document.getElementById('btn-puxar');
@@ -17,15 +15,14 @@ const displayPor = document.getElementById('display-por');
 const displayCupom = document.getElementById('display-cupom');
 const messageBox = document.getElementById('msg-preview');
 
-// Estado da aplicação
 let ofertasSet = JSON.parse(localStorage.getItem('ofertas_achou_levou')) || [];
 renderizarOfertas();
 
-// --- REVISÃO 1: FORMATAÇÃO E CÁLCULOS ROBUSTOS ---
+// --- FORMATAÇÃO ---
 
 function formatarMoeda(e) {
     let v = e.target.value.replace(/\D/g, ""); 
-    if (v === "") { e.target.value = ""; return; }
+    if (!v) { e.target.value = ""; return; }
     v = (v / 100).toFixed(2) + "";
     v = v.replace(".", ",");
     v = v.replace(/\B(?=(\d{3})+(?!\d))/g, "."); 
@@ -37,40 +34,41 @@ displayPor.addEventListener('input', formatarMoeda);
 function calcularPorcentagem(de, por) {
     const valorDe = parseFloat(de.replace(/[^\d,]/g, '').replace(',', '.'));
     const valorPor = parseFloat(por.replace(/[^\d,]/g, '').replace(',', '.'));
-    if (!isNaN(valorDe) && !isNaN(valorPor) && valorDe > valorPor) {
-        return Math.floor(((valorDe - valorPor) / valorDe) * 100);
-    }
+    if (valorDe > valorPor) return Math.floor(((valorDe - valorPor) / valorDe) * 100);
     return 0;
 }
 
-// --- REVISÃO 2: INTEGRAÇÃO COM IA COM TRATAMENTO DE FALHA ---
+// --- INTEGRAÇÃO COM IA GEMINI (NOVA LÓGICA DE CHAMADA) ---
 
 async function pedirTextoParaIA(produto, preco) {
-    // Prompt otimizado para copywriting de vendas
-    const prompt = `Aja como um vendedor de elite. Crie UMA frase de impacto, curta e persuasiva para vender: ${produto} por apenas ${preco}. Use emojis. Não use aspas.`;
+    // Prompt ultra-direto para evitar textos genéricos
+    const promptIA = {
+        contents: [{
+            parts: [{
+                text: `Você é um redator de vendas. Crie uma frase curta, inédita e chamativa sobre o produto "${produto}" que custa ${preco}. Use emojis. Não repita frases prontas. Retorne apenas o texto.`
+            }]
+        }]
+    };
 
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            body: JSON.stringify(promptIA)
         });
 
-        if (!response.ok) throw new Error("Erro na rede");
         const data = await response.json();
         
         if (data.candidates && data.candidates[0].content) {
             return data.candidates[0].content.parts[0].text.trim();
         }
-        throw new Error("Resposta vazia");
+        return "Promoção imperdível! Aproveite enquanto o estoque dura! 🔥";
     } catch (e) {
-        console.error("Falha na IA:", e);
-        // Fallback dinâmico caso a IA falhe
-        return "Preço imbatível e oportunidade única! Garanta o seu agora mesmo! 🚀";
+        console.error("Erro na API Gemini:", e);
+        return "DEU ERRO NA IA - Verifique sua Chave API ⚠️";
     }
 }
 
-// --- REVISÃO 3: SCRAPER COM SELETORES ORIGINAIS E LIMPEZA ---
+// --- LÓGICA DE PUXAR DADOS (ESTRUTURA ORIGINAL) ---
 
 btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
@@ -91,13 +89,11 @@ btnPuxar.onclick = async () => {
             const json = await res.json();
             
             if (json.data) {
-                // Limpeza de Título (Padrão Achou Levou)
                 displayProduto.value = (json.data.title || "").replace(/Amazon\.com\.br\s?:?\s?/gi, "").replace(/\|\s?Mercado\s?Livre/gi, "").replace(/- Mercado Livre/gi, "").trim();
 
                 let vPor = "R$ 0,00";
                 let vDe = "R$ 0,00";
 
-                // Lógica Amazon
                 if (json.data.amz_por_r) {
                     let rNum = parseInt(json.data.amz_por_r.toString().replace(/\D/g, ""));
                     let c = json.data.amz_por_c ? json.data.amz_por_c.toString().replace(/\D/g, "") : "00";
@@ -107,7 +103,6 @@ btnPuxar.onclick = async () => {
                         vDe = "R$ " + pDeNum.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                     }
                 } 
-                // Lógica Mercado Livre
                 else if (json.data.ml_por_r || json.data.ml_de_r) {
                     if (json.data.ml_por_r) {
                         let rNum = parseInt(json.data.ml_por_r.toString().replace(/\D/g, ""));
@@ -120,69 +115,56 @@ btnPuxar.onclick = async () => {
                         vDe = "R$ " + rNum.toLocaleString('pt-BR') + "," + c;
                     }
                 }
-                
-                // Fallback de preço geral do Microlink
                 if (vPor === "R$ 0,00" && json.data.price) {
                     vPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
-
                 displayPor.value = vPor;
                 displayDe.value = vDe;
             }
         }
     } catch (e) {
-        console.error("Erro no Puxar Dados:", e);
+        console.log("Erro no processamento.");
     } finally {
         loader.style.display = 'none';
     }
 };
 
-// --- REVISÃO 4: GERADOR DE MENSAGEM SINCRONIZADO ---
+// --- GERAÇÃO DA MENSAGEM ---
 
 btnGerar.onclick = async () => {
     if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
     
-    // UI Feedback
-    btnGerar.innerText = "🤖 IA PENSANDO...";
+    btnGerar.innerText = "🤖 PENSANDO...";
     btnGerar.disabled = true;
 
     try {
         const desc = calcularPorcentagem(displayDe.value, displayPor.value);
         const linkFinal = inputLink.value.match(/https?:\/\/[^\s]+/)?.[0] || inputLink.value;
         
-        // Chamada obrigatória e aguardada da IA
+        // Chamada da IA
         const fraseIA = await pedirTextoParaIA(displayProduto.value, displayPor.value);
 
         let msg = `🚨 *${selectGrupo.value.toUpperCase()}* 🚨\n`;
         if (desc >= 2) msg += `🔥 *${desc}% DE DESCONTO!* 🔥\n`;
         
         msg += `\n_${fraseIA}_\n\n📦 *Produto:* ${displayProduto.value}\n\n`; 
-        
-        if(displayDe.value && displayDe.value !== "R$ 0,00") {
-            msg += `❌ De: ~${displayDe.value}~\n`;
-        }
-        
+        if(displayDe.value && displayDe.value !== "R$ 0,00") msg += `❌ De: ~${displayDe.value}~\n`;
         msg += `✅ *Por apenas: ${displayPor.value}* \n\n`; 
-        
-        if(displayCupom.value) {
-            msg += `🎫 Usar Cupom: *${displayCupom.value}*\n\n`;
-        }
-        
+        if(displayCupom.value) msg += `🎫 Usar Cupom: *${displayCupom.value}*\n\n`;
         msg += `🛒 *Compre aqui:* ${linkFinal}`;
 
         messageBox.innerText = msg;
         navigator.clipboard.writeText(msg);
         btnGerar.innerText = "📋 COPIADO!";
     } catch (err) {
-        console.error(err);
-        alert("Erro ao montar a mensagem.");
+        alert("Erro técnico na geração.");
     } finally {
         btnGerar.disabled = false;
         setTimeout(() => btnGerar.innerText = "GERAR MENSAGEM", 2000);
     }
 };
 
-// --- REVISÃO 5: HISTÓRICO E LIMPEZA DE MEMÓRIA ---
+// --- RESTO DAS FUNÇÕES ---
 
 btnSalvar.onclick = () => {
     if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
@@ -220,8 +202,4 @@ window.apagar = (id) => {
     }
 };
 
-btnLimparCampos.onclick = () => {
-    if(confirm("Deseja limpar todos os campos?")) {
-        location.reload();
-    }
-};
+btnLimparCampos.onclick = () => { if(confirm("Limpar?")) location.reload(); };
