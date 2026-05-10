@@ -1,10 +1,9 @@
 // --- CONFIGURAÇÕES DE SEGURANÇA ---
-// Dividimos a chave para evitar que o GitHub a bloqueie automaticamente
+// Chave dividida para o GitHub não bloquear
 const p1 = "AIzaSyBvtlsR";
 const p2 = "OEw5UoE62WUtniYKWsan47C6gDI";
 const GEMINI_API_KEY = p1 + p2;
 
-// --- MAPEAMENTO DE ELEMENTOS ---
 const loader = document.getElementById('loader-global');
 const selectGrupo = document.getElementById('select-grupo');
 const btnPuxar = document.getElementById('btn-puxar');
@@ -19,12 +18,10 @@ const displayPor = document.getElementById('display-por');
 const displayCupom = document.getElementById('display-cupom');
 const messageBox = document.getElementById('msg-preview');
 
-// Carregar ofertas salvas do navegador
 let ofertasSet = JSON.parse(localStorage.getItem('ofertas_achou_levou')) || [];
 renderizarOfertas();
 
 // --- FUNÇÕES DE FORMATAÇÃO ---
-
 function formatarMoeda(e) {
     let v = e.target.value.replace(/\D/g, ""); 
     if (!v) { e.target.value = ""; return; }
@@ -43,13 +40,12 @@ function calcularPorcentagem(de, por) {
     return 0;
 }
 
-// --- CHAMADA DA INTELIGÊNCIA ARTIFICIAL (GEMINI) ---
-
+// --- CHAMADA DA IA ---
 async function pedirTextoParaIA(produto, preco) {
     const payload = {
         contents: [{
             parts: [{
-                text: `Aja como um vendedor experiente de ofertas. Crie uma frase CURTA, única e muito chamativa para vender este produto: ${produto}. O preço é ${preco}. Use emojis e gatilhos de urgência. Não use aspas.`
+                text: `Aja como um vendedor experiente. Crie uma frase CURTA, única e persuasiva para vender: ${produto} por ${preco}. Use emojis. Não use aspas.`
             }]
         }]
     };
@@ -66,15 +62,14 @@ async function pedirTextoParaIA(produto, preco) {
         if (data.candidates && data.candidates[0].content) {
             return data.candidates[0].content.parts[0].text.trim();
         }
-        return "Oportunidade única com o melhor preço do mercado! Garanta já o seu! 🔥";
+        return "🚨 TEXTO DE EMERGÊNCIA: Preço espetacular, garanta o seu agora mesmo! 🔥";
     } catch (e) {
         console.error("Erro na IA:", e);
-        return "Preço imbatível e estoque limitado. Não perca essa oferta! 🚀";
+        return "🚨 ERRO DE REDE: Não foi possível conectar com a IA! 🚀";
     }
 }
 
-// --- LÓGICA DE PUXAR DADOS (SEUS SELETORES ORIGINAIS) ---
-
+// --- LÓGICA DE PUXAR DADOS ---
 btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
     if(!conteudo) return alert("Cole o link!");
@@ -94,13 +89,11 @@ btnPuxar.onclick = async () => {
             const json = await res.json();
             
             if (json.data) {
-                // Limpeza do título conforme seu padrão original
                 displayProduto.value = (json.data.title || "").replace(/Amazon\.com\.br\s?:?\s?/gi, "").replace(/\|\s?Mercado\s?Livre/gi, "").replace(/- Mercado Livre/gi, "").trim();
 
                 let vPor = "R$ 0,00";
                 let vDe = "R$ 0,00";
 
-                // Lógica Amazon
                 if (json.data.amz_por_r) {
                     let rNum = parseInt(json.data.amz_por_r.toString().replace(/\D/g, ""));
                     let c = json.data.amz_por_c ? json.data.amz_por_c.toString().replace(/\D/g, "") : "00";
@@ -110,7 +103,6 @@ btnPuxar.onclick = async () => {
                         vDe = "R$ " + pDeNum.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                     }
                 } 
-                // Lógica Mercado Livre
                 else if (json.data.ml_por_r || json.data.ml_de_r) {
                     if (json.data.ml_por_r) {
                         let rNum = parseInt(json.data.ml_por_r.toString().replace(/\D/g, ""));
@@ -124,7 +116,6 @@ btnPuxar.onclick = async () => {
                     }
                 }
                 
-                // Fallback geral do Microlink
                 if (vPor === "R$ 0,00" && json.data.price) {
                     vPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
                 }
@@ -141,18 +132,17 @@ btnPuxar.onclick = async () => {
 };
 
 // --- GERAÇÃO DA MENSAGEM FINAL ---
-
 btnGerar.onclick = async () => {
     if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
     
-    btnGerar.innerText = "🤖 IA PENSANDO...";
+    // VISUAL DE TESTE: O botão tem que mudar para essa frase exata abaixo!
+    btnGerar.innerText = "🤖 ACORDANDO A IA...";
     btnGerar.disabled = true;
 
     try {
         const desc = calcularPorcentagem(displayDe.value, displayPor.value);
         const linkFinal = inputLink.value.match(/https?:\/\/[^\s]+/)?.[0] || inputLink.value;
         
-        // Chamada da IA para gerar o texto de incentivo
         const fraseIA = await pedirTextoParaIA(displayProduto.value, displayPor.value);
 
         let msg = `🚨 *${selectGrupo.value.toUpperCase()}* 🚨\n`;
@@ -185,7 +175,6 @@ btnGerar.onclick = async () => {
 };
 
 // --- GESTÃO DE HISTÓRICO ---
-
 btnSalvar.onclick = () => {
     if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
     ofertasSet.unshift({ id: Date.now(), texto: messageBox.innerText });
