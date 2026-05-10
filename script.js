@@ -15,10 +15,12 @@ const displayPor = document.getElementById('display-por');
 const displayCupom = document.getElementById('display-cupom');
 const messageBox = document.getElementById('msg-preview');
 
+const slogans = ["Oferta boa assim voa! 💸", "Preço de banana! 🍌", "Aproveite agora! 🚀", "Achado do dia! ⭐", "Pechincha bruta! 🔨"];
+
 let ofertasSet = JSON.parse(localStorage.getItem('ofertas_achou_levou')) || [];
 renderizarOfertas();
 
-// --- FUNÇÕES DE UTILIDADE E FORMATAÇÃO ---
+// --- FORMATAÇÃO E CÁLCULOS ---
 
 function formatarMoeda(e) {
     let v = e.target.value.replace(/\D/g, ""); 
@@ -37,36 +39,26 @@ function calcularPorcentagem(de, por) {
     return 0;
 }
 
-// --- INTEGRAÇÃO COM INTELIGÊNCIA ARTIFICIAL (GEMINI) ---
+// --- INTEGRAÇÃO COM GEMINI AI ---
 
 async function gerarTextoIA(produto, precoPor) {
-    // Se o preço estiver zerado no visor, mandamos uma frase genérica para a IA não bugar
-    const precoContexto = (precoPor === "R$ 0,00" || !precoPor) ? "um preço imperdível" : precoPor;
-    
-    const prompt = `Aja como um vendedor especialista em ofertas de WhatsApp e Telegram. 
-    Crie uma frase de UMA LINHA, muito chamativa e persuasiva, para vender este produto: ${produto}. 
-    O preço é ${precoContexto}. Use emojis. Retorne APENAS a frase, sem aspas.`;
+    const prompt = `Aja como um vendedor de ofertas. Crie uma frase curta (UMA LINHA) e chamativa para vender: ${produto} por apenas ${precoPor}. Use emojis. Retorne apenas o texto.`;
 
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
         });
-
         const data = await response.json();
-        if (data.candidates && data.candidates[0].content) {
-            return data.candidates[0].content.parts[0].text.trim();
-        }
-        return "Essa oferta está voando! Garanta o seu antes que acabe! 🔥";
-    } catch (error) {
-        return "Preço imbatível e qualidade garantida. Confira agora! 🚀";
+        return data.candidates[0].content.parts[0].text.trim();
+    } catch (e) {
+        // Se a IA falhar, usa um slogan aleatório do seu sistema original
+        return slogans[Math.floor(Math.random() * slogans.length)];
     }
 }
 
-// --- LÓGICA PRINCIPAL DOS BOTÕES ---
+// --- LÓGICA DE EXTRAÇÃO (RESTAURADA DO SEU ORIGINAL) ---
 
 btnPuxar.onclick = async () => {
     const conteudo = inputLink.value.trim();
@@ -81,66 +73,77 @@ btnPuxar.onclick = async () => {
         const urlMatch = conteudo.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
             const urlAlvo = urlMatch[0];
-            // Query otimizada para tentar burlar bloqueios de robôs
-            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&prerender=true&data.price.selector=.a-price-whole,.ui-pdp-price__part--medium .andes-money-amount__fraction&data.title.selector=h1,#productTitle`;
+            
+            // Mantendo exatamente seus seletores originais de Amazon e ML
+            const query = `https://api.microlink.io?url=${encodeURIComponent(urlAlvo)}&data.amz_por_r.selector=.a-price-whole&data.amz_por_c.selector=.a-price-fraction&data.amz_de.selector=.basisPrice .a-offscreen,.a-text-strike&data.ml_de_r.selector=.andes-money-amount--previous .andes-money-amount__fraction&data.ml_de_c.selector=.andes-money-amount--previous .andes-money-amount__cents&data.ml_por_r.selector=.andes-money-amount--cents-superscript .andes-money-amount__fraction,.ui-pdp-price--size-large .andes-money-amount__fraction&data.ml_por_c.selector=.andes-money-amount--cents-superscript .andes-money-amount__cents,.ui-pdp-price--size-large .andes-money-amount__cents&prerender=true`;
             
             const res = await fetch(query);
             const json = await res.json();
             
             if (json.data) {
-                // Limpeza básica do título
-                displayProduto.value = (json.data.title || json.metadata.title || "")
-                    .replace(/Amazon\.com\.br\s?:?\s?/gi, "")
-                    .replace(/\|\s?Mercado\s?Livre/gi, "")
-                    .replace(/- Mercado Livre/gi, "")
-                    .trim();
+                displayProduto.value = (json.data.title || "").replace(/Amazon\.com\.br\s?:?\s?/gi, "").replace(/\|\s?Mercado\s?Livre/gi, "").replace(/- Mercado Livre/gi, "").trim();
 
-                // Tentativa de pegar o preço de várias fontes do JSON
-                let precoFinal = json.data.price || (json.metadata && json.metadata.price);
-                
-                if (precoFinal) {
-                    // Converte para número e formata
-                    const num = parseFloat(precoFinal.toString().replace(',', '.'));
-                    displayPor.value = "R$ " + num.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                let vPor = "R$ 0,00";
+                let vDe = "R$ 0,00";
+
+                if (json.data.amz_por_r) {
+                    let rNum = parseInt(json.data.amz_por_r.toString().replace(/\D/g, ""));
+                    let c = json.data.amz_por_c ? json.data.amz_por_c.toString().replace(/\D/g, "") : "00";
+                    vPor = "R$ " + rNum.toLocaleString('pt-BR') + "," + c;
+                    if (json.data.amz_de) {
+                        let pDeNum = parseFloat(json.data.amz_de.toString().match(/[\d,.]+/)?.[0].replace(/\./g, '').replace(',', '.') || 0);
+                        vDe = "R$ " + pDeNum.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                    }
+                } 
+                else if (json.data.ml_por_r || json.data.ml_de_r) {
+                    if (json.data.ml_por_r) {
+                        let rNum = parseInt(json.data.ml_por_r.toString().replace(/\D/g, ""));
+                        let c = json.data.ml_por_c ? json.data.ml_por_c.toString().replace(/\D/g, "") : "00";
+                        vPor = "R$ " + rNum.toLocaleString('pt-BR') + "," + c;
+                    }
+                    if (json.data.ml_de_r) {
+                        let rNum = parseInt(json.data.ml_de_r.toString().replace(/\D/g, ""));
+                        let c = json.data.ml_de_c ? json.data.ml_de_c.toString().replace(/\D/g, "") : "00";
+                        vDe = "R$ " + rNum.toLocaleString('pt-BR') + "," + c;
+                    }
                 }
+
+                if (vPor === "R$ 0,00" && json.data.price) {
+                    vPor = "R$ " + json.data.price.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                }
+
+                displayPor.value = vPor;
+                displayDe.value = vDe;
             }
         }
     } catch (e) {
-        console.log("Erro ao puxar dados.");
+        console.log("Erro no processamento.");
     } finally {
         loader.style.display = 'none';
-        if(displayPor.value === "R$ 0,00") {
-             alert("O preço não foi detectado automaticamente. Por favor, preencha o valor manualmente antes de gerar a mensagem.");
-        }
     }
 };
+
+// --- GERAÇÃO DE MENSAGEM (COM IA INTEGRADA) ---
 
 btnGerar.onclick = async () => {
     if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Puxe os dados primeiro!");
     
-    btnGerar.innerText = "🤖 IA CRIANDO TEXTO...";
+    btnGerar.innerText = "🤖 GERANDO...";
     btnGerar.disabled = true;
 
     const desc = calcularPorcentagem(displayDe.value, displayPor.value);
-    const textoIA = await gerarTextoIA(displayProduto.value, displayPor.value);
     const linkFinal = inputLink.value.match(/https?:\/\/[^\s]+/)?.[0] || inputLink.value;
+    
+    // Chama a IA para criar o texto curto baseado no produto e preço
+    const textoIA = await gerarTextoIA(displayProduto.value, displayPor.value);
 
     let msg = `🚨 *${selectGrupo.value.toUpperCase()}* 🚨\n`;
     if (desc >= 2) msg += `🔥 *${desc}% DE DESCONTO!* 🔥\n`;
     
-    msg += `\n${textoIA}\n\n`;
-    msg += `📦 *Produto:* ${displayProduto.value}\n\n`; 
-    
-    if(displayDe.value && displayDe.value !== "R$ 0,00") {
-        msg += `❌ De: ~${displayDe.value}~\n`;
-    }
-    
+    msg += `_${textoIA}_\n\n📦 *Produto:* ${displayProduto.value}\n\n`; 
+    if(displayDe.value && displayDe.value !== "R$ 0,00") msg += `❌ De: ~${displayDe.value}~\n`;
     msg += `✅ *Por apenas: ${displayPor.value}* \n\n`; 
-    
-    if(displayCupom.value) {
-        msg += `🎫 Cupom: *${displayCupom.value}*\n\n`;
-    }
-    
+    if(displayCupom.value) msg += `🎫 Usar Cupom: *${displayCupom.value}*\n\n`;
     msg += `🛒 *Compre aqui:* ${linkFinal}`;
 
     messageBox.innerText = msg;
@@ -151,7 +154,7 @@ btnGerar.onclick = async () => {
     setTimeout(() => btnGerar.innerText = "GERAR MENSAGEM", 2000);
 };
 
-// --- GESTÃO DE HISTÓRICO E LIMPEZA ---
+// --- SALVAR E HISTÓRICO ---
 
 btnSalvar.onclick = () => {
     if(!displayProduto.value || displayProduto.value === "Buscando...") return alert("Nada para salvar!");
@@ -190,12 +193,5 @@ window.apagar = (id) => {
 };
 
 btnLimparCampos.onclick = () => {
-    if(confirm("Deseja limpar todos os campos?")) {
-        inputLink.value = "";
-        displayProduto.value = "";
-        displayDe.value = "R$ 0,00";
-        displayPor.value = "R$ 0,00";
-        displayCupom.value = "";
-        messageBox.innerText = "Aguardando geração...";
-    }
+    if(confirm("Deseja limpar tudo?")) { location.reload(); }
 };
