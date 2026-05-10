@@ -57,18 +57,41 @@ function calcularPorcentagem(de, por) {
     return 0;
 }
 
+// --- NOVA MONTAGEM DA MENSAGEM (LAYOUT REFORMULADO) ---
 function montarMensagem() {
     const desc = calcularPorcentagem(displayDe.value, displayPor.value);
     const slogan = slogans[Math.floor(Math.random() * slogans.length)];
     const linkFinal = inputLink.value.match(/https?:\/\/[^\s]+/)?.[0] || inputLink.value;
 
-    let msg = `🚨 *${selectGrupo.value.toUpperCase()}* 🚨\n`;
-    if (desc >= 2) msg += `🔥 *${desc}% DE DESCONTO!* 🔥\n`;
-    msg += `_${slogan}_\n\n📦 *Produto:* ${displayProduto.value}\n\n`; 
-    if(displayDe.value && displayDe.value !== "R$ 0,00") msg += `❌ De: ~${displayDe.value}~\n`;
+    // 1. Cabeçalho do Grupo
+    let msg = `🚨 *${selectGrupo.value.toUpperCase()}* 🚨\n\n`;
+
+    // 2. Frase sorteada em Negrito e Itálico com espaço
+    msg += `_*${slogan}*_\n\n`;
+    
+    // 3. Linha opcional para guiar o olhar
+    msg += `👇 Confira os detalhes: 👇\n\n`;
+
+    // 4. Nome do Produto isolado
+    msg += `📦 *Produto:* ${displayProduto.value}\n\n`; 
+    
+    // 5. Bloco de Preços e Desconto agrupados
+    if (desc >= 2) {
+        msg += `🔥 *DESCONTO DE ${desc}%!* 🔥\n`;
+    }
+    if(displayDe.value && displayDe.value !== "R$ 0,00") {
+        msg += `❌ De: ~${displayDe.value}~\n`;
+    }
     msg += `✅ *Por apenas: ${displayPor.value}* \n\n`; 
-    if(displayCupom.value) msg += `🎫 Usar Cupom: *${displayCupom.value}*\n\n`;
+    
+    // 6. Cupom (se existir)
+    if(displayCupom.value) {
+        msg += `🎫 *Use o Cupom:* ${displayCupom.value}\n\n`;
+    }
+    
+    // 7. Chamada para Ação e Link
     msg += `🛒 *Compre aqui:* ${linkFinal}`;
+    
     return msg;
 }
 
