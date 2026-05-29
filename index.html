@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#0d1117" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
     <div class="container">
@@ -109,21 +109,26 @@
                 </div>
             </div>
 
-            <p class="loader-title">Analisando produto...</p>
-            <p class="loader-subtitle">capturando preço, nome e desconto</p>
+            <p class="loader-title" id="loader-title">Analisando produto...</p>
+            <p class="loader-subtitle" id="loader-subtitle">preparando captura de dados</p>
 
-            <div class="progress-bar-container tech-progress">
-                <div class="progress-bar-animated"></div>
+            <div class="progress-bar-container tech-progress" id="loader-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div id="loader-progress-bar" class="progress-bar-animated" style="width: 0%;"></div>
+            </div>
+
+            <div class="loader-progress-meta">
+                <span id="loader-progress-text">0%</span>
+                <span id="loader-progress-phase">iniciando</span>
             </div>
         </div>
     </div>
 
-    <script src="script.js?v=2"></script>
+    <script src="script.js?v=4"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=3')
+                navigator.serviceWorker.register('./sw.js?v=4')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
