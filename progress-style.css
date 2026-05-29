@@ -58,6 +58,37 @@
     white-space: nowrap;
 }
 
+.saved-card > img,
+.auto-product-img {
+    width: 100% !important;
+    height: 145px !important;
+    max-height: 145px !important;
+    object-fit: contain !important;
+    object-position: center !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 14px !important;
+    padding: 8px !important;
+    margin-bottom: 12px !important;
+}
+
+#product-image-preview-img {
+    height: 150px !important;
+    max-height: 150px !important;
+    object-fit: contain !important;
+    object-position: center !important;
+    background: #ffffff !important;
+    padding: 8px !important;
+}
+
+@media (max-width: 420px) {
+    .saved-card > img,
+    .auto-product-img {
+        height: 135px !important;
+        max-height: 135px !important;
+    }
+}
+
 @keyframes progressGlow {
     from { left: -30%; }
     to { left: 100%; }
