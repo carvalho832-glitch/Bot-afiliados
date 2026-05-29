@@ -1,5 +1,4 @@
 (() => {
-    const STORAGE_OFERTAS = 'ofertas_achou_levou';
     const listaSalvas = document.getElementById('lista-salvas');
     const sectionTitle = document.querySelector('.section-title');
 
@@ -8,21 +7,37 @@
     let filaEnvio = [];
     let indiceAtual = 0;
 
-    function getOfertas() {
-        try {
-            return JSON.parse(localStorage.getItem(STORAGE_OFERTAS)) || [];
-        } catch {
-            return [];
-        }
-    }
-
     function abrirWhatsApp(texto) {
         if (!texto || !texto.trim()) {
             alert('Selecione pelo menos uma mensagem.');
             return;
         }
 
-        window.open(`https://wa.me/?text=${encodeURIComponent(texto.trim())}`, '_blank');
+        const url = `https://wa.me/?text=${encodeURIComponent(texto.trim())}`;
+        window.open(url, '_blank');
+    }
+
+    function limparTextoCard(texto) {
+        return (texto || '')
+            .replace(/^Selecionar esta oferta\s*/i, '')
+            .replace(/\s*(COPIAR|WHATSAPP|🗑️)\s*$/gi, '')
+            .trim();
+    }
+
+    function textoDoCard(card) {
+        const pre = card.querySelector('pre');
+        if (pre && pre.innerText.trim()) return pre.innerText.trim();
+
+        const texto = limparTextoCard(card.innerText);
+        return texto;
+    }
+
+    function tituloDoCard(card, texto) {
+        const titulo = card.querySelector('strong')?.innerText?.trim();
+        if (titulo) return titulo;
+
+        const produto = texto.match(/📦 \*Produto:\*\s*(.*)/)?.[1];
+        return produto || 'Oferta selecionada';
     }
 
     function criarControles() {
@@ -47,10 +62,10 @@
             <div id="bulk-send-status" style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:8px;">Fila de envio</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button id="btn-open-current-wa" type="button" style="flex:1;min-width:150px;margin:0;padding:10px;border-radius:10px;background:#16a34a;color:#fff;font-size:12px;font-weight:800;">💬 Abrir oferta atual</button>
-                <button id="btn-next-wa" type="button" style="flex:1;min-width:120px;margin:0;padding:10px;border-radius:10px;background:#f97316;color:#fff;font-size:12px;font-weight:800;">➡️ Próxima</button>
+                <button id="btn-next-wa" type="button" style="flex:1;min-width:120px;margin:0;padding:10px;border-radius:10px;background:#f97316;color:#fff;font-size:12px;font-weight:800;">➡️ Próxima oferta</button>
                 <button id="btn-cancel-wa-queue" type="button" style="flex:1;min-width:100px;margin:0;padding:10px;border-radius:10px;background:#dc2626;color:#fff;font-size:12px;font-weight:800;">Cancelar</button>
             </div>
-            <small style="display:block;margin-top:8px;color:var(--muted);font-weight:700;line-height:1.4;">Toque em abrir, envie no WhatsApp, volte aqui e toque em próxima. Assim cada oferta sai em uma mensagem separada.</small>`;
+            <small style="display:block;margin-top:8px;color:var(--muted);font-weight:700;line-height:1.4;">Após enviar no WhatsApp, volte aqui e toque em Próxima oferta. Cada produto abre como uma mensagem separada.</small>`;
 
         if (savedSection) savedSection.insertBefore(painel, listaSalvas);
 
@@ -69,17 +84,12 @@
             atualizarContador();
         });
 
-        document.getElementById('btn-send-selected-wa')?.addEventListener('click', () => {
-            prepararFilaSelecionada();
-        });
+        document.getElementById('btn-send-selected-wa')?.addEventListener('click', prepararFilaSelecionada);
 
         document.getElementById('btn-open-current-wa')?.addEventListener('click', () => {
             const item = filaEnvio[indiceAtual];
-            if (!item) {
-                alert('Nenhuma oferta na fila.');
-                return;
-            }
-            abrirWhatsApp(item.texto || item);
+            if (!item) return alert('Nenhuma oferta na fila.');
+            abrirWhatsApp(item.texto);
         });
 
         document.getElementById('btn-next-wa')?.addEventListener('click', () => {
@@ -88,9 +98,9 @@
             if (indiceAtual < filaEnvio.length - 1) {
                 indiceAtual++;
                 atualizarPainelFila();
-                abrirWhatsApp(filaEnvio[indiceAtual].texto || filaEnvio[indiceAtual]);
+                abrirWhatsApp(filaEnvio[indiceAtual].texto);
             } else {
-                alert('Você chegou na última oferta selecionada.');
+                alert('Fila finalizada. Todas as ofertas selecionadas já foram abertas.');
             }
         });
 
@@ -102,28 +112,46 @@
     }
 
     function prepararFilaSelecionada() {
-        const ids = [...document.querySelectorAll('.bulk-offer-check:checked')]
-            .map(c => Number(c.dataset.id));
+        const checks = [...document.querySelectorAll('.bulk-offer-check:checked')];
 
-        if (!ids.length) {
+        if (!checks.length) {
             alert('Selecione pelo menos uma oferta para enviar.');
             return;
         }
 
-        const ofertas = getOfertas();
-        filaEnvio = ids
-            .map(id => ofertas.find(o => Number(o.id) === id))
-            .filter(Boolean);
+        filaEnvio = checks
+            .map(check => {
+                const card = check.closest('.saved-card');
+                if (!card) return null;
+                const texto = textoDoCard(card);
+                return {
+                    texto,
+                    titulo: tituloDoCard(card, texto)
+                };
+            })
+            .filter(item => item && item.texto);
+
+        const textosUnicos = [];
+        const filaUnica = [];
+
+        filaEnvio.forEach(item => {
+            if (!textosUnicos.includes(item.texto)) {
+                textosUnicos.push(item.texto);
+                filaUnica.push(item);
+            }
+        });
+
+        filaEnvio = filaUnica;
 
         if (!filaEnvio.length) {
-            alert('Não encontrei as ofertas selecionadas.');
+            alert('Não encontrei texto nas ofertas selecionadas.');
             return;
         }
 
         indiceAtual = 0;
         document.getElementById('bulk-send-panel').style.display = 'block';
         atualizarPainelFila();
-        abrirWhatsApp(filaEnvio[0].texto || filaEnvio[0]);
+        abrirWhatsApp(filaEnvio[0].texto);
     }
 
     function atualizarPainelFila() {
@@ -134,11 +162,11 @@
         if (!status) return;
 
         const atual = filaEnvio[indiceAtual];
-        const nome = atual?.produto || 'Oferta selecionada';
-        status.innerText = `Oferta ${indiceAtual + 1} de ${filaEnvio.length}: ${nome}`;
+        const nome = atual?.titulo || 'Oferta selecionada';
+        status.innerText = `Fila de envio ${indiceAtual + 1} de ${filaEnvio.length}: ${nome}`;
 
-        if (btnNext) btnNext.innerText = indiceAtual < filaEnvio.length - 1 ? '➡️ Próxima' : '✅ Finalizar';
-        if (btnOpen) btnOpen.innerText = `💬 Abrir oferta ${indiceAtual + 1}`;
+        if (btnNext) btnNext.innerText = indiceAtual < filaEnvio.length - 1 ? '➡️ Abrir próxima oferta' : '✅ Fila finalizada';
+        if (btnOpen) btnOpen.innerText = `💬 Reabrir oferta ${indiceAtual + 1}`;
     }
 
     function atualizarContador() {
@@ -152,16 +180,15 @@
     function aplicarCheckboxNosCards() {
         const cards = [...listaSalvas.querySelectorAll('.saved-card')];
 
-        cards.forEach(card => {
+        cards.forEach((card, index) => {
             if (card.querySelector('.bulk-offer-check')) return;
 
-            const botaoReferencia = card.querySelector('[data-copy], [data-wa], [data-rm]');
-            const id = botaoReferencia?.dataset.copy || botaoReferencia?.dataset.wa || botaoReferencia?.dataset.rm;
-            if (!id) return;
+            const texto = textoDoCard(card);
+            if (!texto) return;
 
             const label = document.createElement('label');
             label.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 0 10px 0;color:var(--muted);font-size:12px;font-weight:800;';
-            label.innerHTML = `<input class="bulk-offer-check" type="checkbox" data-id="${id}" style="width:18px;height:18px;accent-color:#16a34a;"> Selecionar esta oferta`;
+            label.innerHTML = `<input class="bulk-offer-check" type="checkbox" data-index="${index}" style="width:18px;height:18px;accent-color:#16a34a;"> Selecionar esta oferta`;
 
             card.insertBefore(label, card.firstChild);
         });
