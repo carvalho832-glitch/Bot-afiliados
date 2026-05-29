@@ -25,7 +25,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '1mb', type: ['application/json', 'application/*+json'] }));
+app.use(express.text({ limit: '1mb', type: 'text/plain' }));
 
 app.get('/', (req, res) => {
   res.json({
@@ -38,6 +39,18 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ ok: true, service: 'Achou Levou API' });
 });
+
+function normalizarBody(body) {
+  if (!body) return {};
+  if (typeof body === 'string') {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return {};
+    }
+  }
+  return body;
+}
 
 function limparTexto(valor = '') {
   return String(valor || '').replace(/\s+/g, ' ').trim();
@@ -137,7 +150,7 @@ async function chamarGemini(prompt) {
 
 app.post('/gerar-mensagem', async (req, res) => {
   try {
-    const dados = req.body || {};
+    const dados = normalizarBody(req.body);
 
     if (!dados.produto && !dados.link) {
       return res.status(400).json({
