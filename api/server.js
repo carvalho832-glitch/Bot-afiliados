@@ -9,6 +9,11 @@ const GEMINI_MODEL_ENV = (process.env.GEMINI_MODEL || '').trim();
 const GEMINI_MODEL = !GEMINI_MODEL_ENV || GEMINI_MODEL_ENV.includes('1.5')
   ? 'gemini-2.5-flash'
   : GEMINI_MODEL_ENV;
+const FALLBACK_MODELS = Array.from(new Set([
+  GEMINI_MODEL,
+  'gemini-2.5-flash-lite',
+  'gemini-flash-latest'
+]));
 
 const corsOptions = {
   origin: '*',
@@ -99,12 +104,8 @@ Retorne somente a mensagem final, sem explicações extras.
 `;
 }
 
-async function chamarGemini(prompt) {
-  if (!GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY não configurada.');
-  }
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+async function chamarModeloGemini(prompt, model) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
   const resposta = await fetch(url, {
     method: 'POST',
@@ -128,16 +129,46 @@ async function chamarGemini(prompt) {
 
   if (!resposta.ok) {
     const detalhe = json?.error?.message || 'Erro ao chamar Gemini.';
-    throw new Error(detalhe);
+    const erro = new Error(detalhe);
+    erro.status = resposta.status;
+    erro.model = model;
+    throw erro;
   }
 
   const texto = json?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
 
   if (!texto) {
-    throw new Error('Gemini não retornou texto.');
+    const erro = new Error('Gemini não retornou texto.');
+    erro.model = model;
+    throw erro;
   }
 
-  return texto;
+  return { texto, model };
+}
+
+function deveTentarFallback(erro) {
+  const msg = String(erro?.message || '').toLowerCase();
+  return erro?.status === 429 || erro?.status === 500 || erro?.status === 503 || msg.includes('high demand') || msg.includes('overloaded') || msg.includes('try again later');
+}
+
+async function chamarGemini(prompt) {
+  if (!GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY não configurada.');
+  }
+
+  let ultimoErro = null;
+
+  for (const model of FALLBACK_MODELS) {
+    try {
+      return await chamarModeloGemini(prompt, model);
+    } catch (erro) {
+      ultimoErro = erro;
+      console.error(`Erro no modelo ${model}:`, erro.message);
+      if (!deveTentarFallback(erro)) break;
+    }
+  }
+
+  throw ultimoErro || new Error('Erro ao chamar Gemini.');
 }
 
 app.get('/', (req, res) => {
@@ -145,13 +176,14 @@ app.get('/', (req, res) => {
     ok: true,
     service: 'Achou Levou API',
     model: GEMINI_MODEL,
+    fallbackModels: FALLBACK_MODELS,
     message: 'API Gemini funcionando 🚀',
     rotas: ['/health', '/teste-gemini', 'POST /gerar-mensagem']
   });
 });
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, service: 'Achou Levou API', model: GEMINI_MODEL });
+  res.json({ ok: true, service: 'Achou Levou API', model: GEMINI_MODEL, fallbackModels: FALLBACK_MODELS });
 });
 
 app.get('/gerar-mensagem', (req, res) => {
@@ -174,18 +206,19 @@ app.get('/teste-gemini', async (req, res) => {
     };
 
     const prompt = montarPrompt(dadosTeste);
-    const mensagem = await chamarGemini(prompt);
+    const resultado = await chamarGemini(prompt);
 
     res.json({
       ok: true,
-      model: GEMINI_MODEL,
+      model: resultado.model,
       teste: 'Gemini respondeu com sucesso',
-      mensagem
+      mensagem: resultado.texto
     });
   } catch (erro) {
     res.status(500).json({
       ok: false,
-      model: GEMINI_MODEL,
+      model: erro.model || GEMINI_MODEL,
+      fallbackModels: FALLBACK_MODELS,
       error: erro.message || 'Erro ao testar Gemini.'
     });
   }
@@ -203,18 +236,19 @@ app.post('/gerar-mensagem', async (req, res) => {
     }
 
     const prompt = montarPrompt(dados);
-    const mensagem = await chamarGemini(prompt);
+    const resultado = await chamarGemini(prompt);
 
     res.json({
       ok: true,
-      model: GEMINI_MODEL,
-      mensagem
+      model: resultado.model,
+      mensagem: resultado.texto
     });
   } catch (erro) {
     console.error('Erro ao gerar mensagem:', erro);
     res.status(500).json({
       ok: false,
-      model: GEMINI_MODEL,
+      model: erro.model || GEMINI_MODEL,
+      fallbackModels: FALLBACK_MODELS,
       error: erro.message || 'Erro interno ao gerar mensagem.'
     });
   }
