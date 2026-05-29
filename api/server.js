@@ -28,18 +28,6 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '1mb', type: ['application/json', 'application/*+json'] }));
 app.use(express.text({ limit: '1mb', type: 'text/plain' }));
 
-app.get('/', (req, res) => {
-  res.json({
-    ok: true,
-    service: 'Achou Levou API',
-    message: 'API Gemini funcionando 🚀'
-  });
-});
-
-app.get('/health', (req, res) => {
-  res.json({ ok: true, service: 'Achou Levou API' });
-});
-
 function normalizarBody(body) {
   if (!body) return {};
   if (typeof body === 'string') {
@@ -147,6 +135,54 @@ async function chamarGemini(prompt) {
 
   return texto;
 }
+
+app.get('/', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'Achou Levou API',
+    message: 'API Gemini funcionando 🚀',
+    rotas: ['/health', '/teste-gemini', 'POST /gerar-mensagem']
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ ok: true, service: 'Achou Levou API' });
+});
+
+app.get('/gerar-mensagem', (req, res) => {
+  res.json({
+    ok: false,
+    message: 'Esta rota funciona via POST. Para testar no navegador, use /teste-gemini.'
+  });
+});
+
+app.get('/teste-gemini', async (req, res) => {
+  try {
+    const dadosTeste = {
+      produto: 'Sanduicheira Grill em Inox 750W',
+      precoDe: 'R$ 159,90',
+      precoPor: 'R$ 99,00',
+      desconto: '38% OFF',
+      cupom: '',
+      loja: 'Amazon',
+      link: 'https://amzn.to/teste'
+    };
+
+    const prompt = montarPrompt(dadosTeste);
+    const mensagem = await chamarGemini(prompt);
+
+    res.json({
+      ok: true,
+      teste: 'Gemini respondeu com sucesso',
+      mensagem
+    });
+  } catch (erro) {
+    res.status(500).json({
+      ok: false,
+      error: erro.message || 'Erro ao testar Gemini.'
+    });
+  }
+});
 
 app.post('/gerar-mensagem', async (req, res) => {
   try {
