@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#0d1117" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=2">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
     <div class="container">
@@ -79,26 +79,40 @@
     </div>
 
     <div id="loader-global" class="loader-overlay" style="display: none;">
-        <div class="loader-card">
-            <div class="robot-animation-area">
-                <div class="robot-and-bubble">
-                    <div class="speech-bubble">
-                        <span class="typewriter">Pescando a oferta...</span>
+        <div class="loader-card tech-loader-card">
+            <div class="tech-grid"></div>
+            <div class="scan-line"></div>
+
+            <div class="loader-status-pill">
+                <span class="status-dot"></span>
+                IA garimpando oferta
+            </div>
+
+            <div class="tech-robot-stage">
+                <div class="holo-ring ring-one"></div>
+                <div class="holo-ring ring-two"></div>
+                <div class="data-orbit orbit-one"></div>
+                <div class="data-orbit orbit-two"></div>
+
+                <div class="tech-robot">
+                    <div class="robot-antenna"></div>
+                    <div class="robot-head">
+                        <div class="robot-visor">
+                            <span></span>
+                            <span></span>
+                        </div>
                     </div>
-                    <div class="robot-vector">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50">
-                            <circle cx="25" cy="25" r="23" stroke="#f97316" stroke-width="2" fill="#161b22"/>
-                            <rect x="15" y="15" width="20" height="20" rx="3" fill="#30363d"/>
-                            <circle cx="20" cy="21" r="2" fill="#f97316"/>
-                            <circle cx="30" cy="21" r="2" fill="#f97316"/>
-                            <rect x="19" y="27" width="12" height="4" rx="1" fill="#8b949e"/>
-                            <path d="M 23,8 V 15" stroke="#f97316" stroke-width="2"/>
-                            <path d="M 12,23 L 15,25 L 12,27 V 23 Z" fill="#f97316"/>
-                        </svg>
+                    <div class="robot-neck"></div>
+                    <div class="robot-body">
+                        <div class="robot-core"></div>
                     </div>
                 </div>
             </div>
-            <div class="progress-bar-container">
+
+            <p class="loader-title">Analisando produto...</p>
+            <p class="loader-subtitle">capturando preço, nome e desconto</p>
+
+            <div class="progress-bar-container tech-progress">
                 <div class="progress-bar-animated"></div>
             </div>
         </div>
@@ -109,7 +123,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=2')
+                navigator.serviceWorker.register('./sw.js?v=3')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
