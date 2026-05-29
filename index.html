@@ -9,8 +9,8 @@
     <meta name="theme-color" content="#0d1117" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=6">
-    <link rel="stylesheet" href="progress-style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="progress-style.css?v=7">
 </head>
 <body>
     <div class="container">
@@ -124,15 +124,16 @@
         </div>
     </div>
 
-    <script src="script.js?v=6"></script>
-    <script src="progress-loader.js?v=6"></script>
-    <script src="enhancements.js?v=6"></script>
-    <script src="bulk-whatsapp.js?v=6"></script>
+    <script src="script.js?v=7"></script>
+    <script src="progress-loader.js?v=7"></script>
+    <script src="enhancements.js?v=7"></script>
+    <script src="bulk-whatsapp.js?v=7"></script>
+    <script src="shopee-helper.js?v=7"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=6')
+                navigator.serviceWorker.register('./sw.js?v=7')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
