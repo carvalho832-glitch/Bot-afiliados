@@ -2,9 +2,8 @@
     const STORAGE_OFERTAS = 'ofertas_achou_levou';
     const inputLink = document.getElementById('input-link');
     const btnSalvar = document.getElementById('btn-salvar');
-    const listaSalvas = document.getElementById('lista-salvas');
 
-    if (!inputLink || !btnSalvar || !listaSalvas) return;
+    if (!inputLink || !btnSalvar) return;
 
     function extrairLink(texto) {
         return texto.match(/https?:\/\/[^\s]+/)?.[0] || texto.trim();
@@ -42,24 +41,6 @@
         }
     }
 
-    function colocarImagemNoPrimeiroCard(imagem) {
-        if (!imagem) return;
-
-        const primeiroCard = listaSalvas.querySelector('.saved-card');
-        if (!primeiroCard || primeiroCard.querySelector('.auto-product-img')) return;
-
-        const img = document.createElement('img');
-        img.className = 'auto-product-img';
-        img.src = imagem;
-        img.alt = 'Foto do produto';
-        img.loading = 'lazy';
-        img.referrerPolicy = 'no-referrer';
-        img.style.cssText = 'width:100%;max-height:210px;object-fit:cover;border-radius:14px;margin-bottom:12px;background:var(--input-bg);border:1px solid var(--border);';
-        img.onerror = () => img.remove();
-
-        primeiroCard.insertBefore(img, primeiroCard.firstChild);
-    }
-
     async function salvarImagemNoHistorico(link, imagem) {
         if (!imagem) return;
 
@@ -93,6 +74,5 @@
         if (!imagem) return;
 
         await salvarImagemNoHistorico(link, imagem);
-        colocarImagemNoPrimeiroCard(imagem);
     });
 })();
