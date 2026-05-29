@@ -160,7 +160,7 @@
         };
     }
 
-    async function fetchComTimeout(url, opcoes = {}, timeout = 70000) {
+    async function fetchComTimeout(url, opcoes = {}, timeout = 90000) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeout);
 
@@ -168,35 +168,22 @@
             return await fetch(url, {
                 ...opcoes,
                 signal: controller.signal,
-                cache: 'no-store'
+                cache: 'no-store',
+                mode: 'cors'
             });
         } finally {
             clearTimeout(timer);
         }
     }
 
-    async function aquecerApi() {
-        messageBox.innerText = 'Acordando a IA no Render... isso pode levar alguns segundos no plano grátis.';
-        const resposta = await fetchComTimeout(`${API_URL}/health`, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        }, 80000);
-
-        if (!resposta.ok) {
-            throw new Error('A API do Render não respondeu no teste /health.');
-        }
-    }
-
     async function gerarComGemini() {
         const dados = dadosParaGemini();
-
-        await aquecerApi();
         messageBox.innerText = 'Gemini está criando a mensagem de venda...';
 
         const resposta = await fetchComTimeout(`${API_URL}/gerar-mensagem`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain;charset=UTF-8',
                 'Accept': 'application/json'
             },
             body: JSON.stringify(dados)
@@ -269,7 +256,7 @@
     if (btnSalvar) {
         btnSalvar.onclick = () => {
             const texto = window.__ultimaMensagemAchouLevou || messageBox.innerText;
-            if (!texto || texto === 'Aguardando geração...' || texto.includes('Gemini está') || texto.includes('Acordando a IA') || texto.includes('Preparando Gemini')) {
+            if (!texto || texto === 'Aguardando geração...' || texto.includes('Gemini está') || texto.includes('Preparando Gemini')) {
                 alert('Gere uma mensagem primeiro!');
                 return;
             }
