@@ -18,29 +18,6 @@ const metaThemeColor = document.getElementById('meta-theme-color');
 const STORAGE_OFERTAS = 'ofertas_achou_levou';
 const STORAGE_TEMA = 'tema_achou_levou';
 
-const slogans = [
-    "Oferta boa assim voa! 💸", "Preço de banana! 🍌", "Aproveite agora! 🚀", "Achado do dia! ⭐", "Pechincha bruta! 🔨",
-    "Corre que acaba rápido! 🏃‍♂️💨", "Mais barato que isso, só de graça! 🎁", "Se piscar, perdeu! 👀", "Preço de custo! 😱", "O patrão ficou maluco! 🤪",
-    "Desconto de verdade! 📉", "Menor preço dos últimos 30 dias! 🥇", "A carteira chega a sorrir! 😁", "Preço de Black Friday hoje! 🖤", "Não deixa essa passar! 🛑",
-    "Estoque quase no fim! 🚨", "Promoção relâmpago! ⚡", "Essa é para zerar o estoque! 📦", "Deixa o like e leva! 👍", "Oferta exclusiva do grupo! 💎",
-    "Vai esgotar em 3, 2, 1... ⏳", "Quem chega primeiro bebe água limpa! 💧", "Baita oportunidade! 🎯", "Precinho camarada! 🤝", "Essa bateu o recorde! 🏆",
-    "Sua chance de economizar muito! 💰", "Não conte pra ninguém, mas o preço caiu! 🤫", "Olha a chance passando! 🏄‍♂️", "Oportunidade de ouro! 🥇", "Tá de graça! 🤯",
-    "Quem compara, compra aqui! 🛒", "Preço que cabe no bolso! 👖", "Oferta pra ninguém botar defeito! 💯", "Só hoje com esse preço! 📅", "Imperdível! 🔥",
-    "Você não vai ver esse preço de novo! 🚫", "Preço insano! 🧠💥", "Duvido você achar mais barato! 🧐", "É hoje que você leva! 🛍️", "Oferta quente! 🌶️",
-    "Preço derreteu! 🫠", "Aquele achado que a gente ama! ❤️", "Mais economia pra sua casa! 🏡", "Você merece esse presente! 🎁", "Não pense muito, só vai! 🚦",
-    "Promoção de verdade não tem pegadinha! 🎣", "Preço lá embaixo! ⬇️", "Caiu o preço, corre! 📉", "Aquele desconto que faz a diferença! 🤑", "Tá muito barato! 🤏",
-    "Foco na economia! 🎯", "Seu bolso agradece! 🙏", "Oferta de cair o queixo! 😲", "Promoção absurda! 💥", "Menor preço da internet! 🌐",
-    "Preço de atacado no varejo! 🏭", "Esmaga o preço! 🤛", "Oferta pra zerar a loja! 🏪", "Não precisa procurar mais! 🔍", "Esse é o menor valor histórico! 📊",
-    "Oferta relâmpago ativada! ⚡", "Aproveita que o frete não perdoa! 🚚", "Oportunidade que não volta! 🔙", "Preço de mãe para filho! 👩‍👦", "Desconto agressivo! 🦁",
-    "Oferta que vale cada centavo! 🪙", "A economia é certa! ✅", "Tá imperdível demais! 🤩", "Você encontrou o melhor preço! 📍", "Promoção válida enquanto durar o estoque! ⏳",
-    "Desconto que você respeita! 🫡", "É pechincha que chama? 🗣️", "O preço despencou! 🪂", "Queima de estoque total! 🔥", "Liquidação relâmpago! ⛈️",
-    "Aproveite antes que o preço suba! 📈", "Essa é pra levar dois! ✌️", "Oferta nível hard! 🎮", "Preço ninja! 🥷", "Desconto mágico! 🪄",
-    "Promoção que brilha os olhos! ✨", "Essa oferta é um espetáculo! 🎭", "A melhor compra do seu dia! 🌅", "Preço de amigo! 🫂", "Oferta para os rápidos! 🐆",
-    "Desconto de arrasar quarteirão! 🏢", "Preço top das galáxias! 🌌", "A economia que você buscava! 🕵️‍♂️", "Promoção de tirar o fôlego! 😮‍💨", "Essa você não pode perder! ❌",
-    "O preço que você esperava! 🕰️", "Oferta para fechar o dia com chave de ouro! 🔑", "Desconto de mestre! 🧙‍♂️", "Preço que alegra o dia! ☀️", "Promoção sem igual! 🥇",
-    "Oportunidade fantástica! 🦄", "Preço de feira! 🧺", "Oferta imperdível no ar! 📡", "Desconto que é um estouro! 🎆", "Aproveite a pechincha de hoje! 📅"
-];
-
 let ofertasSet = JSON.parse(localStorage.getItem(STORAGE_OFERTAS)) || [];
 let ultimaMensagemGerada = '';
 
@@ -92,32 +69,128 @@ function extrairLink(texto) {
     return texto.match(/https?:\/\/[^\s]+/)?.[0] || texto.trim();
 }
 
+function detectarLoja(link) {
+    const l = (link || '').toLowerCase();
+    if (l.includes('shopee') || l.includes('shp.ee') || l.includes('collshp')) return 'Shopee';
+    if (l.includes('mercadolivre') || l.includes('mercado livre') || l.includes('meli.la')) return 'Mercado Livre';
+    if (l.includes('amazon') || l.includes('amzn.to')) return 'Amazon';
+    return 'Loja oficial';
+}
+
+function limparTituloProduto(produto) {
+    return (produto || 'Oferta especial')
+        .replace(/Amazon\.com\.br\s?:?\s?/gi, '')
+        .replace(/\|\s?Mercado\s?Livre/gi, '')
+        .replace(/- Mercado Livre/gi, '')
+        .replace(/\|\s?Shopee Brasil/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function tituloCurto(produto) {
+    return limparTituloProduto(produto).split(' ').slice(0, 10).join(' ').toUpperCase();
+}
+
+function beneficioProduto(produto) {
+    const p = (produto || '').toLowerCase();
+
+    if (p.includes('tv') || p.includes('smart')) {
+        return {
+            beneficio: '✅ Tela grande para assistir filmes, séries, futebol e seus apps favoritos com mais conforto.',
+            uso: '🎯 Ideal para deixar a sala mais completa e aproveitar entretenimento em casa.'
+        };
+    }
+
+    if (p.includes('notebook') || p.includes('laptop') || p.includes('inspiron') || p.includes('dell')) {
+        return {
+            beneficio: '✅ Ideal para trabalho, estudos, navegação e tarefas do dia a dia.',
+            uso: '🎯 Serve para quem precisa de praticidade e desempenho em um só equipamento.'
+        };
+    }
+
+    if (p.includes('celular') || p.includes('smartphone') || p.includes('galaxy') || p.includes('iphone') || p.includes('motorola')) {
+        return {
+            beneficio: '✅ Ótimo para fotos, vídeos, redes sociais, apps e uso diário.',
+            uso: '🎯 Serve para quem quer praticidade, conexão e tecnologia sempre na mão.'
+        };
+    }
+
+    if (p.includes('cadeira') && (p.includes('auto') || p.includes('carro') || p.includes('bebê') || p.includes('bebe'))) {
+        return {
+            beneficio: '✅ Mais segurança e conforto para transportar a criança no carro.',
+            uso: '🎯 Ideal para passeios, viagens e rotina da família com mais tranquilidade.'
+        };
+    }
+
+    if (p.includes('toalha') || p.includes('algodão') || p.includes('algodao') || p.includes('cama') || p.includes('banho')) {
+        return {
+            beneficio: '✅ Produto útil para deixar a casa mais confortável e renovar o enxoval.',
+            uso: '🎯 Serve para o uso diário com mais praticidade e economia.'
+        };
+    }
+
+    if (p.includes('fone') || p.includes('headset') || p.includes('bluetooth')) {
+        return {
+            beneficio: '✅ Mais praticidade para ouvir músicas, assistir vídeos e atender chamadas.',
+            uso: '🎯 Ideal para trabalho, estudos, academia ou rotina do dia a dia.'
+        };
+    }
+
+    if (p.includes('bolsa') || p.includes('mochila')) {
+        return {
+            beneficio: '✅ Ajuda a organizar seus itens com mais praticidade.',
+            uso: '🎯 Serve para trabalho, passeio, estudos ou viagens rápidas.'
+        };
+    }
+
+    if (p.includes('tenis') || p.includes('tênis') || p.includes('sapato') || p.includes('sandalia') || p.includes('sandália')) {
+        return {
+            beneficio: '✅ Mais conforto e estilo para usar no dia a dia.',
+            uso: '🎯 Serve para passeio, trabalho, rotina ou combinações casuais.'
+        };
+    }
+
+    if (p.includes('omega') || p.includes('ômega') || p.includes('capsula') || p.includes('cápsula')) {
+        return {
+            beneficio: '✅ Produto prático para incluir na rotina de cuidados pessoais.',
+            uso: '🎯 Serve para quem gosta de manter os suplementos sempre em dia.'
+        };
+    }
+
+    return {
+        beneficio: '✅ Produto selecionado para facilitar sua rotina e ajudar você a economizar.',
+        uso: '🎯 Serve para quem procura praticidade, bom preço e compra segura.'
+    };
+}
+
 function montarMensagem() {
-    const desc = calcularPorcentagem(displayDe.value, displayPor.value);
-    const slogan = slogans[Math.floor(Math.random() * slogans.length)];
     const linkFinal = extrairLink(inputLink.value);
+    const loja = detectarLoja(linkFinal);
+    const produto = limparTituloProduto(displayProduto.value || 'Oferta especial');
+    const desc = calcularPorcentagem(displayDe.value, displayPor.value);
+    const info = beneficioProduto(produto);
+    const cupom = displayCupom.value.trim();
+    const temDe = displayDe.value && displayDe.value !== 'R$ 0,00';
+    const temPor = displayPor.value && displayPor.value !== 'R$ 0,00';
+    const cupomEhFrete = /frete|gr[aá]tis/i.test(cupom);
 
-    let msg = `🚨 *${selectGrupo.value.toUpperCase()}* 🚨\n\n`;
-    msg += `_*${slogan}*_\n\n`;
-    msg += `👇 Confira os detalhes: 👇\n\n`;
-    msg += `📦 *Produto:* ${displayProduto.value}\n\n`;
+    let msg = `🔥 *${tituloCurto(produto)}!*\n\n`;
+    msg += `${info.beneficio}\n`;
+    msg += `${info.uso}\n\n`;
+    msg += `💥 *OFERTA ESPECIAL:*\n`;
 
-    if (desc >= 2) {
-        msg += `🔥 *DESCONTO DE ${desc}%!* 🔥\n`;
+    if (temDe) msg += `❌ De: ~${displayDe.value}~\n`;
+    msg += `✅ *POR APENAS: ${temPor ? displayPor.value : 'Confira no site'}*\n`;
+    if (desc >= 2) msg += `🔥 *${desc}% OFF!*\n`;
+
+    if (cupom) {
+        msg += cupomEhFrete
+            ? `🚚 *Frete grátis/cupom:* ${cupom}\n`
+            : `🎫 *Cupom de desconto:* ${cupom}\n`;
     }
 
-    if (displayDe.value && displayDe.value !== 'R$ 0,00') {
-        msg += `❌ De: ~${displayDe.value}~\n`;
-    }
-
-    msg += `✅ *Por apenas: ${displayPor.value || 'Confira no site'}*\n\n`;
-
-    if (displayCupom.value.trim()) {
-        msg += `🎫 *Use o Cupom:* ${displayCupom.value.trim()}\n\n`;
-    }
-
-    msg += `🔒 *Compre com segurança no site oficial:*\n\n`;
-    msg += `🛒 *Link:* ${linkFinal}`;
+    msg += `\n🔒 *Compre com segurança no site oficial:*\n`;
+    msg += `🛒 *Link ${loja}:* ${linkFinal}`;
 
     return msg;
 }
