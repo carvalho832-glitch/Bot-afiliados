@@ -61,7 +61,27 @@ function temValor(valor = '') {
 function beneficioProduto(produto = '') {
   const p = produto.toLowerCase();
 
-  if (p.includes('tv') || p.includes('smart')) {
+  if (p.includes('melatonina') || (p.includes('lavitan') && p.includes('mastig'))) {
+    return 'Opção prática para complementar sua rotina noturna, sempre seguindo as orientações de uso do fabricante.';
+  }
+
+  if (p.includes('omega') || p.includes('ômega') || p.includes('epa') || p.includes('dha')) {
+    return 'Suplemento prático para complementar a rotina de cuidados diários, conforme orientação de uso do fabricante.';
+  }
+
+  if (p.includes('cafeína') || p.includes('cafeina')) {
+    return 'Opção prática para quem busca incluir cafeína na rotina, respeitando as orientações de uso do fabricante.';
+  }
+
+  if (p.includes('vitamina') || p.includes('multivit') || p.includes('lavitan') || p.includes('centrum')) {
+    return 'Ajuda a complementar a rotina de cuidados diários de forma simples e prática.';
+  }
+
+  if (p.includes('capsula') || p.includes('cápsula') || p.includes('comprimido') || p.includes('suplemento')) {
+    return 'Produto prático para complementar a rotina de cuidados, seguindo as informações do rótulo e do fabricante.';
+  }
+
+  if (p.includes('tv') || p.includes('smart tv') || p.includes('roku')) {
     return 'Tela maior para curtir filmes, séries, jogos e apps de streaming com mais conforto.';
   }
 
@@ -73,11 +93,11 @@ function beneficioProduto(produto = '') {
     return 'Boa opção para estudos, trabalho, navegação e tarefas do dia a dia.';
   }
 
-  if (p.includes('cadeira') && (p.includes('auto') || p.includes('carro') || p.includes('bebê') || p.includes('bebe'))) {
+  if (p.includes('cadeira') && (p.includes('auto') || p.includes('carro') || p.includes('bebê') || p.includes('bebe') || p.includes('infantil'))) {
     return 'Mais segurança e conforto para transportar a criança no carro.';
   }
 
-  if (p.includes('sandui') || p.includes('grill') || p.includes('air fryer') || p.includes('panela') || p.includes('cozinha')) {
+  if (p.includes('sandui') || p.includes('grill') || p.includes('air fryer') || p.includes('panela') || p.includes('cozinha') || p.includes('wap')) {
     return 'Mais praticidade para preparar lanches e refeições rápidas no dia a dia.';
   }
 
@@ -93,10 +113,6 @@ function beneficioProduto(produto = '') {
     return 'Produto útil para renovar a casa e deixar a rotina mais confortável.';
   }
 
-  if (p.includes('omega') || p.includes('ômega') || p.includes('vitamina') || p.includes('multivit') || p.includes('cafeína') || p.includes('cafeina') || p.includes('capsula') || p.includes('cápsula') || p.includes('suplemento')) {
-    return 'Opção prática para complementar a rotina de cuidados, seguindo as orientações de uso do fabricante.';
-  }
-
   if (p.includes('bolsa') || p.includes('mochila')) {
     return 'Ajuda a organizar seus itens com mais praticidade no dia a dia.';
   }
@@ -105,7 +121,11 @@ function beneficioProduto(produto = '') {
     return 'Mais conforto e estilo para usar na rotina, passeio ou trabalho.';
   }
 
-  return 'Produto escolhido para facilitar sua rotina e ajudar você a economizar.';
+  if (p.includes('perfume') || p.includes('creme') || p.includes('hidratante') || p.includes('protetor solar') || p.includes('beleza')) {
+    return 'Boa escolha para completar sua rotina de cuidados pessoais com mais praticidade.';
+  }
+
+  return 'Oferta selecionada para quem busca praticidade, economia e uma compra segura no site oficial.';
 }
 
 function tituloDestaque(produto = '') {
@@ -144,7 +164,7 @@ function mensagemEstaCompleta(texto = '', dados = {}) {
   const msg = limparTexto(texto);
   const linhas = String(texto || '').split('\n').map(l => l.trim()).filter(Boolean);
   const temPreco = msg.includes('POR APENAS') || msg.includes('Por apenas') || msg.includes('preço') || msg.includes('Preço');
-  const temBeneficio = msg.includes('✅') || msg.toLowerCase().includes('ideal') || msg.toLowerCase().includes('praticidade') || msg.toLowerCase().includes('conforto');
+  const temBeneficio = msg.includes('✅') || msg.toLowerCase().includes('ideal') || msg.toLowerCase().includes('praticidade') || msg.toLowerCase().includes('conforto') || msg.toLowerCase().includes('rotina');
   const temLink = !dados.link || msg.includes(dados.link) || msg.toLowerCase().includes('link');
   return msg.length >= 120 && linhas.length >= 5 && temPreco && temBeneficio && temLink;
 }
@@ -190,6 +210,13 @@ Regras obrigatórias:
 10. Finalize exatamente com:
 🔒 *Compre com segurança no site oficial:*
 🛒 *Link ${loja}:* ${link}
+
+Exemplos de benefício por tipo:
+- Melatonina: opção prática para complementar a rotina noturna, seguindo as orientações do fabricante.
+- Celular: ideal para fotos, vídeos, redes sociais e apps do dia a dia.
+- TV: boa para filmes, séries e streaming com mais conforto.
+- Cozinha: ajuda a preparar receitas e lanches com mais praticidade.
+- Roupa: peça versátil para montar looks confortáveis.
 
 Formato desejado:
 🔥 *NOME DO PRODUTO!*
@@ -298,13 +325,13 @@ app.get('/gerar-mensagem', (req, res) => {
 
 app.get('/teste-gemini', async (req, res) => {
   const dadosTeste = {
-    produto: 'Sanduicheira Grill em Inox 750W',
-    precoDe: 'R$ 159,90',
-    precoPor: 'R$ 99,00',
-    desconto: '38% OFF',
+    produto: 'Lavitan Melatonina 0,21mg 150 Comprimidos Mastigáveis Maracujá',
+    precoDe: 'R$ 28,90',
+    precoPor: 'R$ 19,88',
+    desconto: '31% OFF',
     cupom: '',
-    loja: 'Amazon',
-    link: 'https://amzn.to/teste'
+    loja: 'Mercado Livre',
+    link: 'https://meli.la/teste'
   };
 
   try {
