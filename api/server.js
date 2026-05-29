@@ -18,6 +18,7 @@ app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
 app.use((req, res, next) => {
+  console.log(`[REQ] ${req.method} ${req.originalUrl}`);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Accept');
@@ -209,6 +210,16 @@ app.post('/gerar-mensagem', async (req, res) => {
       error: erro.message || 'Erro interno ao gerar mensagem.'
     });
   }
+});
+
+app.use((req, res) => {
+  res.status(404).json({
+    ok: false,
+    error: 'Rota não encontrada dentro da API Achou Levou.',
+    metodo: req.method,
+    caminho: req.originalUrl,
+    rotasDisponiveis: ['/', '/health', '/teste-gemini', 'POST /gerar-mensagem']
+  });
 });
 
 app.listen(PORT, () => {
