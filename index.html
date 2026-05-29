@@ -4,66 +4,78 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Achou Levou 🚀</title>
-    
+
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#f97316">
+    <meta name="theme-color" content="#0d1117" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
-    
-    <link rel="stylesheet" href="style.css">
+
+    <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
-
     <div class="container">
-        <header>
-            <h1>ACHOU LEVOU 🚀</h1>
+        <header class="app-header">
+            <div>
+                <p class="eyebrow">Central de ofertas</p>
+                <h1>ACHOU LEVOU 🚀</h1>
+            </div>
+            <button id="btn-tema" class="theme-toggle" type="button" aria-label="Alternar modo claro ou escuro">🌙</button>
         </header>
 
-        <div class="input-box">
-            <label>📱 Postar em qual grupo?</label>
+        <section class="card input-box">
+            <label for="select-grupo">📱 Postar em qual grupo?</label>
             <select id="select-grupo">
                 <option value="Achou Levou 🚀">Achou Levou 🚀</option>
                 <option value="Oferta Bruta 🔨">Oferta Bruta 🔨</option>
             </select>
 
-            <label>Link do produto</label>
-            <input type="text" id="input-link" placeholder="Cole o link da Amazon ou ML aqui...">
-            
-            <button id="btn-puxar">PUXAR DADOS</button>
-        </div>
+            <label for="input-link">Link do produto</label>
+            <input type="text" id="input-link" placeholder="Cole o link da Shopee, Mercado Livre ou Amazon aqui...">
 
-        <div class="actions">
-            <button id="btn-gerar" class="orange-btn">GERAR MENSAGEM</button>
-            <button id="btn-salvar" class="blue-btn">💾 SALVAR NO ARQUIVO</button>
-        </div>
+            <button id="btn-puxar" class="green-btn" type="button">🔎 PUXAR DADOS</button>
+        </section>
 
-        <div class="fields-grid">
+        <section class="card fields-grid">
             <div class="field">
-                <label>Produto</label>
-                <input type="text" id="display-produto" readonly>
+                <label for="display-produto">Produto</label>
+                <input type="text" id="display-produto" readonly placeholder="O nome do produto aparece aqui">
             </div>
+
             <div class="row">
                 <div class="field">
-                    <label>De:</label>
+                    <label for="display-de">De:</label>
                     <input type="text" id="display-de" placeholder="R$ 0,00">
                 </div>
                 <div class="field">
-                    <label>Por:</label>
+                    <label for="display-por">Por:</label>
                     <input type="text" id="display-por" placeholder="R$ 0,00" class="highlight-price">
                 </div>
             </div>
+
             <div class="field">
-                <label>🎫 Cupom</label>
+                <label for="display-cupom">🎫 Cupom</label>
                 <input type="text" id="display-cupom" placeholder="Ex: COMPRANOAPP">
             </div>
+        </section>
+
+        <div class="actions">
+            <button id="btn-gerar" class="orange-btn" type="button">✨ GERAR MENSAGEM</button>
+            <button id="btn-copiar" class="copy-btn" type="button">📋 COPIAR MENSAGEM</button>
+            <button id="btn-salvar" class="blue-btn" type="button">💾 SALVAR NO ARQUIVO</button>
         </div>
 
-        <div class="message-output-box">
+        <section class="message-output-box" aria-live="polite">
             <p id="msg-preview">Aguardando geração...</p>
-        </div>
+        </section>
 
-        <div id="lista-salvas"></div>
+        <section class="saved-section">
+            <div class="section-title">
+                <span>📁 Ofertas salvas</span>
+                <small>histórico no celular</small>
+            </div>
+            <div id="lista-salvas"></div>
+        </section>
 
-        <button id="btn-limpar-campos" class="red-btn">🗑️ LIMPAR CAMPOS</button>
+        <button id="btn-limpar-campos" class="red-btn" type="button">🗑️ LIMPAR CAMPOS</button>
     </div>
 
     <div id="loader-global" class="loader-overlay" style="display: none;">
@@ -92,13 +104,16 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
-    
+    <script src="script.js?v=2"></script>
+
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('PWA ativado!', reg))
+                navigator.serviceWorker.register('./sw.js?v=2')
+                    .then(reg => {
+                        console.log('PWA ativado!', reg);
+                        reg.update();
+                    })
                     .catch(err => console.log('Falha no PWA:', err));
             });
         }
