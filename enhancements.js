@@ -19,42 +19,46 @@
 
     let ultimaMensagem = '';
 
-    const frases = [
-        'Oferta garimpada para economizar de verdade! 💸',
-        'Achado do dia passando na sua tela! 🔥',
-        'Preço bom para comprar sem enrolar! 🛒',
-        'Essa vale salvar antes que acabe! ⚡',
-        'Promoção com cara de oportunidade! 🚀'
-    ];
+    if (!document.getElementById('select-loja')) {
+        const lojaBox = document.createElement('div');
+        lojaBox.className = 'field';
+        lojaBox.style.marginTop = '10px';
+        lojaBox.innerHTML = `
+            <label for="select-loja">🏬 Loja do produto</label>
+            <select id="select-loja">
+                <option value="auto">Detectar automaticamente</option>
+                <option value="Shopee">Shopee</option>
+                <option value="Mercado Livre">Mercado Livre</option>
+                <option value="Amazon">Amazon</option>
+                <option value="Outra loja">Outra loja</option>
+            </select>`;
 
-    const lojaBox = document.createElement('div');
-    lojaBox.className = 'field';
-    lojaBox.style.marginTop = '10px';
-    lojaBox.innerHTML = `
-        <label for="select-loja">🏬 Loja do produto</label>
-        <select id="select-loja">
-            <option value="auto">Detectar automaticamente</option>
-            <option value="Shopee">Shopee</option>
-            <option value="Mercado Livre">Mercado Livre</option>
-            <option value="Amazon">Amazon</option>
-            <option value="Outra loja">Outra loja</option>
-        </select>`;
+        inputLink.parentElement.insertBefore(lojaBox, document.getElementById('btn-puxar'));
+    }
 
-    inputLink.parentElement.insertBefore(lojaBox, document.getElementById('btn-puxar'));
     const selectLoja = document.getElementById('select-loja');
 
-    const btnWhatsApp = document.createElement('button');
-    btnWhatsApp.id = 'btn-whatsapp';
-    btnWhatsApp.className = 'green-btn';
-    btnWhatsApp.type = 'button';
-    btnWhatsApp.innerText = '💬 ENVIAR NO WHATSAPP';
-    actions.insertBefore(btnWhatsApp, btnSalvar);
+    if (!document.getElementById('btn-whatsapp')) {
+        const btnWhatsApp = document.createElement('button');
+        btnWhatsApp.id = 'btn-whatsapp';
+        btnWhatsApp.className = 'green-btn';
+        btnWhatsApp.type = 'button';
+        btnWhatsApp.innerText = '💬 ENVIAR NO WHATSAPP';
+        actions.insertBefore(btnWhatsApp, btnSalvar);
+    }
 
-    const btnLimparHistorico = document.createElement('button');
-    btnLimparHistorico.type = 'button';
-    btnLimparHistorico.innerText = '🧹 Limpar histórico';
-    btnLimparHistorico.style.cssText = 'width:auto;margin:0;padding:8px 10px;border-radius:999px;background:#da3633;color:#fff;font-size:11px;';
-    sectionTitle?.appendChild(btnLimparHistorico);
+    const btnWhatsApp = document.getElementById('btn-whatsapp');
+
+    if (!sectionTitle?.querySelector('.btn-limpar-historico-inline')) {
+        const btnLimparHistorico = document.createElement('button');
+        btnLimparHistorico.type = 'button';
+        btnLimparHistorico.className = 'btn-limpar-historico-inline';
+        btnLimparHistorico.innerText = '🧹 Limpar histórico';
+        btnLimparHistorico.style.cssText = 'width:auto;margin:0;padding:8px 10px;border-radius:999px;background:#da3633;color:#fff;font-size:11px;';
+        sectionTitle?.appendChild(btnLimparHistorico);
+    }
+
+    const btnLimparHistorico = sectionTitle?.querySelector('.btn-limpar-historico-inline');
 
     function getOfertas() {
         try {
@@ -94,109 +98,64 @@
         return 0;
     }
 
-    function tituloCurto(produto) {
-        const texto = (produto || 'Oferta especial')
+    function limparTituloProduto(produto) {
+        return (produto || 'Oferta especial')
+            .replace(/Amazon\.com\.br\s?:?\s?/gi, '')
+            .replace(/\|\s?Mercado\s?Livre/gi, '')
+            .replace(/- Mercado Livre/gi, '')
+            .replace(/\|\s?Shopee Brasil/gi, '')
             .replace(/\s+/g, ' ')
-            .replace(/\s-\s.*/g, '')
             .trim();
+    }
 
-        const palavras = texto.split(' ').slice(0, 9).join(' ');
-        return palavras.toUpperCase();
+    function tituloCurto(produto) {
+        return limparTituloProduto(produto).split(' ').slice(0, 8).join(' ').toUpperCase();
     }
 
     function beneficioPorProduto(produto) {
         const p = (produto || '').toLowerCase();
 
-        if (p.includes('tv') || p.includes('smart')) {
-            return [
-                '✅ Ideal para assistir filmes, séries, futebol e seus apps favoritos com mais praticidade.',
-                '🔊 Ótima opção para melhorar a experiência da sala sem gastar demais.',
-                '🏠 Produto garimpado para quem quer tecnologia e economia no mesmo pacote.'
-            ];
-        }
+        if (p.includes('tv') || p.includes('smart')) return 'Tela grande para filmes, séries, jogos e apps de streaming.';
+        if (p.includes('notebook') || p.includes('laptop') || p.includes('inspiron') || p.includes('dell')) return 'Ideal para trabalho, estudos, navegação e tarefas do dia a dia.';
+        if (p.includes('celular') || p.includes('smartphone') || p.includes('galaxy') || p.includes('iphone') || p.includes('motorola')) return 'Ótimo para fotos, vídeos, redes sociais, apps e uso diário.';
+        if (p.includes('cadeira') && (p.includes('auto') || p.includes('carro') || p.includes('bebê') || p.includes('bebe'))) return 'Mais segurança e conforto para transportar a criança no carro.';
+        if (p.includes('toalha') || p.includes('algodão') || p.includes('algodao') || p.includes('cama') || p.includes('banho')) return 'Produto útil para renovar a casa e deixar a rotina mais confortável.';
+        if (p.includes('fone') || p.includes('headset') || p.includes('bluetooth')) return 'Mais praticidade para músicas, vídeos e chamadas.';
+        if (p.includes('bolsa') || p.includes('mochila')) return 'Ajuda a organizar seus itens com praticidade no dia a dia.';
+        if (p.includes('tenis') || p.includes('tênis') || p.includes('sapato') || p.includes('sandalia') || p.includes('sandália')) return 'Mais conforto e estilo para usar na rotina.';
+        if (p.includes('omega') || p.includes('ômega') || p.includes('capsula') || p.includes('cápsula') || p.includes('cafeína') || p.includes('cafeina')) return 'Produto prático para incluir na rotina de cuidados pessoais.';
+        if (p.includes('grill') || p.includes('sanduicheira')) return 'Prepara lanches rápidos com mais praticidade no dia a dia.';
 
-        if (p.includes('notebook') || p.includes('laptop') || p.includes('inspiron') || p.includes('dell')) {
-            return [
-                '✅ Perfeito para trabalho, estudos, navegação e tarefas do dia a dia.',
-                '💻 Boa opção para quem precisa de desempenho e praticidade em um só equipamento.',
-                '🎯 Oferta garimpada para quem quer comprar melhor e pagar menos.'
-            ];
-        }
-
-        if (p.includes('celular') || p.includes('smartphone') || p.includes('galaxy') || p.includes('iphone') || p.includes('motorola')) {
-            return [
-                '✅ Ideal para fotos, vídeos, redes sociais, apps e uso no dia a dia.',
-                '📱 Produto moderno para quem busca praticidade, desempenho e boa experiência.',
-                '🔥 Oferta selecionada para aproveitar enquanto o preço está mais baixo.'
-            ];
-        }
-
-        if (p.includes('cadeira') && (p.includes('auto') || p.includes('carro') || p.includes('bebê') || p.includes('bebe'))) {
-            return [
-                '✅ Mais segurança e conforto para levar a criança no carro com tranquilidade.',
-                '👶 Ideal para passeios, viagens e rotina da família.',
-                '🚗 Oferta garimpada para quem quer proteger bem e economizar.'
-            ];
-        }
-
-        if (p.includes('toalha') || p.includes('algodão') || p.includes('algodao') || p.includes('cama') || p.includes('banho')) {
-            return [
-                '✅ Boa escolha para deixar a casa mais confortável no dia a dia.',
-                '🧺 Produto útil, prático e ótimo para renovar o enxoval.',
-                '💥 Oferta selecionada para comprar bem pagando menos.'
-            ];
-        }
-
-        if (p.includes('fone') || p.includes('headset') || p.includes('bluetooth')) {
-            return [
-                '✅ Ideal para músicas, chamadas, vídeos e rotina com mais praticidade.',
-                '🎧 Boa opção para quem busca conforto e mobilidade no dia a dia.',
-                '🔥 Oferta garimpada para aproveitar antes que o preço mude.'
-            ];
-        }
-
-        if (p.includes('omega') || p.includes('ômega') || p.includes('capsula') || p.includes('cápsula')) {
-            return [
-                '✅ Produto prático para incluir na rotina de cuidados pessoais.',
-                '💊 Ideal para quem gosta de manter seus suplementos sempre em dia.',
-                '⚠️ Confira as informações do produto e orientações de uso no site oficial.'
-            ];
-        }
-
-        return [
-            '✅ Produto selecionado para quem gosta de economizar sem perder tempo procurando.',
-            '🛒 Boa oportunidade para aproveitar preço melhor direto no site oficial.',
-            '🔥 Oferta garimpada e pronta para você conferir antes que acabe.'
-        ];
+        return 'Produto selecionado para facilitar sua rotina e ajudar você a economizar.';
     }
 
     function montarMensagemNova() {
         const link = extrairLink(inputLink.value);
         const loja = detectarLoja(link);
         const desc = desconto();
-        const produto = displayProduto.value || 'Oferta especial';
-        const slogan = frases[Math.floor(Math.random() * frases.length)];
-        const beneficios = beneficioPorProduto(produto);
+        const produto = limparTituloProduto(displayProduto.value || 'Oferta especial');
+        const beneficio = beneficioPorProduto(produto);
+        const cupom = displayCupom.value.trim();
         const temDe = displayDe.value && displayDe.value !== 'R$ 0,00';
         const temPor = displayPor.value && displayPor.value !== 'R$ 0,00';
+        const cupomEhFrete = /frete|gr[aá]tis/i.test(cupom);
 
-        let msg = `🔥 *${tituloCurto(produto)}!*\n\n`;
-        msg += `${beneficios.join('\n')}\n\n`;
-        msg += `📦 *Produto:* ${produto}\n\n`;
-        msg += `💥💥 *SUPER OFERTA:*\n`;
+        let msg = `🔥 *${tituloCurto(produto)}!*\n`;
+        msg += `✅ ${beneficio}\n\n`;
 
         if (temDe) msg += `❌ De: ~${displayDe.value}~\n`;
-        msg += `✅ *POR APENAS: ${temPor ? displayPor.value : 'Confira no site'}*\n`;
+        msg += `💰 *POR APENAS: ${temPor ? displayPor.value : 'Confira no site'}*\n`;
         if (desc >= 2) msg += `🔥 *${desc}% OFF!*\n`;
 
-        if (displayCupom.value.trim()) {
-            msg += `\n🎫 *Cupom:* ${displayCupom.value.trim()}\n`;
+        if (cupom) {
+            msg += cupomEhFrete
+                ? `🚚 *Frete grátis:* ${cupom}\n`
+                : `🎫 *Cupom:* ${cupom}\n`;
         }
 
-        msg += `\n💳 Confira no site as opções de pagamento e parcelamento.\n`;
-        msg += `\n_${slogan}_\n\n`;
-        msg += `🔒 *Compre com segurança no site oficial:*\n\n`;
+        msg += `\n🔒 *Compre com segurança no site oficial:*\n`;
         msg += `🛒 *Link ${loja}:* ${link}`;
+
         return msg;
     }
 
@@ -222,8 +181,8 @@
     }
 
     function criarResumo(texto) {
-        const produto = texto.match(/📦 \*Produto:\* (.*)/)?.[1] || 'Oferta salva';
-        const por = texto.match(/✅ \*POR APENAS: (.*)\*/)?.[1] || texto.match(/✅ \*Por apenas: (.*)\*/)?.[1] || '';
+        const produto = texto.match(/🔥 \*(.*?)!\*/)?.[1] || texto.match(/📦 \*Produto:\* (.*)/)?.[1] || 'Oferta salva';
+        const por = texto.match(/💰 \*POR APENAS: (.*)\*/)?.[1] || texto.match(/✅ \*POR APENAS: (.*)\*/)?.[1] || texto.match(/✅ \*Por apenas: (.*)\*/)?.[1] || '';
         const loja = texto.match(/🛒 \*Link (.*?):\*/)?.[1] || 'Loja';
         return { produto, por, loja };
     }
