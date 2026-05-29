@@ -9,8 +9,9 @@
     <meta name="theme-color" content="#0d1117" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=26">
-    <link rel="stylesheet" href="progress-style.css?v=26">
+    <link rel="stylesheet" href="style.css?v=27">
+    <link rel="stylesheet" href="progress-style.css?v=27">
+    <link rel="stylesheet" href="simple-ui.css?v=27">
 </head>
 <body>
     <div class="container">
@@ -124,20 +125,21 @@
         </div>
     </div>
 
-    <script src="script.js?v=26"></script>
-    <script src="progress-loader.js?v=26"></script>
-    <script src="product-image.js?v=26"></script>
-    <script src="enhancements.js?v=26"></script>
-    <script src="image-card-fix.js?v=26"></script>
-    <script src="app-dialog.js?v=26"></script>
-    <script src="bulk-whatsapp.js?v=26"></script>
-    <script src="shopee-helper.js?v=26"></script>
-    <script src="gemini-client.js?v=26"></script>
+    <script src="script.js?v=27"></script>
+    <script src="progress-loader.js?v=27"></script>
+    <script src="product-image.js?v=27"></script>
+    <script src="enhancements.js?v=27"></script>
+    <script src="image-card-fix.js?v=27"></script>
+    <script src="app-dialog.js?v=27"></script>
+    <script src="bulk-whatsapp.js?v=27"></script>
+    <script src="shopee-helper.js?v=27"></script>
+    <script src="gemini-client.js?v=27"></script>
+    <script src="simple-ui.js?v=27"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=26')
+                navigator.serviceWorker.register('./sw.js?v=27')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
