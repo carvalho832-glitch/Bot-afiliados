@@ -20,7 +20,7 @@
     let ultimaMensagem = '';
 
     const frases = [
-        'Oferta boa assim voa! 💸',
+        'Oferta garimpada para economizar de verdade! 💸',
         'Achado do dia passando na sua tela! 🔥',
         'Preço bom para comprar sem enrolar! 🛒',
         'Essa vale salvar antes que acabe! ⚡',
@@ -94,22 +94,107 @@
         return 0;
     }
 
+    function tituloCurto(produto) {
+        const texto = (produto || 'Oferta especial')
+            .replace(/\s+/g, ' ')
+            .replace(/\s-\s.*/g, '')
+            .trim();
+
+        const palavras = texto.split(' ').slice(0, 9).join(' ');
+        return palavras.toUpperCase();
+    }
+
+    function beneficioPorProduto(produto) {
+        const p = (produto || '').toLowerCase();
+
+        if (p.includes('tv') || p.includes('smart')) {
+            return [
+                '✅ Ideal para assistir filmes, séries, futebol e seus apps favoritos com mais praticidade.',
+                '🔊 Ótima opção para melhorar a experiência da sala sem gastar demais.',
+                '🏠 Produto garimpado para quem quer tecnologia e economia no mesmo pacote.'
+            ];
+        }
+
+        if (p.includes('notebook') || p.includes('laptop') || p.includes('inspiron') || p.includes('dell')) {
+            return [
+                '✅ Perfeito para trabalho, estudos, navegação e tarefas do dia a dia.',
+                '💻 Boa opção para quem precisa de desempenho e praticidade em um só equipamento.',
+                '🎯 Oferta garimpada para quem quer comprar melhor e pagar menos.'
+            ];
+        }
+
+        if (p.includes('celular') || p.includes('smartphone') || p.includes('galaxy') || p.includes('iphone') || p.includes('motorola')) {
+            return [
+                '✅ Ideal para fotos, vídeos, redes sociais, apps e uso no dia a dia.',
+                '📱 Produto moderno para quem busca praticidade, desempenho e boa experiência.',
+                '🔥 Oferta selecionada para aproveitar enquanto o preço está mais baixo.'
+            ];
+        }
+
+        if (p.includes('cadeira') && (p.includes('auto') || p.includes('carro') || p.includes('bebê') || p.includes('bebe'))) {
+            return [
+                '✅ Mais segurança e conforto para levar a criança no carro com tranquilidade.',
+                '👶 Ideal para passeios, viagens e rotina da família.',
+                '🚗 Oferta garimpada para quem quer proteger bem e economizar.'
+            ];
+        }
+
+        if (p.includes('toalha') || p.includes('algodão') || p.includes('algodao') || p.includes('cama') || p.includes('banho')) {
+            return [
+                '✅ Boa escolha para deixar a casa mais confortável no dia a dia.',
+                '🧺 Produto útil, prático e ótimo para renovar o enxoval.',
+                '💥 Oferta selecionada para comprar bem pagando menos.'
+            ];
+        }
+
+        if (p.includes('fone') || p.includes('headset') || p.includes('bluetooth')) {
+            return [
+                '✅ Ideal para músicas, chamadas, vídeos e rotina com mais praticidade.',
+                '🎧 Boa opção para quem busca conforto e mobilidade no dia a dia.',
+                '🔥 Oferta garimpada para aproveitar antes que o preço mude.'
+            ];
+        }
+
+        if (p.includes('omega') || p.includes('ômega') || p.includes('capsula') || p.includes('cápsula')) {
+            return [
+                '✅ Produto prático para incluir na rotina de cuidados pessoais.',
+                '💊 Ideal para quem gosta de manter seus suplementos sempre em dia.',
+                '⚠️ Confira as informações do produto e orientações de uso no site oficial.'
+            ];
+        }
+
+        return [
+            '✅ Produto selecionado para quem gosta de economizar sem perder tempo procurando.',
+            '🛒 Boa oportunidade para aproveitar preço melhor direto no site oficial.',
+            '🔥 Oferta garimpada e pronta para você conferir antes que acabe.'
+        ];
+    }
+
     function montarMensagemNova() {
         const link = extrairLink(inputLink.value);
         const loja = detectarLoja(link);
         const desc = desconto();
+        const produto = displayProduto.value || 'Oferta especial';
         const slogan = frases[Math.floor(Math.random() * frases.length)];
+        const beneficios = beneficioPorProduto(produto);
+        const temDe = displayDe.value && displayDe.value !== 'R$ 0,00';
+        const temPor = displayPor.value && displayPor.value !== 'R$ 0,00';
 
-        let msg = `🚨 *${selectGrupo.value.toUpperCase()}* 🚨\n\n`;
-        msg += `_*${slogan}*_\n\n`;
-        msg += `📦 *Produto:* ${displayProduto.value || 'Confira no link'}\n\n`;
+        let msg = `🔥 *${tituloCurto(produto)}!*\n\n`;
+        msg += `${beneficios.join('\n')}\n\n`;
+        msg += `📦 *Produto:* ${produto}\n\n`;
+        msg += `💥💥 *SUPER OFERTA:*\n`;
 
-        if (desc >= 2) msg += `🔥 *DESCONTO DE ${desc}%!* 🔥\n`;
-        if (displayDe.value && displayDe.value !== 'R$ 0,00') msg += `❌ De: ~${displayDe.value}~\n`;
-        msg += `✅ *Por apenas: ${displayPor.value || 'Confira no site'}*\n\n`;
+        if (temDe) msg += `❌ De: ~${displayDe.value}~\n`;
+        msg += `✅ *POR APENAS: ${temPor ? displayPor.value : 'Confira no site'}*\n`;
+        if (desc >= 2) msg += `🔥 *${desc}% OFF!*\n`;
 
-        if (displayCupom.value.trim()) msg += `🎫 *Cupom:* ${displayCupom.value.trim()}\n\n`;
+        if (displayCupom.value.trim()) {
+            msg += `\n🎫 *Cupom:* ${displayCupom.value.trim()}\n`;
+        }
 
+        msg += `\n💳 Confira no site as opções de pagamento e parcelamento.\n`;
+        msg += `\n_${slogan}_\n\n`;
         msg += `🔒 *Compre com segurança no site oficial:*\n\n`;
         msg += `🛒 *Link ${loja}:* ${link}`;
         return msg;
@@ -138,7 +223,7 @@
 
     function criarResumo(texto) {
         const produto = texto.match(/📦 \*Produto:\* (.*)/)?.[1] || 'Oferta salva';
-        const por = texto.match(/✅ \*Por apenas: (.*)\*/)?.[1] || '';
+        const por = texto.match(/✅ \*POR APENAS: (.*)\*/)?.[1] || texto.match(/✅ \*Por apenas: (.*)\*/)?.[1] || '';
         const loja = texto.match(/🛒 \*Link (.*?):\*/)?.[1] || 'Loja';
         return { produto, por, loja };
     }
