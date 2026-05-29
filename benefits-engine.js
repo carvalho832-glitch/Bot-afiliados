@@ -1,4 +1,7 @@
 (() => {
+    const API_URL = 'https://bot-afiliados-1fvi.onrender.com';
+    const STORAGE_OFERTAS = 'ofertas_achou_levou';
+
     const inputLink = document.getElementById('input-link');
     const displayProduto = document.getElementById('display-produto');
     const displayDe = document.getElementById('display-de');
@@ -6,7 +9,10 @@
     const displayCupom = document.getElementById('display-cupom');
     const messageBox = document.getElementById('msg-preview');
     const btnGerar = document.getElementById('btn-gerar');
-    const selectLoja = document.getElementById('select-loja');
+    const btnCopiar = document.getElementById('btn-copiar');
+    const btnSalvar = document.getElementById('btn-salvar');
+    const btnWhatsApp = document.getElementById('btn-whatsapp');
+    const listaSalvas = document.getElementById('lista-salvas');
 
     if (!inputLink || !displayProduto || !messageBox || !btnGerar) return;
 
@@ -15,6 +21,7 @@
     }
 
     function detectarLoja(link) {
+        const selectLoja = document.getElementById('select-loja');
         const escolha = selectLoja?.value || 'auto';
         if (escolha !== 'auto') return escolha;
 
@@ -46,133 +53,248 @@
             .trim();
     }
 
-    function tituloCurto(produto) {
-        return limparTitulo(produto).split(' ').slice(0, 9).join(' ').toUpperCase();
+    function getOfertas() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_OFERTAS)) || [];
+        } catch {
+            return [];
+        }
     }
 
-    function contem(texto, palavras) {
-        return palavras.some(palavra => texto.includes(palavra));
+    function setOfertas(ofertas) {
+        localStorage.setItem(STORAGE_OFERTAS, JSON.stringify(ofertas));
     }
 
-    function beneficioCliente(produto) {
-        const p = limparTitulo(produto).toLowerCase();
-
-        const regras = [
-            {
-                palavras: ['multivitamina', 'multivitamínico', 'polivitamínico', 'vitamina', 'minerais', 'zinco', 'magnésio', 'magnesio', 'cálcio', 'calcio'],
-                texto: 'Ajuda a complementar a rotina diária de vitaminas e minerais de forma prática.'
-            },
-            {
-                palavras: ['omega', 'ômega', 'óleo de peixe', 'oleo de peixe'],
-                texto: 'Opção prática para complementar a rotina de cuidados diários com cápsulas.'
-            },
-            {
-                palavras: ['cafeína', 'cafeina', 'termogênico', 'termogenico', 'creatina', 'whey', 'proteína', 'proteina', 'suplemento', 'capsula', 'cápsula'],
-                texto: 'Prático para incluir na rotina de treinos, estudos ou cuidados pessoais.'
-            },
-            {
-                palavras: ['celular', 'smartphone', 'galaxy', 'iphone', 'motorola', 'xiaomi', 'redmi', 'poco', 'realme'],
-                texto: 'Mais praticidade para fotos, vídeos, redes sociais, apps e uso diário.'
-            },
-            {
-                palavras: ['notebook', 'laptop', 'inspiron', 'dell', 'lenovo', 'acer', 'asus', 'macbook', 'computador'],
-                texto: 'Ideal para trabalho, estudos, navegação e tarefas do dia a dia.'
-            },
-            {
-                palavras: ['smart tv', 'tv ', 'televisão', 'televisao', 'roku', 'led', 'qled', 'oled'],
-                texto: 'Tela maior para assistir filmes, séries, jogos e conteúdos de streaming com mais conforto.'
-            },
-            {
-                palavras: ['fone', 'headset', 'earbuds', 'bluetooth', 'caixa de som', 'soundbar'],
-                texto: 'Mais praticidade para ouvir músicas, assistir vídeos e atender chamadas.'
-            },
-            {
-                palavras: ['vestido', 'blusa', 'camiseta', 'camisa', 'calça', 'calca', 'short', 'jaqueta', 'casaco', 'moletom', 'tricô', 'trico', 'cropped', 'saia'],
-                texto: 'Peça versátil para compor looks do dia a dia com conforto e estilo.'
-            },
-            {
-                palavras: ['tênis', 'tenis', 'sapato', 'sandália', 'sandalia', 'chinelo', 'bota', 'sapatilha'],
-                texto: 'Mais conforto e estilo para usar na rotina, passeio ou trabalho.'
-            },
-            {
-                palavras: ['bolsa', 'mochila', 'mala', 'necessaire', 'carteira'],
-                texto: 'Ajuda a organizar seus itens com praticidade no trabalho, passeio ou viagem.'
-            },
-            {
-                palavras: ['sanduicheira', 'grill', 'air fryer', 'airfryer', 'panela', 'liquidificador', 'cafeteira', 'batedeira', 'micro-ondas', 'microondas', 'forno'],
-                texto: 'Facilita o preparo de comidas e lanches rápidos no dia a dia.'
-            },
-            {
-                palavras: ['toalha', 'jogo de cama', 'lençol', 'lencol', 'edredom', 'cobertor', 'travesseiro', 'tapete', 'cortina'],
-                texto: 'Ajuda a renovar a casa e deixar a rotina mais confortável.'
-            },
-            {
-                palavras: ['cadeirinha', 'cadeira para auto', 'bebê conforto', 'bebe conforto', 'carrinho de bebê', 'carrinho de bebe'],
-                texto: 'Mais segurança e conforto para transportar a criança em passeios e viagens.'
-            },
-            {
-                palavras: ['fralda', 'mamadeira', 'chupeta', 'banheira bebê', 'banheira bebe'],
-                texto: 'Produto útil para facilitar os cuidados com o bebê na rotina da família.'
-            },
-            {
-                palavras: ['shampoo', 'condicionador', 'creme', 'hidratante', 'protetor solar', 'perfume', 'maquiagem', 'escova secadora', 'secador', 'chapinha'],
-                texto: 'Ajuda nos cuidados pessoais com mais praticidade no dia a dia.'
-            },
-            {
-                palavras: ['furadeira', 'parafusadeira', 'kit ferramenta', 'ferramenta', 'trena', 'serra'],
-                texto: 'Facilita reparos, montagens e pequenas tarefas em casa ou no trabalho.'
-            },
-            {
-                palavras: ['câmera', 'camera', 'webcam', 'monitor', 'teclado', 'mouse', 'impressora', 'roteador'],
-                texto: 'Mais praticidade para trabalho, estudos, conexão e uso no dia a dia.'
-            }
-        ];
-
-        const regra = regras.find(item => contem(p, item.palavras));
-        return regra?.texto || 'Produto útil para facilitar sua rotina e aproveitar uma boa oferta.';
-    }
-
-    function montarMensagemInteligente() {
-        const link = extrairLink(inputLink.value);
-        const loja = detectarLoja(link);
-        const produto = limparTitulo(displayProduto.value || 'Oferta especial');
-        const de = displayDe?.value || '';
-        const por = displayPor?.value || '';
-        const cupom = displayCupom?.value?.trim() || '';
-        const desc = calcularDesconto(de, por);
-        const temDe = de && de !== 'R$ 0,00';
-        const temPor = por && por !== 'R$ 0,00';
-        const cupomEhFrete = /frete|gr[aá]tis/i.test(cupom);
-
-        let msg = `🔥 *${tituloCurto(produto)}!*\n`;
-        msg += `✅ ${beneficioCliente(produto)}\n\n`;
-
-        if (temDe) msg += `❌ De: ~${de}~\n`;
-        msg += `💰 *POR APENAS: ${temPor ? por : 'Confira no site'}*\n`;
-        if (desc >= 2) msg += `🔥 *${desc}% OFF!*\n`;
-
-        if (cupom) {
-            msg += cupomEhFrete
-                ? `🚚 *Frete grátis:* ${cupom}\n`
-                : `🎫 *Cupom:* ${cupom}\n`;
+    async function copiar(texto) {
+        if (!texto || texto === 'Aguardando geração...') {
+            alert('Gere uma mensagem primeiro!');
+            return false;
         }
 
-        msg += `\n🔒 *Compre com segurança no site oficial:*\n`;
-        msg += `🛒 *Link ${loja}:* ${link}`;
+        try {
+            await navigator.clipboard.writeText(texto);
+        } catch {
+            const area = document.createElement('textarea');
+            area.value = texto;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand('copy');
+            area.remove();
+        }
 
-        return msg;
+        return true;
     }
 
-    btnGerar.onclick = () => {
+    function abrirWhatsApp(texto) {
+        if (!texto || texto === 'Aguardando geração...') {
+            alert('Gere uma mensagem primeiro!');
+            return;
+        }
+        window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+    }
+
+    function criarResumo(texto) {
+        const produto = texto.match(/🔥 \*(.*?)!\*/)?.[1] || 'Oferta salva';
+        const por = texto.match(/💰 \*POR APENAS: (.*)\*/)?.[1] || texto.match(/✅ \*POR APENAS: (.*)\*/)?.[1] || '';
+        const loja = texto.match(/🛒 \*Link (.*?):\*/)?.[1] || 'Loja';
+        return { produto, por, loja };
+    }
+
+    function imagemDoProduto(item) {
+        return item?.imagem || item?.image || item?.imageUrl || '';
+    }
+
+    function renderizarHistorico() {
+        if (!listaSalvas) return;
+
+        const ofertas = getOfertas();
+        listaSalvas.innerHTML = '';
+
+        if (!ofertas.length) {
+            listaSalvas.innerHTML = '<div class="empty-state">Nenhuma oferta salva ainda.</div>';
+            return;
+        }
+
+        ofertas.forEach(item => {
+            const texto = item.texto || item;
+            const resumo = item.produto ? item : criarResumo(texto);
+            const imagem = imagemDoProduto(item);
+            const card = document.createElement('div');
+            card.className = 'saved-card';
+
+            card.innerHTML = `
+                ${imagem ? `<img src="${imagem}" alt="Foto do produto" loading="lazy" referrerpolicy="no-referrer" style="width:100%;max-height:210px;object-fit:contain;border-radius:14px;margin-bottom:12px;background:#fff;border:1px solid var(--border);padding:8px;" onerror="this.remove()">` : ''}
+                <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px;">
+                    <strong style="font-size:14px;line-height:1.35;">${resumo.produto || 'Oferta salva'}</strong>
+                    <span style="font-size:11px;color:#f97316;font-weight:800;white-space:nowrap;">${resumo.loja || 'Loja'}</span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                    ${resumo.por ? `<span style="font-size:11px;border:1px solid #30363d;border-radius:999px;padding:6px 9px;color:#f97316;font-weight:800;">${resumo.por}</span>` : ''}
+                    ${item.cupom ? `<span style="font-size:11px;border:1px solid #30363d;border-radius:999px;padding:6px 9px;font-weight:800;">Cupom: ${item.cupom}</span>` : ''}
+                </div>
+                <pre style="font-size:12px;white-space:pre-wrap;margin:0 0 12px 0;max-height:180px;overflow:auto;">${texto}</pre>
+                <div style="display:grid;grid-template-columns:1fr 1fr 52px;gap:8px;">
+                    <button class="green-btn" data-copy-gemini="${item.id}" style="margin:0;padding:12px;font-size:12px;">COPIAR</button>
+                    <button class="green-btn" data-wa-gemini="${item.id}" style="margin:0;padding:12px;font-size:12px;">WHATSAPP</button>
+                    <button class="red-btn" data-rm-gemini="${item.id}" style="margin:0;padding:12px;font-size:14px;">🗑️</button>
+                </div>`;
+
+            listaSalvas.appendChild(card);
+        });
+    }
+
+    function dadosParaGemini() {
+        const link = extrairLink(inputLink.value);
+        const precoDe = displayDe?.value || '';
+        const precoPor = displayPor?.value || '';
+        const desconto = calcularDesconto(precoDe, precoPor);
+
+        return {
+            produto: limparTitulo(displayProduto.value || 'Oferta especial'),
+            precoDe,
+            precoPor,
+            desconto: desconto >= 2 ? `${desconto}% OFF` : '',
+            cupom: displayCupom?.value?.trim() || '',
+            loja: detectarLoja(link),
+            link
+        };
+    }
+
+    async function gerarComGemini() {
+        const dados = dadosParaGemini();
+
+        const resposta = await fetch(`${API_URL}/gerar-mensagem`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+
+        const json = await resposta.json();
+
+        if (!resposta.ok || !json.ok || !json.mensagem) {
+            throw new Error(json?.error || 'Não consegui gerar a mensagem com Gemini.');
+        }
+
+        return json.mensagem.trim();
+    }
+
+    btnGerar.onclick = async () => {
         if (!displayProduto.value || displayProduto.value === 'Buscando...') {
             alert('Puxe os dados primeiro ou preencha o produto manualmente!');
             return;
         }
 
-        const mensagem = montarMensagemInteligente();
-        window.__ultimaMensagemAchouLevou = mensagem;
-        messageBox.innerText = mensagem;
-        btnGerar.innerText = '✅ MENSAGEM GERADA!';
-        setTimeout(() => btnGerar.innerText = '✨ GERAR MENSAGEM', 1800);
+        const textoOriginalBotao = btnGerar.innerText;
+        btnGerar.disabled = true;
+        btnGerar.innerText = '🤖 GEMINI CRIANDO...';
+        messageBox.innerText = 'Gemini está montando uma mensagem mais inteligente...';
+
+        try {
+            const mensagem = await gerarComGemini();
+            window.__ultimaMensagemAchouLevou = mensagem;
+            messageBox.innerText = mensagem;
+            btnGerar.innerText = '✅ MENSAGEM GERADA!';
+            setTimeout(() => btnGerar.innerText = textoOriginalBotao || '✨ GERAR MENSAGEM', 1800);
+        } catch (erro) {
+            console.error('Erro Gemini:', erro);
+            window.__ultimaMensagemAchouLevou = '';
+            messageBox.innerText = 'Não consegui gerar com Gemini agora. Verifique se a API do Render está ativa e se a chave Gemini está correta.';
+            alert(erro.message || 'Erro ao gerar mensagem com Gemini.');
+            btnGerar.innerText = textoOriginalBotao || '✨ GERAR MENSAGEM';
+        } finally {
+            btnGerar.disabled = false;
+        }
     };
+
+    if (btnCopiar) {
+        btnCopiar.onclick = async () => {
+            const texto = window.__ultimaMensagemAchouLevou || messageBox.innerText;
+            const copiou = await copiar(texto);
+            if (copiou) {
+                btnCopiar.innerText = '✅ COPIADO!';
+                setTimeout(() => btnCopiar.innerText = '📋 COPIAR MENSAGEM', 1800);
+            }
+        };
+    }
+
+    if (btnWhatsApp) {
+        btnWhatsApp.onclick = () => {
+            const texto = window.__ultimaMensagemAchouLevou || messageBox.innerText;
+            abrirWhatsApp(texto);
+        };
+    }
+
+    if (btnSalvar) {
+        btnSalvar.onclick = () => {
+            const texto = window.__ultimaMensagemAchouLevou || messageBox.innerText;
+            if (!texto || texto === 'Aguardando geração...' || texto.includes('Gemini está montando')) {
+                alert('Gere uma mensagem primeiro!');
+                return;
+            }
+
+            const dados = dadosParaGemini();
+            const oferta = {
+                id: Date.now(),
+                texto,
+                produto: dados.produto,
+                loja: dados.loja,
+                por: dados.precoPor,
+                de: dados.precoDe,
+                cupom: dados.cupom,
+                link: dados.link,
+                imagem: window.__produtoImagemAtual || '',
+                criadoEm: new Date().toLocaleString('pt-BR')
+            };
+
+            const ofertas = getOfertas();
+            ofertas.unshift(oferta);
+            setOfertas(ofertas);
+            renderizarHistorico();
+            alert('Oferta salva! 💾');
+        };
+    }
+
+    if (listaSalvas) {
+        listaSalvas.addEventListener('click', async event => {
+            const botao = event.target.closest('button');
+            if (!botao) return;
+
+            const id = Number(botao.dataset.copyGemini || botao.dataset.waGemini || botao.dataset.rmGemini);
+            if (!id) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+
+            const ofertas = getOfertas();
+            const item = ofertas.find(oferta => Number(oferta.id) === id);
+            if (!item) return;
+
+            if (botao.dataset.copyGemini) {
+                await copiar(item.texto || item);
+                alert('Copiado! ✅');
+            }
+
+            if (botao.dataset.waGemini) {
+                abrirWhatsApp(item.texto || item);
+            }
+
+            if (botao.dataset.rmGemini) {
+                const ok = window.appConfirm
+                    ? await window.appConfirm({
+                        badge: '🗑️ Remover oferta',
+                        title: 'Apagar esta oferta?',
+                        message: 'Ela será removida do seu histórico salvo no celular.',
+                        okText: 'Sim, apagar',
+                        cancelText: 'Manter'
+                    })
+                    : confirm('Deseja excluir esta oferta?');
+
+                if (ok) {
+                    setOfertas(ofertas.filter(oferta => Number(oferta.id) !== id));
+                    renderizarHistorico();
+                }
+            }
+        }, true);
+    }
 })();
