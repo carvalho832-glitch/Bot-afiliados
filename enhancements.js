@@ -143,6 +143,10 @@
         return { produto, por, loja };
     }
 
+    function imagemDoProduto(item) {
+        return item?.imagem || item?.image || item?.imageUrl || '';
+    }
+
     function renderizarHistorico() {
         const ofertas = getOfertas();
         listaSalvas.innerHTML = '';
@@ -155,10 +159,12 @@
         ofertas.forEach(item => {
             const texto = item.texto || item;
             const resumo = item.produto ? item : criarResumo(texto);
+            const imagem = imagemDoProduto(item);
             const card = document.createElement('div');
             card.className = 'saved-card';
 
             card.innerHTML = `
+                ${imagem ? `<img src="${imagem}" alt="Foto do produto" loading="lazy" referrerpolicy="no-referrer" style="width:100%;max-height:210px;object-fit:cover;border-radius:14px;margin-bottom:12px;background:var(--input-bg);border:1px solid var(--border);" onerror="this.remove()">` : ''}
                 <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px;">
                     <strong style="font-size:14px;line-height:1.35;">${resumo.produto || 'Oferta salva'}</strong>
                     <span style="font-size:11px;color:#f97316;font-weight:800;white-space:nowrap;">${resumo.loja || 'Loja'}</span>
@@ -218,6 +224,7 @@
             de: displayDe.value,
             cupom: displayCupom.value.trim(),
             link,
+            imagem: window.__produtoImagemAtual || '',
             criadoEm: new Date().toLocaleString('pt-BR')
         };
 
