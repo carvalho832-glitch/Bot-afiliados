@@ -1,0 +1,176 @@
+/* Modo simples Achou Levou */
+.simple-guide {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.simple-step {
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.055);
+  border-radius: 16px;
+  padding: 10px 8px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--text, #f5f7fb);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.simple-step span {
+  display: block;
+  font-size: 1.25rem;
+  margin-bottom: 3px;
+}
+
+.simple-step small {
+  display: block;
+  font-size: .72rem;
+  opacity: .72;
+  font-weight: 700;
+}
+
+.simple-tip {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(33, 150, 243, .10);
+  color: var(--muted, #aab3c5);
+  font-weight: 700;
+  font-size: .88rem;
+  line-height: 1.35;
+}
+
+.simple-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.simple-section-header strong {
+  font-size: 1.05rem;
+}
+
+.simple-section-header small {
+  color: var(--muted, #aab3c5);
+  font-weight: 700;
+}
+
+.simple-toggle-btn,
+.simple-history-toggle {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 900;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #2f80ed, #6d39ff);
+}
+
+body.simple-mode .fields-grid {
+  margin-top: 10px;
+}
+
+body.simple-mode .fields-grid.simple-collapsed .row,
+body.simple-mode .fields-grid.simple-collapsed .field:not(:first-of-type) {
+  display: none;
+}
+
+body.simple-mode .fields-grid.simple-collapsed {
+  padding-bottom: 16px;
+}
+
+body.simple-mode .actions {
+  display: grid;
+  gap: 12px;
+}
+
+body.simple-mode .actions button {
+  min-height: 58px;
+}
+
+body.simple-mode:not(.message-ready) #btn-copiar,
+body.simple-mode:not(.message-ready) #btn-salvar,
+body.simple-mode:not(.message-ready) #btn-whatsapp,
+body.simple-mode:not(.message-ready) .whatsapp-btn {
+  display: none !important;
+}
+
+body.simple-mode.message-ready .actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+body.simple-mode.message-ready #btn-gerar {
+  grid-column: 1 / -1;
+  order: -1;
+}
+
+body.simple-mode.message-ready #btn-copiar,
+body.simple-mode.message-ready #btn-salvar {
+  min-height: 52px;
+  font-size: .92rem;
+}
+
+body.simple-mode .message-output-box::before {
+  content: '✅ Mensagem pronta';
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 900;
+  color: var(--text, #f5f7fb);
+}
+
+body.simple-mode:not(.message-ready) .message-output-box::before {
+  content: '📝 Prévia da mensagem';
+}
+
+body.simple-mode .message-output-box {
+  min-height: auto;
+}
+
+body.simple-mode .saved-section.simple-history-collapsed #lista-salvas,
+body.simple-mode .saved-section.simple-history-collapsed .bulk-actions,
+body.simple-mode .saved-section.simple-history-collapsed .saved-actions,
+body.simple-mode .saved-section.simple-history-collapsed > button:not(.simple-history-toggle) {
+  display: none !important;
+}
+
+body.simple-mode .saved-section .section-title {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+body.simple-mode .simple-history-toggle {
+  width: 100%;
+  margin: 8px 0 0;
+  background: linear-gradient(135deg, #1fa852, #10b981);
+}
+
+body.simple-mode #btn-limpar-campos {
+  opacity: .78;
+  min-height: 48px;
+}
+
+@media (max-width: 520px) {
+  .simple-guide {
+    grid-template-columns: 1fr;
+  }
+
+  .simple-step {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    text-align: left;
+    padding: 12px 14px;
+  }
+
+  .simple-step span {
+    margin: 0;
+  }
+
+  body.simple-mode.message-ready .actions {
+    grid-template-columns: 1fr;
+  }
+}
