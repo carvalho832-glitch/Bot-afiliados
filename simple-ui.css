@@ -1,45 +1,29 @@
 /* Modo simples Achou Levou */
 .simple-guide {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin: 14px 0 18px;
-}
-
-.simple-step {
-  border: 1px solid rgba(255,255,255,.12);
+  margin: 12px 0 14px;
+  border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.055);
-  border-radius: 16px;
-  padding: 10px 8px;
-  text-align: center;
-  font-weight: 800;
+  border-radius: 18px;
+  padding: 12px 14px;
   color: var(--text, #f5f7fb);
+  font-weight: 900;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
 }
 
-.simple-step span {
+.simple-guide-title {
   display: block;
-  font-size: 1.25rem;
-  margin-bottom: 3px;
+  font-size: .95rem;
+  margin-bottom: 4px;
 }
 
-.simple-step small {
+.simple-guide small {
   display: block;
-  font-size: .72rem;
   opacity: .72;
-  font-weight: 700;
-}
-
-.simple-tip {
-  margin: 10px 0 0;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(33, 150, 243, .10);
-  color: var(--muted, #aab3c5);
-  font-weight: 700;
-  font-size: .88rem;
+  font-size: .78rem;
   line-height: 1.35;
 }
+
+.simple-tip { display: none; }
 
 .simple-section-header {
   display: flex;
@@ -49,9 +33,7 @@
   margin-bottom: 12px;
 }
 
-.simple-section-header strong {
-  font-size: 1.05rem;
-}
+.simple-section-header strong { font-size: 1.02rem; }
 
 .simple-section-header small {
   color: var(--muted, #aab3c5);
@@ -59,7 +41,8 @@
 }
 
 .simple-toggle-btn,
-.simple-history-toggle {
+.simple-history-toggle,
+.simple-more-toggle {
   border: 0;
   border-radius: 999px;
   padding: 10px 14px;
@@ -69,48 +52,72 @@
   background: linear-gradient(135deg, #2f80ed, #6d39ff);
 }
 
-body.simple-mode .fields-grid {
-  margin-top: 10px;
-}
+body.simple-mode .fields-grid { margin-top: 10px; }
 
 body.simple-mode .fields-grid.simple-collapsed .row,
 body.simple-mode .fields-grid.simple-collapsed .field:not(:first-of-type) {
   display: none;
 }
 
-body.simple-mode .fields-grid.simple-collapsed {
-  padding-bottom: 16px;
-}
+body.simple-mode .fields-grid.simple-collapsed { padding-bottom: 16px; }
 
 body.simple-mode .actions {
   display: grid;
   gap: 12px;
 }
 
-body.simple-mode .actions button {
-  min-height: 58px;
-}
+body.simple-mode .actions button { min-height: 58px; }
 
-body.simple-mode:not(.message-ready) #btn-copiar,
-body.simple-mode:not(.message-ready) #btn-salvar,
-body.simple-mode:not(.message-ready) #btn-whatsapp,
-body.simple-mode:not(.message-ready) .whatsapp-btn {
+/* Esconde botões secundários por padrão */
+body.simple-mode #btn-copiar,
+body.simple-mode #btn-salvar,
+body.simple-mode #btn-limpar-campos,
+body.simple-mode .simple-whatsapp-action,
+body.simple-mode .simple-more-toggle {
   display: none !important;
 }
 
-body.simple-mode.message-ready .actions {
-  grid-template-columns: 1fr 1fr;
+/* Antes de gerar: só o botão gerar fica visível na área de ações */
+body.simple-mode:not(.message-ready) #btn-gerar {
+  display: block !important;
 }
 
+/* Depois de gerar: some o gerar e aparece WhatsApp + Mais opções */
 body.simple-mode.message-ready #btn-gerar {
-  grid-column: 1 / -1;
-  order: -1;
+  display: none !important;
 }
 
-body.simple-mode.message-ready #btn-copiar,
-body.simple-mode.message-ready #btn-salvar {
-  min-height: 52px;
+body.simple-mode.message-ready .simple-whatsapp-action {
+  display: block !important;
+  width: 100%;
+  min-height: 60px;
+  font-size: 1rem;
+}
+
+body.simple-mode.message-ready .simple-more-toggle {
+  display: block !important;
+  width: 100%;
+  min-height: 44px;
+  background: rgba(255,255,255,.10);
+  color: var(--text, #f5f7fb);
+  border: 1px solid rgba(255,255,255,.12);
+}
+
+/* Quando abrir Mais opções */
+body.simple-mode.simple-more-open #btn-gerar,
+body.simple-mode.simple-more-open #btn-copiar,
+body.simple-mode.simple-more-open #btn-salvar,
+body.simple-mode.simple-more-open #btn-limpar-campos {
+  display: block !important;
+}
+
+body.simple-mode.simple-more-open #btn-gerar,
+body.simple-mode.simple-more-open #btn-copiar,
+body.simple-mode.simple-more-open #btn-salvar,
+body.simple-mode.simple-more-open #btn-limpar-campos {
+  min-height: 46px;
   font-size: .92rem;
+  opacity: .92;
 }
 
 body.simple-mode .message-output-box::before {
@@ -125,9 +132,7 @@ body.simple-mode:not(.message-ready) .message-output-box::before {
   content: '📝 Prévia da mensagem';
 }
 
-body.simple-mode .message-output-box {
-  min-height: auto;
-}
+body.simple-mode .message-output-box { min-height: auto; }
 
 body.simple-mode .saved-section.simple-history-collapsed #lista-salvas,
 body.simple-mode .saved-section.simple-history-collapsed .bulk-actions,
@@ -147,30 +152,6 @@ body.simple-mode .simple-history-toggle {
   background: linear-gradient(135deg, #1fa852, #10b981);
 }
 
-body.simple-mode #btn-limpar-campos {
-  opacity: .78;
-  min-height: 48px;
-}
-
 @media (max-width: 520px) {
-  .simple-guide {
-    grid-template-columns: 1fr;
-  }
-
-  .simple-step {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 10px;
-    text-align: left;
-    padding: 12px 14px;
-  }
-
-  .simple-step span {
-    margin: 0;
-  }
-
-  body.simple-mode.message-ready .actions {
-    grid-template-columns: 1fr;
-  }
+  .simple-guide { padding: 11px 12px; }
 }
