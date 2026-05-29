@@ -5,7 +5,10 @@ import 'dotenv/config';
 const app = express();
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL_ENV = (process.env.GEMINI_MODEL || '').trim();
+const GEMINI_MODEL = !GEMINI_MODEL_ENV || GEMINI_MODEL_ENV.includes('1.5')
+  ? 'gemini-2.5-flash'
+  : GEMINI_MODEL_ENV;
 
 const corsOptions = {
   origin: '*',
@@ -141,13 +144,14 @@ app.get('/', (req, res) => {
   res.json({
     ok: true,
     service: 'Achou Levou API',
+    model: GEMINI_MODEL,
     message: 'API Gemini funcionando 🚀',
     rotas: ['/health', '/teste-gemini', 'POST /gerar-mensagem']
   });
 });
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, service: 'Achou Levou API' });
+  res.json({ ok: true, service: 'Achou Levou API', model: GEMINI_MODEL });
 });
 
 app.get('/gerar-mensagem', (req, res) => {
@@ -174,12 +178,14 @@ app.get('/teste-gemini', async (req, res) => {
 
     res.json({
       ok: true,
+      model: GEMINI_MODEL,
       teste: 'Gemini respondeu com sucesso',
       mensagem
     });
   } catch (erro) {
     res.status(500).json({
       ok: false,
+      model: GEMINI_MODEL,
       error: erro.message || 'Erro ao testar Gemini.'
     });
   }
@@ -201,12 +207,14 @@ app.post('/gerar-mensagem', async (req, res) => {
 
     res.json({
       ok: true,
+      model: GEMINI_MODEL,
       mensagem
     });
   } catch (erro) {
     console.error('Erro ao gerar mensagem:', erro);
     res.status(500).json({
       ok: false,
+      model: GEMINI_MODEL,
       error: erro.message || 'Erro interno ao gerar mensagem.'
     });
   }
@@ -223,5 +231,5 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Achou Levou API rodando na porta ${PORT}`);
+  console.log(`Achou Levou API rodando na porta ${PORT} usando ${GEMINI_MODEL}`);
 });
