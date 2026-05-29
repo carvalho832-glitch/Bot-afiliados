@@ -160,16 +160,54 @@
         };
     }
 
+    async function fetchComTimeout(url, opcoes = {}, timeout = 70000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeout);
+
+        try {
+            return await fetch(url, {
+                ...opcoes,
+                signal: controller.signal,
+                cache: 'no-store'
+            });
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    async function aquecerApi() {
+        messageBox.innerText = 'Acordando a IA no Render... isso pode levar alguns segundos no plano grátis.';
+        const resposta = await fetchComTimeout(`${API_URL}/health`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        }, 80000);
+
+        if (!resposta.ok) {
+            throw new Error('A API do Render não respondeu no teste /health.');
+        }
+    }
+
     async function gerarComGemini() {
         const dados = dadosParaGemini();
 
-        const resposta = await fetch(`${API_URL}/gerar-mensagem`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dados)
-        });
+        await aquecerApi();
+        messageBox.innerText = 'Gemini está criando a mensagem de venda...';
 
-        const json = await resposta.json();
+        const resposta = await fetchComTimeout(`${API_URL}/gerar-mensagem`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(dados)
+        }, 90000);
+
+        let json = null;
+        try {
+            json = await resposta.json();
+        } catch {
+            throw new Error('A API respondeu, mas não retornou JSON válido.');
+        }
 
         if (!resposta.ok || !json.ok || !json.mensagem) {
             throw new Error(json?.error || 'Não consegui gerar a mensagem com Gemini.');
@@ -187,7 +225,7 @@
         const textoOriginalBotao = btnGerar.innerText;
         btnGerar.disabled = true;
         btnGerar.innerText = '🤖 GEMINI CRIANDO...';
-        messageBox.innerText = 'Gemini está montando uma mensagem mais inteligente...';
+        messageBox.innerText = 'Preparando Gemini...';
 
         try {
             const mensagem = await gerarComGemini();
@@ -197,9 +235,13 @@
             setTimeout(() => btnGerar.innerText = textoOriginalBotao || '✨ GERAR MENSAGEM', 1800);
         } catch (erro) {
             console.error('Erro Gemini:', erro);
+            const msgErro = erro.name === 'AbortError'
+                ? 'A IA demorou demais para responder. No Render grátis, tente novamente em alguns segundos.'
+                : (erro.message || 'Erro ao gerar mensagem com Gemini.');
+
             window.__ultimaMensagemAchouLevou = '';
-            messageBox.innerText = 'Não consegui gerar com Gemini agora. Verifique se a API do Render está ativa e se a chave Gemini está correta.';
-            alert(erro.message || 'Erro ao gerar mensagem com Gemini.');
+            messageBox.innerText = `Não consegui gerar com Gemini agora. Detalhe: ${msgErro}`;
+            alert(msgErro);
             btnGerar.innerText = textoOriginalBotao || '✨ GERAR MENSAGEM';
         } finally {
             btnGerar.disabled = false;
@@ -227,7 +269,7 @@
     if (btnSalvar) {
         btnSalvar.onclick = () => {
             const texto = window.__ultimaMensagemAchouLevou || messageBox.innerText;
-            if (!texto || texto === 'Aguardando geração...' || texto.includes('Gemini está montando')) {
+            if (!texto || texto === 'Aguardando geração...' || texto.includes('Gemini está') || texto.includes('Acordando a IA') || texto.includes('Preparando Gemini')) {
                 alert('Gere uma mensagem primeiro!');
                 return;
             }
