@@ -88,79 +88,49 @@ function limparTituloProduto(produto) {
 }
 
 function tituloCurto(produto) {
-    return limparTituloProduto(produto).split(' ').slice(0, 10).join(' ').toUpperCase();
+    return limparTituloProduto(produto).split(' ').slice(0, 8).join(' ').toUpperCase();
 }
 
 function beneficioProduto(produto) {
     const p = (produto || '').toLowerCase();
 
     if (p.includes('tv') || p.includes('smart')) {
-        return {
-            beneficio: '✅ Tela grande para assistir filmes, séries, futebol e seus apps favoritos com mais conforto.',
-            uso: '🎯 Ideal para deixar a sala mais completa e aproveitar entretenimento em casa.'
-        };
+        return 'Tela grande para assistir filmes, séries, jogos e apps de streaming com mais conforto.';
     }
 
     if (p.includes('notebook') || p.includes('laptop') || p.includes('inspiron') || p.includes('dell')) {
-        return {
-            beneficio: '✅ Ideal para trabalho, estudos, navegação e tarefas do dia a dia.',
-            uso: '🎯 Serve para quem precisa de praticidade e desempenho em um só equipamento.'
-        };
+        return 'Ideal para trabalho, estudos, navegação e tarefas do dia a dia.';
     }
 
     if (p.includes('celular') || p.includes('smartphone') || p.includes('galaxy') || p.includes('iphone') || p.includes('motorola')) {
-        return {
-            beneficio: '✅ Ótimo para fotos, vídeos, redes sociais, apps e uso diário.',
-            uso: '🎯 Serve para quem quer praticidade, conexão e tecnologia sempre na mão.'
-        };
+        return 'Ótimo para fotos, vídeos, redes sociais, apps e uso diário.';
     }
 
     if (p.includes('cadeira') && (p.includes('auto') || p.includes('carro') || p.includes('bebê') || p.includes('bebe'))) {
-        return {
-            beneficio: '✅ Mais segurança e conforto para transportar a criança no carro.',
-            uso: '🎯 Ideal para passeios, viagens e rotina da família com mais tranquilidade.'
-        };
+        return 'Mais segurança e conforto para transportar a criança no carro.';
     }
 
     if (p.includes('toalha') || p.includes('algodão') || p.includes('algodao') || p.includes('cama') || p.includes('banho')) {
-        return {
-            beneficio: '✅ Produto útil para deixar a casa mais confortável e renovar o enxoval.',
-            uso: '🎯 Serve para o uso diário com mais praticidade e economia.'
-        };
+        return 'Produto útil para renovar a casa e deixar a rotina mais confortável.';
     }
 
     if (p.includes('fone') || p.includes('headset') || p.includes('bluetooth')) {
-        return {
-            beneficio: '✅ Mais praticidade para ouvir músicas, assistir vídeos e atender chamadas.',
-            uso: '🎯 Ideal para trabalho, estudos, academia ou rotina do dia a dia.'
-        };
+        return 'Mais praticidade para ouvir músicas, ver vídeos e atender chamadas.';
     }
 
     if (p.includes('bolsa') || p.includes('mochila')) {
-        return {
-            beneficio: '✅ Ajuda a organizar seus itens com mais praticidade.',
-            uso: '🎯 Serve para trabalho, passeio, estudos ou viagens rápidas.'
-        };
+        return 'Ajuda a organizar seus itens com mais praticidade no dia a dia.';
     }
 
     if (p.includes('tenis') || p.includes('tênis') || p.includes('sapato') || p.includes('sandalia') || p.includes('sandália')) {
-        return {
-            beneficio: '✅ Mais conforto e estilo para usar no dia a dia.',
-            uso: '🎯 Serve para passeio, trabalho, rotina ou combinações casuais.'
-        };
+        return 'Mais conforto e estilo para usar na rotina, passeio ou trabalho.';
     }
 
     if (p.includes('omega') || p.includes('ômega') || p.includes('capsula') || p.includes('cápsula')) {
-        return {
-            beneficio: '✅ Produto prático para incluir na rotina de cuidados pessoais.',
-            uso: '🎯 Serve para quem gosta de manter os suplementos sempre em dia.'
-        };
+        return 'Produto prático para incluir na rotina de cuidados pessoais.';
     }
 
-    return {
-        beneficio: '✅ Produto selecionado para facilitar sua rotina e ajudar você a economizar.',
-        uso: '🎯 Serve para quem procura praticidade, bom preço e compra segura.'
-    };
+    return 'Produto selecionado para facilitar sua rotina e ajudar você a economizar.';
 }
 
 function montarMensagem() {
@@ -168,25 +138,23 @@ function montarMensagem() {
     const loja = detectarLoja(linkFinal);
     const produto = limparTituloProduto(displayProduto.value || 'Oferta especial');
     const desc = calcularPorcentagem(displayDe.value, displayPor.value);
-    const info = beneficioProduto(produto);
+    const beneficio = beneficioProduto(produto);
     const cupom = displayCupom.value.trim();
     const temDe = displayDe.value && displayDe.value !== 'R$ 0,00';
     const temPor = displayPor.value && displayPor.value !== 'R$ 0,00';
     const cupomEhFrete = /frete|gr[aá]tis/i.test(cupom);
 
-    let msg = `🔥 *${tituloCurto(produto)}!*\n\n`;
-    msg += `${info.beneficio}\n`;
-    msg += `${info.uso}\n\n`;
-    msg += `💥 *OFERTA ESPECIAL:*\n`;
+    let msg = `🔥 *${tituloCurto(produto)}!*\n`;
+    msg += `✅ ${beneficio}\n\n`;
 
     if (temDe) msg += `❌ De: ~${displayDe.value}~\n`;
-    msg += `✅ *POR APENAS: ${temPor ? displayPor.value : 'Confira no site'}*\n`;
+    msg += `💰 *POR APENAS: ${temPor ? displayPor.value : 'Confira no site'}*\n`;
     if (desc >= 2) msg += `🔥 *${desc}% OFF!*\n`;
 
     if (cupom) {
         msg += cupomEhFrete
-            ? `🚚 *Frete grátis/cupom:* ${cupom}\n`
-            : `🎫 *Cupom de desconto:* ${cupom}\n`;
+            ? `🚚 *Frete grátis:* ${cupom}\n`
+            : `🎫 *Cupom:* ${cupom}\n`;
     }
 
     msg += `\n🔒 *Compre com segurança no site oficial:*\n`;
