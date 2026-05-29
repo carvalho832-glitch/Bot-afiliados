@@ -8,6 +8,7 @@
   const msgPreview = document.getElementById('msg-preview');
   const btnGerar = document.getElementById('btn-gerar');
   const btnPuxar = document.getElementById('btn-puxar');
+  const actions = document.querySelector('.actions');
 
   if (!container || !inputBox || !fieldsGrid) return;
 
@@ -17,17 +18,11 @@
     const guide = document.createElement('section');
     guide.className = 'simple-guide';
     guide.innerHTML = `
-      <div class="simple-step"><span>1️⃣</span><div>Cole o link<small>Shopee, ML ou Amazon</small></div></div>
-      <div class="simple-step"><span>2️⃣</span><div>Puxe os dados<small>preço e produto</small></div></div>
-      <div class="simple-step"><span>3️⃣</span><div>Gere e envie<small>mensagem pronta</small></div></div>
+      <span class="simple-guide-title">🚀 Venda em 3 passos</span>
+      <small>Cole o link, puxe os dados e gere a mensagem pronta para WhatsApp.</small>
     `;
 
     inputBox.before(guide);
-
-    const tip = document.createElement('p');
-    tip.className = 'simple-tip';
-    tip.textContent = 'Comece colando o link do produto. O app monta a mensagem de venda automaticamente.';
-    inputBox.appendChild(tip);
   }
 
   function organizarCampos() {
@@ -38,8 +33,8 @@
     const header = document.createElement('div');
     header.className = 'simple-section-header';
     header.innerHTML = `
-      <div><strong>📦 Dados encontrados</strong><br><small>confira o produto antes de gerar</small></div>
-      <button type="button" class="simple-toggle-btn">Editar preço</button>
+      <div><strong>📦 Produto encontrado</strong><br><small>confira antes de gerar</small></div>
+      <button type="button" class="simple-toggle-btn">Editar</button>
     `;
 
     fieldsGrid.prepend(header);
@@ -47,7 +42,7 @@
     const toggle = header.querySelector('.simple-toggle-btn');
     toggle.addEventListener('click', () => {
       fieldsGrid.classList.toggle('simple-collapsed');
-      toggle.textContent = fieldsGrid.classList.contains('simple-collapsed') ? 'Editar preço' : 'Ocultar edição';
+      toggle.textContent = fieldsGrid.classList.contains('simple-collapsed') ? 'Editar' : 'Ocultar';
     });
   }
 
@@ -73,10 +68,44 @@
     });
   }
 
+  function criarAcoesSimples() {
+    if (!actions || document.querySelector('.simple-whatsapp-action')) return;
+
+    const btnWhats = document.createElement('button');
+    btnWhats.type = 'button';
+    btnWhats.className = 'green-btn simple-whatsapp-action';
+    btnWhats.textContent = '💬 Enviar no WhatsApp';
+
+    const btnMais = document.createElement('button');
+    btnMais.type = 'button';
+    btnMais.className = 'simple-more-toggle';
+    btnMais.textContent = '⋯ Mais opções';
+
+    actions.appendChild(btnWhats);
+    actions.appendChild(btnMais);
+
+    btnWhats.addEventListener('click', () => {
+      const texto = (window.__ultimaMensagemAchouLevou || msgPreview?.innerText || '').trim();
+      if (!texto || texto === 'Aguardando geração...') {
+        alert('Gere uma mensagem primeiro!');
+        return;
+      }
+      window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+    });
+
+    btnMais.addEventListener('click', () => {
+      document.body.classList.toggle('simple-more-open');
+      btnMais.textContent = document.body.classList.contains('simple-more-open')
+        ? 'Ocultar opções'
+        : '⋯ Mais opções';
+    });
+  }
+
   function atualizarEstadoMensagem() {
     const texto = (msgPreview?.innerText || '').trim();
     const pronta = texto && texto !== 'Aguardando geração...' && !texto.toLowerCase().includes('gemini está criando') && !texto.toLowerCase().includes('preparando');
     document.body.classList.toggle('message-ready', Boolean(pronta));
+    if (!pronta) document.body.classList.remove('simple-more-open');
   }
 
   function observarMensagem() {
@@ -88,17 +117,20 @@
 
   function renomearBotoes() {
     if (btnPuxar) btnPuxar.textContent = '🔎 Puxar produto';
-    if (btnGerar) btnGerar.textContent = '✨ Gerar mensagem de venda';
+    if (btnGerar) btnGerar.textContent = '✨ Gerar mensagem';
 
     const copiar = document.getElementById('btn-copiar');
     const salvar = document.getElementById('btn-salvar');
-    if (copiar) copiar.textContent = '📋 Copiar';
-    if (salvar) salvar.textContent = '💾 Salvar';
+    const limpar = document.getElementById('btn-limpar-campos');
+    if (copiar) copiar.textContent = '📋 Copiar texto';
+    if (salvar) salvar.textContent = '💾 Salvar oferta';
+    if (limpar) limpar.textContent = '🗑️ Limpar tudo';
   }
 
   criarGuia();
   organizarCampos();
   organizarHistorico();
+  criarAcoesSimples();
   observarMensagem();
   renomearBotoes();
 })();
