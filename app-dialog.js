@@ -112,6 +112,10 @@
             .app-confirm-ok.info {
                 background: linear-gradient(135deg, #2563eb, #4f46e5);
             }
+
+            #btn-limpar-ofertas-salvas {
+                margin-top: 10px;
+            }
         `;
 
         const overlay = document.createElement('div');
@@ -257,6 +261,25 @@
         if (painel) painel.style.display = 'none';
     }
 
+    function prepararBotoesLimpeza() {
+        const btnCampos = document.getElementById('btn-limpar-campos');
+        if (!btnCampos) return;
+
+        btnCampos.innerText = '🧽 LIMPAR CAMPOS DA TELA';
+        btnCampos.title = 'Limpa apenas o formulário atual';
+
+        if (document.getElementById('btn-limpar-ofertas-salvas')) return;
+
+        const btnHistorico = document.createElement('button');
+        btnHistorico.id = 'btn-limpar-ofertas-salvas';
+        btnHistorico.className = 'red-btn';
+        btnHistorico.type = 'button';
+        btnHistorico.innerText = '🧹 APAGAR OFERTAS SALVAS';
+        btnHistorico.title = 'Apaga todas as ofertas do histórico';
+
+        btnCampos.insertAdjacentElement('afterend', btnHistorico);
+    }
+
     window.appConfirm = appConfirm;
     window.appAlert = appAlert;
     window.alert = mensagem => {
@@ -267,12 +290,19 @@
         }
     };
 
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', prepararBotoesLimpeza);
+    } else {
+        prepararBotoesLimpeza();
+    }
+
     document.addEventListener('click', async event => {
         const botao = event.target.closest('button');
         if (!botao) return;
 
         const isDeleteOffer = botao.dataset && botao.dataset.rm;
-        const isClearHistory = botao.innerText?.toLowerCase().includes('limpar histórico');
+        const isClearSavedOffers = botao.id === 'btn-limpar-ofertas-salvas';
+        const isClearHistory = botao.innerText?.toLowerCase().includes('limpar histórico') || isClearSavedOffers;
         const isClearFields = botao.id === 'btn-limpar-campos';
 
         if (!isDeleteOffer && !isClearHistory && !isClearFields) return;
@@ -295,10 +325,10 @@
 
         if (isClearHistory) {
             const ok = await appConfirm({
-                badge: '🧹 Limpar histórico',
-                title: 'Apagar todas as ofertas?',
-                message: 'Seu histórico salvo no celular ficará vazio. Essa ação não pode ser desfeita.',
-                okText: 'Limpar tudo',
+                badge: '🧹 Ofertas salvas',
+                title: 'Apagar todas as ofertas salvas?',
+                message: 'Isso vai limpar todos os cards do histórico no celular. Os campos da tela atual não serão alterados.',
+                okText: 'Apagar ofertas',
                 cancelText: 'Cancelar'
             });
             if (ok) limparHistorico();
@@ -308,9 +338,9 @@
         if (isClearFields) {
             const ok = await appConfirm({
                 badge: '🧽 Limpar campos',
-                title: 'Limpar a tela atual?',
-                message: 'O link, produto, preços, cupom e prévia da mensagem serão apagados.',
-                okText: 'Limpar',
+                title: 'Limpar somente os campos?',
+                message: 'Isso apaga o link, produto, preços, cupom e prévia da mensagem. As ofertas salvas continuam no histórico.',
+                okText: 'Limpar campos',
                 cancelText: 'Cancelar'
             });
             if (ok) limparCampos();
