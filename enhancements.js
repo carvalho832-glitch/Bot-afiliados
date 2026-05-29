@@ -115,18 +115,18 @@
     function beneficioPorProduto(produto) {
         const p = (produto || '').toLowerCase();
 
-        if (p.includes('tv') || p.includes('smart')) return 'Tela grande para filmes, séries, jogos e apps de streaming.';
-        if (p.includes('notebook') || p.includes('laptop') || p.includes('inspiron') || p.includes('dell')) return 'Ideal para trabalho, estudos, navegação e tarefas do dia a dia.';
-        if (p.includes('celular') || p.includes('smartphone') || p.includes('galaxy') || p.includes('iphone') || p.includes('motorola')) return 'Ótimo para fotos, vídeos, redes sociais, apps e uso diário.';
-        if (p.includes('cadeira') && (p.includes('auto') || p.includes('carro') || p.includes('bebê') || p.includes('bebe'))) return 'Mais segurança e conforto para transportar a criança no carro.';
-        if (p.includes('toalha') || p.includes('algodão') || p.includes('algodao') || p.includes('cama') || p.includes('banho')) return 'Produto útil para renovar a casa e deixar a rotina mais confortável.';
-        if (p.includes('fone') || p.includes('headset') || p.includes('bluetooth')) return 'Mais praticidade para músicas, vídeos e chamadas.';
-        if (p.includes('bolsa') || p.includes('mochila')) return 'Ajuda a organizar seus itens com praticidade no dia a dia.';
-        if (p.includes('tenis') || p.includes('tênis') || p.includes('sapato') || p.includes('sandalia') || p.includes('sandália')) return 'Mais conforto e estilo para usar na rotina.';
-        if (p.includes('omega') || p.includes('ômega') || p.includes('capsula') || p.includes('cápsula') || p.includes('cafeína') || p.includes('cafeina')) return 'Produto prático para incluir na rotina de cuidados pessoais.';
-        if (p.includes('grill') || p.includes('sanduicheira')) return 'Prepara lanches rápidos com mais praticidade no dia a dia.';
+        if (p.includes('tv') || p.includes('smart')) return 'Benefício: tela grande para curtir filmes, séries, jogos e apps de streaming com mais conforto.';
+        if (p.includes('notebook') || p.includes('laptop') || p.includes('inspiron') || p.includes('dell')) return 'Benefício: ajuda no trabalho, estudos e tarefas do dia a dia com mais praticidade.';
+        if (p.includes('celular') || p.includes('smartphone') || p.includes('galaxy') || p.includes('iphone') || p.includes('motorola')) return 'Benefício: mais praticidade para fotos, vídeos, redes sociais, apps e uso diário.';
+        if (p.includes('cadeira') && (p.includes('auto') || p.includes('carro') || p.includes('bebê') || p.includes('bebe'))) return 'Benefício: mais segurança e conforto para transportar a criança em passeios e viagens.';
+        if (p.includes('toalha') || p.includes('algodão') || p.includes('algodao') || p.includes('cama') || p.includes('banho')) return 'Benefício: ajuda a renovar a casa e deixar a rotina mais confortável.';
+        if (p.includes('fone') || p.includes('headset') || p.includes('bluetooth')) return 'Benefício: mais praticidade para ouvir músicas, assistir vídeos e atender chamadas.';
+        if (p.includes('bolsa') || p.includes('mochila')) return 'Benefício: organiza seus itens e facilita a rotina no trabalho, passeio ou estudos.';
+        if (p.includes('tenis') || p.includes('tênis') || p.includes('sapato') || p.includes('sandalia') || p.includes('sandália')) return 'Benefício: mais conforto e estilo para usar na rotina, passeio ou trabalho.';
+        if (p.includes('omega') || p.includes('ômega') || p.includes('capsula') || p.includes('cápsula') || p.includes('cafeína') || p.includes('cafeina')) return 'Benefício: opção prática em cápsulas para incluir na rotina diária de cuidados pessoais.';
+        if (p.includes('grill') || p.includes('sanduicheira')) return 'Benefício: aquece rápido e ajuda a preparar lanches, misto quente e grelhados sem complicação.';
 
-        return 'Produto selecionado para facilitar sua rotina e ajudar você a economizar.';
+        return 'Benefício: produto útil para facilitar sua rotina e aproveitar um preço melhor.';
     }
 
     function montarMensagemNova() {
