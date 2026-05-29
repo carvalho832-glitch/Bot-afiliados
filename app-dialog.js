@@ -1,5 +1,6 @@
 (() => {
     const STORAGE_OFERTAS = 'ofertas_achou_levou';
+    const alertOriginal = window.alert?.bind(window);
 
     function criarModal() {
         if (document.getElementById('app-confirm-overlay')) return;
@@ -25,11 +26,11 @@
             .app-confirm-card {
                 background:
                     radial-gradient(circle at top left, rgba(249, 115, 22, 0.18), transparent 12rem),
-                    var(--card);
-                border: 1px solid var(--border);
+                    var(--card, #161b22);
+                border: 1px solid var(--border, #30363d);
                 border-radius: 24px;
                 box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-                color: var(--text);
+                color: var(--text, #e6edf3);
                 max-width: 360px;
                 overflow: hidden;
                 padding: 20px;
@@ -48,7 +49,7 @@
                 background: rgba(249, 115, 22, 0.12);
                 border: 1px solid rgba(249, 115, 22, 0.28);
                 border-radius: 999px;
-                color: var(--primary);
+                color: var(--primary, #f97316);
                 display: inline-flex;
                 font-size: 12px;
                 font-weight: 900;
@@ -59,7 +60,7 @@
             }
 
             .app-confirm-title {
-                color: var(--text);
+                color: var(--text, #e6edf3);
                 font-size: 21px;
                 font-weight: 900;
                 line-height: 1.15;
@@ -67,17 +68,22 @@
             }
 
             .app-confirm-message {
-                color: var(--muted);
+                color: var(--muted, #8b949e);
                 font-size: 14px;
                 font-weight: 700;
                 line-height: 1.45;
                 margin: 0 0 16px;
+                white-space: pre-wrap;
             }
 
             .app-confirm-actions {
                 display: grid;
                 gap: 10px;
                 grid-template-columns: 1fr 1fr;
+            }
+
+            .app-confirm-actions.single-action {
+                grid-template-columns: 1fr;
             }
 
             .app-confirm-actions button {
@@ -98,6 +104,14 @@
             .app-confirm-ok {
                 background: linear-gradient(135deg, #ef4444, #dc2626);
             }
+
+            .app-confirm-ok.success {
+                background: linear-gradient(135deg, #22c55e, #16a34a);
+            }
+
+            .app-confirm-ok.info {
+                background: linear-gradient(135deg, #2563eb, #4f46e5);
+            }
         `;
 
         const overlay = document.createElement('div');
@@ -108,7 +122,7 @@
                 <div class="app-confirm-badge" id="app-confirm-badge">⚠️ Confirmação</div>
                 <h3 class="app-confirm-title" id="app-confirm-title">Tem certeza?</h3>
                 <p class="app-confirm-message" id="app-confirm-message">Essa ação não pode ser desfeita.</p>
-                <div class="app-confirm-actions">
+                <div class="app-confirm-actions" id="app-confirm-actions">
                     <button type="button" class="app-confirm-cancel" id="app-confirm-cancel">Cancelar</button>
                     <button type="button" class="app-confirm-ok" id="app-confirm-ok">Apagar</button>
                 </div>
@@ -118,13 +132,14 @@
         document.body.appendChild(overlay);
     }
 
-    function appConfirm({ badge = '⚠️ Confirmação', title = 'Tem certeza?', message = 'Essa ação não pode ser desfeita.', okText = 'Apagar', cancelText = 'Cancelar' } = {}) {
+    function appConfirm({ badge = '⚠️ Confirmação', title = 'Tem certeza?', message = 'Essa ação não pode ser desfeita.', okText = 'Apagar', cancelText = 'Cancelar', mode = 'danger', showCancel = true } = {}) {
         criarModal();
 
         const overlay = document.getElementById('app-confirm-overlay');
         const badgeEl = document.getElementById('app-confirm-badge');
         const titleEl = document.getElementById('app-confirm-title');
         const messageEl = document.getElementById('app-confirm-message');
+        const actionsEl = document.getElementById('app-confirm-actions');
         const okBtn = document.getElementById('app-confirm-ok');
         const cancelBtn = document.getElementById('app-confirm-cancel');
 
@@ -133,6 +148,10 @@
         messageEl.innerText = message;
         okBtn.innerText = okText;
         cancelBtn.innerText = cancelText;
+
+        okBtn.className = `app-confirm-ok ${mode === 'success' ? 'success' : mode === 'info' ? 'info' : ''}`.trim();
+        cancelBtn.style.display = showCancel ? 'block' : 'none';
+        actionsEl.classList.toggle('single-action', !showCancel);
 
         overlay.classList.add('active');
 
@@ -153,9 +172,39 @@
             okBtn.onclick = () => fechar(true);
             cancelBtn.onclick = () => fechar(false);
             overlay.onclick = event => {
-                if (event.target === overlay) fechar(false);
+                if (event.target === overlay && showCancel) fechar(false);
             };
             document.addEventListener('keydown', escHandler);
+        });
+    }
+
+    function tipoAlerta(mensagem) {
+        const texto = mensagem.toLowerCase();
+        if (texto.includes('salv') || texto.includes('copiad') || texto.includes('sucesso')) return 'success';
+        if (texto.includes('erro') || texto.includes('falha') || texto.includes('não consegui') || texto.includes('inválido')) return 'danger';
+        return 'info';
+    }
+
+    function tituloAlerta(mensagem, tipo) {
+        const texto = mensagem.toLowerCase();
+        if (texto.includes('salv')) return 'Oferta salva!';
+        if (texto.includes('copiad')) return 'Copiado com sucesso!';
+        if (texto.includes('link')) return 'Atenção ao link';
+        if (tipo === 'danger') return 'Ops, algo não saiu como esperado';
+        return 'Aviso do Achou Levou';
+    }
+
+    async function appAlert(mensagem = '') {
+        const texto = String(mensagem || '').trim() || 'Tudo certo.';
+        const tipo = tipoAlerta(texto);
+
+        return appConfirm({
+            badge: tipo === 'success' ? '✅ Achou Levou' : tipo === 'danger' ? '⚠️ Achou Levou' : 'ℹ️ Achou Levou',
+            title: tituloAlerta(texto, tipo),
+            message: texto,
+            okText: 'OK',
+            mode: tipo === 'success' ? 'success' : tipo === 'danger' ? 'danger' : 'info',
+            showCancel: false
         });
     }
 
@@ -209,6 +258,14 @@
     }
 
     window.appConfirm = appConfirm;
+    window.appAlert = appAlert;
+    window.alert = mensagem => {
+        try {
+            appAlert(mensagem);
+        } catch (erro) {
+            if (alertOriginal) alertOriginal(mensagem);
+        }
+    };
 
     document.addEventListener('click', async event => {
         const botao = event.target.closest('button');
