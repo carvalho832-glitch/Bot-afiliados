@@ -1,24 +1,16 @@
 (() => {
-  const STORAGE_OFERTAS = 'ofertas_achou_levou';
-  const STORAGE_CONFIG = 'achou_levou_bot_whatsapp_config';
-  const DEFAULT_BOT_URL = 'http://35.253.196.37:3010';
+  const STORE = 'ofertas_achou_levou';
+  const CFG = 'achou_levou_bot_whatsapp_config';
+  const DEFAULT_URL = 'http://35.253.196.37:3010';
 
-  function getConfig() {
+  const $ = id => document.getElementById(id);
+
+  function cfg() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_CONFIG) || '{}');
-      return {
-        url: saved.url || DEFAULT_BOT_URL,
-        user: saved.user || 'julio',
-        pass: saved.pass || ''
-      };
+      return { url: DEFAULT_URL, user: 'julio', pass: '', ...JSON.parse(localStorage.getItem(CFG) || '{}') };
     } catch {
-      return { url: DEFAULT_BOT_URL, user: 'julio', pass: '' };
+      return { url: DEFAULT_URL, user: 'julio', pass: '' };
     }
   }
 
-  function saveConfig(config) {
-    localStorage.setItem(STORAGE_CONFIG, JSON.stringify(config));
-  }
-
-  function getOfertas() {
-    try
+  function
