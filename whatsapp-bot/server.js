@@ -17,6 +17,7 @@ const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.join(__dirname, 'data');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const QUEUE_FILE = path.join(DATA_DIR, 'queue.json');
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -24,7 +25,7 @@ const GRUPO_TESTE_ID = '120363426800905804@g.us';
 const GRUPO_TESTE_NOME = 'Grupo teste';
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 let status = 'iniciando';
@@ -32,6 +33,10 @@ let qrDataUrl = null;
 let qrRaw = null;
 let readyAt = null;
 let lastError = null;
+
+let queueRunning = false;
+let queueTimer = null;
+let queueProcessing = false;
 
 function hojeKey() {
   return new Date().toISOString().slice(0, 10);
@@ -95,6 +100,27 @@ function saveSettings(partial) {
   return next;
 }
 
+function getQueue() {
+  const queue = readJson(QUEUE_FILE, []);
+  return Array.isArray(queue) ? queue : [];
+}
+
+function saveQueue(queue) {
+  writeJson(QUEUE_FILE, queue);
+  return queue;
+}
+
+function createQueueItem(message) {
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    message: String(message || '').trim(),
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    sentAt: null,
+    error: null
+  };
+}
+
 function parseTimeToMinutes(value = '00:00') {
   const [h, m] = String(value).split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
@@ -150,6 +176,132 @@ function podeEnviarAgora(settings) {
   return null;
 }
 
+function getQueueSummary() {
+  const queue = getQueue();
+
+  return {
+    total: queue.length,
+    pending: queue.filter(item => item.status === 'pending').length,
+    sent: queue.filter(item => item.status === 'sent').length,
+    error: queue.filter(item => item.status === 'error').length,
+    running: queueRunning,
+    processing: queueProcessing,
+    items: queue
+  };
+}
+
+async function sendMessageToConfiguredGroup(message) {
+  const settings = getSettings();
+  const bloqueio = podeEnviarAgora(settings);
+
+  if (bloqueio) {
+    return {
+      ok: false,
+      error: bloqueio,
+      settings
+    };
+  }
+
+  const chat = await client.getChatById(settings.selectedGroupId);
+
+  if (!chat || !chat.isGroup) {
+    return {
+      ok: false,
+      error: 'Grupo configurado não é válido.',
+      settings
+    };
+  }
+
+  await chat.sendMessage(String(message).trim());
+
+  const updated = saveSettings({
+    sentToday: settings.sentToday + 1,
+    sentDate: hojeKey(),
+    lastSendAt: Date.now()
+  });
+
+  return {
+    ok: true,
+    groupId: settings.selectedGroupId,
+    groupName: settings.selectedGroupName || chat.name,
+    sentToday: updated.sentToday,
+    dailyLimit: updated.dailyLimit,
+    sentAt: new Date().toISOString()
+  };
+}
+
+function clearQueueTimer() {
+  if (queueTimer) {
+    clearTimeout(queueTimer);
+    queueTimer = null;
+  }
+}
+
+function scheduleNextQueueRun(delayMs = 1000) {
+  clearQueueTimer();
+
+  if (!queueRunning) return;
+
+  queueTimer = setTimeout(() => {
+    processQueue().catch(error => {
+      console.log('Erro na fila:', error.message);
+      scheduleNextQueueRun(30000);
+    });
+  }, delayMs);
+}
+
+async function processQueue() {
+  if (!queueRunning || queueProcessing) return;
+
+  queueProcessing = true;
+
+  try {
+    const settings = getSettings();
+    const queue = getQueue();
+    const nextIndex = queue.findIndex(item => item.status === 'pending');
+
+    if (nextIndex === -1) {
+      queueRunning = false;
+      clearQueueTimer();
+      return;
+    }
+
+    const nextItem = queue[nextIndex];
+    const bloqueio = podeEnviarAgora(settings);
+
+    if (bloqueio) {
+      if (bloqueio.includes('Aguarde mais')) {
+        scheduleNextQueueRun(30000);
+      } else if (bloqueio.includes('Fora do horário')) {
+        scheduleNextQueueRun(60000);
+      } else {
+        queueRunning = false;
+        clearQueueTimer();
+      }
+
+      return;
+    }
+
+    const result = await sendMessageToConfiguredGroup(nextItem.message);
+    const updatedQueue = getQueue();
+    const itemIndex = updatedQueue.findIndex(item => item.id === nextItem.id);
+
+    if (itemIndex >= 0) {
+      updatedQueue[itemIndex].status = result.ok ? 'sent' : 'error';
+      updatedQueue[itemIndex].sentAt = result.ok ? new Date().toISOString() : null;
+      updatedQueue[itemIndex].error = result.ok ? null : result.error;
+      saveQueue(updatedQueue);
+    }
+
+    const updatedSettings = getSettings();
+    const intervaloMs = Math.max(1, Number(updatedSettings.intervalMinutes || 10)) * 60 * 1000;
+
+    scheduleNextQueueRun(intervaloMs);
+  } finally {
+    queueProcessing = false;
+  }
+}
+
 const client = new Client({
   authStrategy: new LocalAuth({
     clientId: 'achou-levou-julio'
@@ -190,473 +342,10 @@ client.on('auth_failure', msg => {
 client.on('disconnected', reason => {
   status = 'desconectado';
   lastError = String(reason || 'Desconectado');
+  queueRunning = false;
+  clearQueueTimer();
   console.log('Desconectado:', reason);
 });
-
-function renderPainel() {
-  const conectado = status === 'conectado';
-
-  return `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel Bot Achou Levou</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0d1117;
-      color: #ffffff;
-      padding: 20px;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 860px;
-      margin: 0 auto;
-    }
-
-    .card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 18px;
-      padding: 18px;
-      margin-bottom: 16px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-    }
-
-    h1 {
-      margin: 0 0 6px;
-      font-size: 1.7rem;
-    }
-
-    h2 {
-      margin: 0 0 14px;
-      font-size: 1.15rem;
-    }
-
-    .sub {
-      color: #8b949e;
-      margin-bottom: 18px;
-    }
-
-    .status {
-      display: inline-block;
-      padding: 8px 12px;
-      border-radius: 999px;
-      font-weight: 800;
-      background: ${conectado ? '#15803d' : '#92400e'};
-    }
-
-    .muted {
-      color: #9ca3af;
-      font-size: 0.95rem;
-      line-height: 1.45;
-    }
-
-    label {
-      display: block;
-      font-weight: 800;
-      margin-bottom: 8px;
-    }
-
-    input,
-    select,
-    textarea {
-      width: 100%;
-      border-radius: 14px;
-      border: 1px solid #30363d;
-      background: #0d1117;
-      color: #ffffff;
-      padding: 13px;
-      font-size: 16px;
-      outline: none;
-    }
-
-    textarea {
-      min-height: 230px;
-      resize: vertical;
-      line-height: 1.45;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .field {
-      margin-bottom: 14px;
-    }
-
-    button {
-      width: 100%;
-      margin-top: 12px;
-      border: 0;
-      border-radius: 14px;
-      padding: 16px;
-      font-weight: 900;
-      font-size: 16px;
-      color: #ffffff;
-      cursor: pointer;
-    }
-
-    .send {
-      background: linear-gradient(135deg, #16a34a, #10b981);
-    }
-
-    .save {
-      background: linear-gradient(135deg, #2563eb, #6d39ff);
-    }
-
-    .clear {
-      background: #374151;
-    }
-
-    .danger {
-      background: linear-gradient(135deg, #991b1b, #ef4444);
-    }
-
-    .result {
-      white-space: pre-wrap;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 14px;
-      padding: 12px;
-      margin-top: 12px;
-      color: #c9d1d9;
-      min-height: 48px;
-      line-height: 1.4;
-    }
-
-    a {
-      color: #58a6ff;
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      margin-top: 8px;
-      font-weight: 700;
-    }
-
-    .switch-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-
-    .switch-row input {
-      width: auto;
-      transform: scale(1.2);
-    }
-
-    @media (max-width: 700px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
-</head>
-
-<body>
-  <div class="container">
-    <div class="card">
-      <h1>🤖 Bot Achou Levou</h1>
-      <div class="sub">Painel com freio, limite e horário</div>
-
-      <p>Status: <span class="status">${status}</span></p>
-
-      ${
-        conectado
-          ? '<p class="muted">Bot conectado e pronto para envio controlado.</p>'
-          : '<p class="muted">Se não estiver conectado, abra <a href="/qr-page">/qr-page</a> para escanear o QR Code.</p>'
-      }
-
-      <p class="muted">
-        Rota local:
-        <span class="badge">http://localhost:3010/painel</span>
-      </p>
-    </div>
-
-    <div class="card">
-      <h2>⚙️ Configuração do Bot</h2>
-
-      <div class="switch-row">
-        <input type="checkbox" id="enabled">
-        <label for="enabled" style="margin:0;">Ativar envio controlado</label>
-      </div>
-
-      <div class="field">
-        <label for="grupo">Grupo autorizado:</label>
-        <select id="grupo">
-          <option value="">Carregando grupos...</option>
-        </select>
-      </div>
-
-      <div class="grid">
-        <div class="field">
-          <label for="windowStart">Enviar das:</label>
-          <input type="time" id="windowStart">
-        </div>
-
-        <div class="field">
-          <label for="windowEnd">Até:</label>
-          <input type="time" id="windowEnd">
-        </div>
-      </div>
-
-      <div class="grid">
-        <div class="field">
-          <label for="intervalMinutes">Intervalo entre envios em minutos:</label>
-          <input type="number" id="intervalMinutes" min="1" max="180">
-        </div>
-
-        <div class="field">
-          <label for="dailyLimit">Limite diário de envios:</label>
-          <input type="number" id="dailyLimit" min="1" max="50">
-        </div>
-      </div>
-
-      <button class="save" onclick="salvarConfiguracao()">💾 Salvar configuração</button>
-      <button class="danger" onclick="pararTudo()">🛑 Parar tudo</button>
-
-      <div id="configResultado" class="result">Carregando configurações...</div>
-    </div>
-
-    <div class="card">
-      <h2>💬 Enviar mensagem controlada</h2>
-
-      <label for="mensagem">Mensagem para enviar:</label>
-
-      <textarea id="mensagem" placeholder="Cole aqui a mensagem gerada pelo Achou Levou...">🚀 Teste do bot Achou Levou funcionando com painel controlado!</textarea>
-
-      <button class="send" onclick="enviarMensagem()">💬 Enviar respeitando regras</button>
-      <button class="clear" onclick="limparCampo()">🧹 Limpar campo</button>
-
-      <div id="resultado" class="result">Aguardando envio...</div>
-    </div>
-
-    <div class="card">
-      <p class="muted">
-        Segurança desta etapa:
-        <br>✅ Envia somente para o grupo escolhido no painel
-        <br>✅ Respeita horário permitido
-        <br>✅ Respeita intervalo entre mensagens
-        <br>✅ Respeita limite diário
-        <br>✅ Botão Parar tudo desativa o envio
-        <br>❌ Sem fila automática ainda
-        <br>❌ Sem envio em massa
-      </p>
-    </div>
-  </div>
-
-  <script>
-    let settingsAtual = null;
-
-    async function carregarTudo() {
-      await carregarSettings();
-      await carregarGrupos();
-    }
-
-    async function carregarSettings() {
-      const box = document.getElementById('configResultado');
-
-      try {
-        const resposta = await fetch('/settings');
-        const json = await resposta.json();
-
-        if (!json.ok) {
-          box.textContent = 'Erro ao carregar configurações.';
-          return;
-        }
-
-        settingsAtual = json.settings;
-
-        document.getElementById('enabled').checked = Boolean(settingsAtual.enabled);
-        document.getElementById('windowStart').value = settingsAtual.windowStart || '09:00';
-        document.getElementById('windowEnd').value = settingsAtual.windowEnd || '21:00';
-        document.getElementById('intervalMinutes').value = settingsAtual.intervalMinutes || 10;
-        document.getElementById('dailyLimit').value = settingsAtual.dailyLimit || 12;
-
-        box.textContent =
-          'Config atual:\\n' +
-          'Grupo: ' + (settingsAtual.selectedGroupName || 'não selecionado') + '\\n' +
-          'Ativo: ' + (settingsAtual.enabled ? 'sim' : 'não') + '\\n' +
-          'Horário: ' + settingsAtual.windowStart + ' até ' + settingsAtual.windowEnd + '\\n' +
-          'Intervalo: ' + settingsAtual.intervalMinutes + ' min\\n' +
-          'Limite diário: ' + settingsAtual.dailyLimit + '\\n' +
-          'Enviados hoje: ' + settingsAtual.sentToday;
-      } catch (erro) {
-        box.textContent = 'Erro ao carregar config: ' + erro.message;
-      }
-    }
-
-    async function carregarGrupos() {
-      const select = document.getElementById('grupo');
-      select.innerHTML = '';
-
-      try {
-        const resposta = await fetch('/groups');
-        const json = await resposta.json();
-
-        if (!json.ok) {
-          const opt = document.createElement('option');
-          opt.value = settingsAtual?.selectedGroupId || '';
-          opt.textContent = settingsAtual?.selectedGroupName || 'Grupo teste';
-          select.appendChild(opt);
-          return;
-        }
-
-        const grupos = json.groups || [];
-
-        for (const grupo of grupos) {
-          const opt = document.createElement('option');
-          opt.value = grupo.id;
-          opt.textContent = grupo.name;
-
-          if (settingsAtual && settingsAtual.selectedGroupId === grupo.id) {
-            opt.selected = true;
-          }
-
-          select.appendChild(opt);
-        }
-      } catch (erro) {
-        const opt = document.createElement('option');
-        opt.value = settingsAtual?.selectedGroupId || '';
-        opt.textContent = settingsAtual?.selectedGroupName || 'Grupo teste';
-        select.appendChild(opt);
-      }
-    }
-
-    async function salvarConfiguracao() {
-      const box = document.getElementById('configResultado');
-      const select = document.getElementById('grupo');
-      const selectedOption = select.options[select.selectedIndex];
-
-      const payload = {
-        enabled: document.getElementById('enabled').checked,
-        selectedGroupId: select.value,
-        selectedGroupName: selectedOption ? selectedOption.textContent : '',
-        windowStart: document.getElementById('windowStart').value || '09:00',
-        windowEnd: document.getElementById('windowEnd').value || '21:00',
-        intervalMinutes: Number(document.getElementById('intervalMinutes').value || 10),
-        dailyLimit: Number(document.getElementById('dailyLimit').value || 12)
-      };
-
-      box.textContent = 'Salvando configuração...';
-
-      try {
-        const resposta = await fetch('/settings', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const json = await resposta.json();
-
-        if (!json.ok) {
-          box.textContent = 'Erro: ' + (json.error || 'falha ao salvar');
-          return;
-        }
-
-        settingsAtual = json.settings;
-        box.textContent = '✅ Configuração salva com sucesso!';
-        await carregarSettings();
-      } catch (erro) {
-        box.textContent = 'Erro ao salvar: ' + erro.message;
-      }
-    }
-
-    async function enviarMensagem() {
-      const resultado = document.getElementById('resultado');
-      const mensagem = document.getElementById('mensagem').value.trim();
-
-      if (!mensagem) {
-        resultado.textContent = 'Digite ou cole uma mensagem primeiro.';
-        return;
-      }
-
-      resultado.textContent = 'Enviando com regras de segurança...';
-
-      try {
-        const resposta = await fetch('/send-controlado', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: mensagem
-          })
-        });
-
-        const json = await resposta.json();
-
-        if (!json.ok) {
-          resultado.textContent = 'Envio bloqueado: ' + (json.error || 'falha ao enviar');
-          await carregarSettings();
-          return;
-        }
-
-        resultado.textContent =
-          '✅ Mensagem enviada com sucesso!\\n' +
-          'Grupo: ' + json.groupName + '\\n' +
-          'Enviados hoje: ' + json.sentToday + '/' + json.dailyLimit;
-
-        await carregarSettings();
-      } catch (erro) {
-        resultado.textContent = 'Erro ao chamar o bot: ' + erro.message;
-      }
-    }
-
-    async function pararTudo() {
-      const box = document.getElementById('configResultado');
-
-      if (!confirm('Deseja desativar o envio controlado agora?')) {
-        return;
-      }
-
-      try {
-        const resposta = await fetch('/panic', {
-          method: 'POST'
-        });
-
-        const json = await resposta.json();
-
-        box.textContent = json.ok
-          ? '🛑 Bot desativado com sucesso.'
-          : 'Erro ao parar bot.';
-
-        await carregarSettings();
-      } catch (erro) {
-        box.textContent = 'Erro ao parar: ' + erro.message;
-      }
-    }
-
-    function limparCampo() {
-      document.getElementById('mensagem').value = '';
-      document.getElementById('resultado').textContent = 'Campo limpo.';
-    }
-
-    carregarTudo();
-  </script>
-</body>
-</html>
-  `;
-}
 
 app.get('/', (req, res) => {
   res.json({
@@ -670,15 +359,614 @@ app.get('/', (req, res) => {
       '/qr',
       '/groups',
       '/settings',
+      '/queue',
       'POST /settings',
       'POST /send-controlado',
+      'POST /queue/add',
+      'POST /queue/start',
+      'POST /queue/stop',
+      'POST /queue/clear',
       'POST /panic'
     ]
   });
 });
 
 app.get('/painel', (req, res) => {
-  res.send(renderPainel());
+  const conectado = status === 'conectado';
+
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Painel Bot Achou Levou</title>
+
+      <style>
+        * {
+          box-sizing: border-box;
+        }
+
+        body {
+          margin: 0;
+          font-family: Arial, sans-serif;
+          background: #0d1117;
+          color: #ffffff;
+          padding: 20px;
+        }
+
+        .container {
+          width: 100%;
+          max-width: 900px;
+          margin: 0 auto;
+        }
+
+        .card {
+          background: #161b22;
+          border: 1px solid #30363d;
+          border-radius: 18px;
+          padding: 18px;
+          margin-bottom: 16px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        }
+
+        h1 {
+          margin: 0 0 6px;
+          font-size: 1.7rem;
+        }
+
+        h2 {
+          margin: 0 0 14px;
+          font-size: 1.15rem;
+        }
+
+        .sub {
+          color: #8b949e;
+          margin-bottom: 18px;
+        }
+
+        .status {
+          display: inline-block;
+          padding: 8px 12px;
+          border-radius: 999px;
+          font-weight: 800;
+          background: ${conectado ? '#15803d' : '#92400e'};
+        }
+
+        .muted {
+          color: #9ca3af;
+          font-size: 0.95rem;
+          line-height: 1.45;
+        }
+
+        label {
+          display: block;
+          font-weight: 800;
+          margin-bottom: 8px;
+        }
+
+        input,
+        select,
+        textarea {
+          width: 100%;
+          border-radius: 14px;
+          border: 1px solid #30363d;
+          background: #0d1117;
+          color: #ffffff;
+          padding: 13px;
+          font-size: 16px;
+          outline: none;
+        }
+
+        textarea {
+          min-height: 220px;
+          resize: vertical;
+          line-height: 1.45;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+
+        .field {
+          margin-bottom: 14px;
+        }
+
+        button {
+          width: 100%;
+          margin-top: 12px;
+          border: 0;
+          border-radius: 14px;
+          padding: 16px;
+          font-weight: 900;
+          font-size: 16px;
+          color: #ffffff;
+          cursor: pointer;
+        }
+
+        .send {
+          background: linear-gradient(135deg, #16a34a, #10b981);
+        }
+
+        .save {
+          background: linear-gradient(135deg, #2563eb, #6d39ff);
+        }
+
+        .clear {
+          background: #374151;
+        }
+
+        .danger {
+          background: linear-gradient(135deg, #991b1b, #ef4444);
+        }
+
+        .warn {
+          background: linear-gradient(135deg, #d97706, #f97316);
+        }
+
+        .result {
+          white-space: pre-wrap;
+          background: #0d1117;
+          border: 1px solid #30363d;
+          border-radius: 14px;
+          padding: 12px;
+          margin-top: 12px;
+          color: #c9d1d9;
+          min-height: 48px;
+          line-height: 1.4;
+          max-height: 260px;
+          overflow: auto;
+        }
+
+        a {
+          color: #58a6ff;
+        }
+
+        .badge {
+          display: inline-block;
+          padding: 6px 10px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          margin-top: 8px;
+          font-weight: 700;
+        }
+
+        .switch-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 14px;
+        }
+
+        .switch-row input {
+          width: auto;
+          transform: scale(1.2);
+        }
+
+        @media (max-width: 700px) {
+          .grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      </style>
+    </head>
+
+    <body>
+      <div class="container">
+        <div class="card">
+          <h1>🤖 Bot Achou Levou</h1>
+          <div class="sub">Painel com fila automática controlada</div>
+
+          <p>Status: <span class="status">${status}</span></p>
+
+          ${
+            conectado
+              ? '<p class="muted">Bot conectado e pronto para envio controlado.</p>'
+              : '<p class="muted">Se não estiver conectado, abra <a href="/qr-page">/qr-page</a> para escanear o QR Code.</p>'
+          }
+
+          <p class="muted">
+            Rota local:
+            <span class="badge">http://localhost:3010/painel</span>
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>⚙️ Configuração do Bot</h2>
+
+          <div class="switch-row">
+            <input type="checkbox" id="enabled">
+            <label for="enabled" style="margin:0;">Ativar envio controlado</label>
+          </div>
+
+          <div class="field">
+            <label for="grupo">Grupo autorizado:</label>
+            <select id="grupo">
+              <option value="">Carregando grupos...</option>
+            </select>
+          </div>
+
+          <div class="grid">
+            <div class="field">
+              <label for="windowStart">Enviar das:</label>
+              <input type="time" id="windowStart">
+            </div>
+
+            <div class="field">
+              <label for="windowEnd">Até:</label>
+              <input type="time" id="windowEnd">
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="field">
+              <label for="intervalMinutes">Intervalo entre envios em minutos:</label>
+              <input type="number" id="intervalMinutes" min="1" max="180">
+            </div>
+
+            <div class="field">
+              <label for="dailyLimit">Limite diário de envios:</label>
+              <input type="number" id="dailyLimit" min="1" max="50">
+            </div>
+          </div>
+
+          <button class="save" onclick="salvarConfiguracao()">💾 Salvar configuração</button>
+          <button class="danger" onclick="pararTudo()">🛑 Parar tudo</button>
+
+          <div id="configResultado" class="result">Carregando configurações...</div>
+        </div>
+
+        <div class="card">
+          <h2>💬 Enviar mensagem única</h2>
+
+          <label for="mensagem">Mensagem para enviar:</label>
+
+          <textarea id="mensagem" placeholder="Cole aqui a mensagem gerada pelo Achou Levou...">🚀 Teste do bot Achou Levou funcionando com painel controlado!</textarea>
+
+          <button class="send" onclick="enviarMensagem()">💬 Enviar respeitando regras</button>
+          <button class="clear" onclick="limparCampo('mensagem', 'resultado')">🧹 Limpar campo</button>
+
+          <div id="resultado" class="result">Aguardando envio...</div>
+        </div>
+
+        <div class="card">
+          <h2>🚦 Fila automática controlada</h2>
+
+          <p class="muted">
+            Cole uma mensagem por bloco. Separe cada oferta com uma linha contendo apenas três traços:
+            <b>---</b>
+          </p>
+
+          <textarea id="filaTexto" placeholder="Oferta 1...
+---
+Oferta 2...
+---
+Oferta 3..."></textarea>
+
+          <button class="save" onclick="adicionarFila()">➕ Adicionar à fila</button>
+          <button class="send" onclick="iniciarFila()">▶️ Iniciar fila</button>
+          <button class="warn" onclick="pararFila()">⏸️ Pausar fila</button>
+          <button class="danger" onclick="limparFila()">🗑️ Limpar fila</button>
+
+          <div id="filaResultado" class="result">Fila aguardando...</div>
+        </div>
+
+        <div class="card">
+          <p class="muted">
+            Segurança desta etapa:
+            <br>✅ Envia somente para o grupo escolhido no painel
+            <br>✅ Respeita horário permitido
+            <br>✅ Respeita intervalo entre mensagens
+            <br>✅ Respeita limite diário
+            <br>✅ Botão Parar tudo desativa o envio e pausa a fila
+            <br>✅ A fila só começa quando você clicar em Iniciar fila
+          </p>
+        </div>
+      </div>
+
+      <script>
+        let settingsAtual = null;
+
+        async function carregarTudo() {
+          await carregarSettings();
+          await carregarGrupos();
+          await carregarFila();
+          setInterval(carregarFila, 10000);
+        }
+
+        async function carregarSettings() {
+          const box = document.getElementById('configResultado');
+
+          try {
+            const resposta = await fetch('/settings');
+            const json = await resposta.json();
+
+            if (!json.ok) {
+              box.textContent = 'Erro ao carregar configurações.';
+              return;
+            }
+
+            settingsAtual = json.settings;
+
+            document.getElementById('enabled').checked = Boolean(settingsAtual.enabled);
+            document.getElementById('windowStart').value = settingsAtual.windowStart || '09:00';
+            document.getElementById('windowEnd').value = settingsAtual.windowEnd || '21:00';
+            document.getElementById('intervalMinutes').value = settingsAtual.intervalMinutes || 10;
+            document.getElementById('dailyLimit').value = settingsAtual.dailyLimit || 12;
+
+            box.textContent =
+              'Config atual:\\n' +
+              'Grupo: ' + (settingsAtual.selectedGroupName || 'não selecionado') + '\\n' +
+              'Ativo: ' + (settingsAtual.enabled ? 'sim' : 'não') + '\\n' +
+              'Horário: ' + settingsAtual.windowStart + ' até ' + settingsAtual.windowEnd + '\\n' +
+              'Intervalo: ' + settingsAtual.intervalMinutes + ' min\\n' +
+              'Limite diário: ' + settingsAtual.dailyLimit + '\\n' +
+              'Enviados hoje: ' + settingsAtual.sentToday;
+          } catch (erro) {
+            box.textContent = 'Erro ao carregar config: ' + erro.message;
+          }
+        }
+
+        async function carregarGrupos() {
+          const select = document.getElementById('grupo');
+          select.innerHTML = '';
+
+          try {
+            const resposta = await fetch('/groups');
+            const json = await resposta.json();
+
+            if (!json.ok) throw new Error(json.error || 'Falha ao carregar grupos');
+
+            for (const grupo of json.groups || []) {
+              const opt = document.createElement('option');
+              opt.value = grupo.id;
+              opt.textContent = grupo.name;
+
+              if (settingsAtual && settingsAtual.selectedGroupId === grupo.id) {
+                opt.selected = true;
+              }
+
+              select.appendChild(opt);
+            }
+          } catch (erro) {
+            const opt = document.createElement('option');
+            opt.value = settingsAtual?.selectedGroupId || '';
+            opt.textContent = settingsAtual?.selectedGroupName || 'Grupo teste';
+            select.appendChild(opt);
+          }
+        }
+
+        async function salvarConfiguracao() {
+          const box = document.getElementById('configResultado');
+          const select = document.getElementById('grupo');
+          const selectedOption = select.options[select.selectedIndex];
+
+          const payload = {
+            enabled: document.getElementById('enabled').checked,
+            selectedGroupId: select.value,
+            selectedGroupName: selectedOption ? selectedOption.textContent : '',
+            windowStart: document.getElementById('windowStart').value || '09:00',
+            windowEnd: document.getElementById('windowEnd').value || '21:00',
+            intervalMinutes: Number(document.getElementById('intervalMinutes').value || 10),
+            dailyLimit: Number(document.getElementById('dailyLimit').value || 12)
+          };
+
+          box.textContent = 'Salvando configuração...';
+
+          try {
+            const resposta = await fetch('/settings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            const json = await resposta.json();
+
+            if (!json.ok) {
+              box.textContent = 'Erro: ' + (json.error || 'falha ao salvar');
+              return;
+            }
+
+            settingsAtual = json.settings;
+            box.textContent = '✅ Configuração salva com sucesso!';
+            await carregarSettings();
+          } catch (erro) {
+            box.textContent = 'Erro ao salvar: ' + erro.message;
+          }
+        }
+
+        async function enviarMensagem() {
+          const resultado = document.getElementById('resultado');
+          const mensagem = document.getElementById('mensagem').value.trim();
+
+          if (!mensagem) {
+            resultado.textContent = 'Digite ou cole uma mensagem primeiro.';
+            return;
+          }
+
+          resultado.textContent = 'Enviando com regras de segurança...';
+
+          try {
+            const resposta = await fetch('/send-controlado', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: mensagem })
+            });
+
+            const json = await resposta.json();
+
+            if (!json.ok) {
+              resultado.textContent = 'Envio bloqueado: ' + (json.error || 'falha ao enviar');
+              await carregarSettings();
+              return;
+            }
+
+            resultado.textContent =
+              '✅ Mensagem enviada com sucesso!\\n' +
+              'Grupo: ' + json.groupName + '\\n' +
+              'Enviados hoje: ' + json.sentToday + '/' + json.dailyLimit;
+
+            await carregarSettings();
+          } catch (erro) {
+            resultado.textContent = 'Erro ao chamar o bot: ' + erro.message;
+          }
+        }
+
+        async function adicionarFila() {
+          const box = document.getElementById('filaResultado');
+          const text = document.getElementById('filaTexto').value.trim();
+
+          if (!text) {
+            box.textContent = 'Cole pelo menos uma mensagem para adicionar à fila.';
+            return;
+          }
+
+          box.textContent = 'Adicionando à fila...';
+
+          try {
+            const resposta = await fetch('/queue/add', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text })
+            });
+
+            const json = await resposta.json();
+
+            box.textContent = json.ok
+              ? '✅ Mensagens adicionadas: ' + json.added
+              : 'Erro: ' + (json.error || 'falha ao adicionar');
+
+            if (json.ok) document.getElementById('filaTexto').value = '';
+
+            await carregarFila();
+          } catch (erro) {
+            box.textContent = 'Erro: ' + erro.message;
+          }
+        }
+
+        async function iniciarFila() {
+          const box = document.getElementById('filaResultado');
+          box.textContent = 'Iniciando fila...';
+
+          try {
+            const resposta = await fetch('/queue/start', { method: 'POST' });
+            const json = await resposta.json();
+
+            box.textContent = json.ok
+              ? '▶️ Fila iniciada.'
+              : 'Erro: ' + json.error;
+
+            await carregarFila();
+          } catch (erro) {
+            box.textContent = 'Erro: ' + erro.message;
+          }
+        }
+
+        async function pararFila() {
+          const box = document.getElementById('filaResultado');
+
+          try {
+            const resposta = await fetch('/queue/stop', { method: 'POST' });
+            const json = await resposta.json();
+
+            box.textContent = json.ok
+              ? '⏸️ Fila pausada.'
+              : 'Erro ao pausar fila.';
+
+            await carregarFila();
+          } catch (erro) {
+            box.textContent = 'Erro: ' + erro.message;
+          }
+        }
+
+        async function limparFila() {
+          const box = document.getElementById('filaResultado');
+
+          if (!confirm('Deseja apagar toda a fila?')) return;
+
+          try {
+            const resposta = await fetch('/queue/clear', { method: 'POST' });
+            const json = await resposta.json();
+
+            box.textContent = json.ok
+              ? '🗑️ Fila limpa.'
+              : 'Erro ao limpar fila.';
+
+            await carregarFila();
+          } catch (erro) {
+            box.textContent = 'Erro: ' + erro.message;
+          }
+        }
+
+        async function carregarFila() {
+          const box = document.getElementById('filaResultado');
+
+          try {
+            const resposta = await fetch('/queue');
+            const json = await resposta.json();
+
+            if (!json.ok) {
+              box.textContent = 'Erro ao carregar fila.';
+              return;
+            }
+
+            const q = json.queue;
+            const linhas = [];
+
+            linhas.push('Rodando: ' + (q.running ? 'sim' : 'não'));
+            linhas.push('Total: ' + q.total);
+            linhas.push('Pendentes: ' + q.pending);
+            linhas.push('Enviadas: ' + q.sent);
+            linhas.push('Erro: ' + q.error);
+            linhas.push('');
+
+            q.items.slice(0, 10).forEach((item, index) => {
+              linhas.push((index + 1) + '. [' + item.status + '] ' + item.message.slice(0, 80));
+
+              if (item.error) {
+                linhas.push('   Erro: ' + item.error);
+              }
+            });
+
+            box.textContent = linhas.join('\\n');
+          } catch (erro) {
+            box.textContent = 'Erro ao carregar fila: ' + erro.message;
+          }
+        }
+
+        async function pararTudo() {
+          const box = document.getElementById('configResultado');
+
+          if (!confirm('Deseja desativar o envio controlado e pausar a fila agora?')) return;
+
+          try {
+            const resposta = await fetch('/panic', { method: 'POST' });
+            const json = await resposta.json();
+
+            box.textContent = json.ok
+              ? '🛑 Bot desativado e fila pausada.'
+              : 'Erro ao parar bot.';
+
+            await carregarSettings();
+            await carregarFila();
+          } catch (erro) {
+            box.textContent = 'Erro ao parar: ' + erro.message;
+          }
+        }
+
+        function limparCampo(campoId, saidaId) {
+          document.getElementById(campoId).value = '';
+          document.getElementById(saidaId).textContent = 'Campo limpo.';
+        }
+
+        carregarTudo();
+      </script>
+    </body>
+    </html>
+  `);
 });
 
 app.get('/settings', (req, res) => {
@@ -707,11 +995,109 @@ app.post('/settings', (req, res) => {
     }
   }
 
-  const settings = saveSettings(partial);
+  res.json({
+    ok: true,
+    settings: saveSettings(partial)
+  });
+});
+
+app.get('/queue', (req, res) => {
+  res.json({
+    ok: true,
+    queue: getQueueSummary()
+  });
+});
+
+app.post('/queue/add', (req, res) => {
+  const text = String(req.body?.text || '').trim();
+
+  if (!text) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Texto vazio.'
+    });
+  }
+
+  const messages = text
+    .split(/\n---\n/g)
+    .map(msg => msg.trim())
+    .filter(Boolean);
+
+  if (!messages.length) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Nenhuma mensagem válida encontrada.'
+    });
+  }
+
+  const queue = getQueue();
+  const newItems = messages.map(createQueueItem);
+
+  saveQueue([...queue, ...newItems]);
 
   res.json({
     ok: true,
-    settings
+    added: newItems.length,
+    queue: getQueueSummary()
+  });
+});
+
+app.post('/queue/start', (req, res) => {
+  const settings = getSettings();
+
+  if (!settings.enabled) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Ative o envio controlado antes de iniciar a fila.'
+    });
+  }
+
+  if (status !== 'conectado') {
+    return res.status(400).json({
+      ok: false,
+      error: 'WhatsApp ainda não conectado.'
+    });
+  }
+
+  const summary = getQueueSummary();
+
+  if (!summary.pending) {
+    return res.status(400).json({
+      ok: false,
+      error: 'Não há mensagens pendentes na fila.'
+    });
+  }
+
+  queueRunning = true;
+  scheduleNextQueueRun(1000);
+
+  res.json({
+    ok: true,
+    message: 'Fila iniciada.',
+    queue: getQueueSummary()
+  });
+});
+
+app.post('/queue/stop', (req, res) => {
+  queueRunning = false;
+  clearQueueTimer();
+
+  res.json({
+    ok: true,
+    message: 'Fila pausada.',
+    queue: getQueueSummary()
+  });
+});
+
+app.post('/queue/clear', (req, res) => {
+  queueRunning = false;
+  clearQueueTimer();
+  saveQueue([]);
+
+  res.json({
+    ok: true,
+    message: 'Fila limpa.',
+    queue: getQueueSummary()
   });
 });
 
@@ -721,7 +1107,9 @@ app.get('/status', (req, res) => {
     status,
     readyAt,
     hasQr: Boolean(qrDataUrl),
-    lastError
+    lastError,
+    queueRunning,
+    queueProcessing
   });
 });
 
@@ -794,7 +1182,6 @@ app.get('/groups', async (req, res) => {
 
 app.post('/send-controlado', async (req, res) => {
   try {
-    const settings = getSettings();
     const message = req.body?.message;
 
     if (!message || !String(message).trim()) {
@@ -804,41 +1191,13 @@ app.post('/send-controlado', async (req, res) => {
       });
     }
 
-    const bloqueio = podeEnviarAgora(settings);
+    const result = await sendMessageToConfiguredGroup(message);
 
-    if (bloqueio) {
-      return res.status(400).json({
-        ok: false,
-        error: bloqueio,
-        settings
-      });
+    if (!result.ok) {
+      return res.status(400).json(result);
     }
 
-    const chat = await client.getChatById(settings.selectedGroupId);
-
-    if (!chat || !chat.isGroup) {
-      return res.status(400).json({
-        ok: false,
-        error: 'Grupo configurado não é válido.'
-      });
-    }
-
-    await chat.sendMessage(String(message).trim());
-
-    const updated = saveSettings({
-      sentToday: settings.sentToday + 1,
-      sentDate: hojeKey(),
-      lastSendAt: Date.now()
-    });
-
-    res.json({
-      ok: true,
-      groupId: settings.selectedGroupId,
-      groupName: settings.selectedGroupName || chat.name,
-      sentToday: updated.sentToday,
-      dailyLimit: updated.dailyLimit,
-      sentAt: new Date().toISOString()
-    });
+    res.json(result);
   } catch (error) {
     res.status(500).json({
       ok: false,
@@ -876,14 +1235,18 @@ app.post('/send-test', async (req, res) => {
 });
 
 app.post('/panic', (req, res) => {
+  queueRunning = false;
+  clearQueueTimer();
+
   const settings = saveSettings({
     enabled: false
   });
 
   res.json({
     ok: true,
-    message: 'Bot desativado.',
-    settings
+    message: 'Bot desativado e fila pausada.',
+    settings,
+    queue: getQueueSummary()
   });
 });
 
