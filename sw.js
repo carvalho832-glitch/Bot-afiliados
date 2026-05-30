@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v4';
+const CACHE_VERSION = 'achou-levou-v5';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
