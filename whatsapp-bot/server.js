@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import qrcode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import 'dotenv/config';
 import pkg from 'whatsapp-web.js';
 
@@ -9,9 +12,8 @@ const { Client, LocalAuth } = pkg;
 const app = express();
 const PORT = process.env.PORT || 3010;
 
-const GRUPO_TESTE_ID = '120363426800905804@g.us';
-const GRUPO_TESTE_NOME = 'Grupo teste';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const DATA_DIR = path.join(__dirname, 'data');
+const SETTINGS
