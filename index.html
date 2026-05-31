@@ -136,12 +136,12 @@
     <script src="gemini-client.js?v=27"></script>
     <script src="simple-ui.js?v=27"></script>
     <script src="bot-queue-integration.js?v=28"></script>
-    <script src="multi-groups.js?v=29"></script>
+    <script src="multi-groups.js?v=30"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=27')
+                navigator.serviceWorker.register('./sw.js?v=28')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
