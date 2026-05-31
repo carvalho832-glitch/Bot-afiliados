@@ -46,9 +46,9 @@
     <meta name="theme-color" content="#0d1117" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=31">
-    <link rel="stylesheet" href="progress-style.css?v=31">
-    <link rel="stylesheet" href="simple-ui.css?v=31">
+    <link rel="stylesheet" href="style.css?v=32">
+    <link rel="stylesheet" href="progress-style.css?v=32">
+    <link rel="stylesheet" href="simple-ui.css?v=32">
 </head>
 <body>
     <div class="container">
@@ -162,22 +162,23 @@
         </div>
     </div>
 
-    <script src="script.js?v=31"></script>
-    <script src="progress-loader.js?v=31"></script>
-    <script src="product-image.js?v=31"></script>
-    <script src="enhancements.js?v=31"></script>
-    <script src="image-card-fix.js?v=31"></script>
-    <script src="app-dialog.js?v=31"></script>
-    <script src="bulk-whatsapp.js?v=31"></script>
-    <script src="shopee-helper.js?v=31"></script>
-    <script src="gemini-client.js?v=31"></script>
-    <script src="simple-ui.js?v=31"></script>
-    <script src="bot-queue-integration.js?v=31"></script>
+    <script src="script.js?v=32"></script>
+    <script src="progress-loader.js?v=32"></script>
+    <script src="product-image.js?v=32"></script>
+    <script src="enhancements.js?v=32"></script>
+    <script src="image-card-fix.js?v=32"></script>
+    <script src="app-dialog.js?v=32"></script>
+    <script src="bulk-whatsapp.js?v=32"></script>
+    <script src="shopee-helper.js?v=32"></script>
+    <script src="gemini-client.js?v=32"></script>
+    <script src="simple-ui.js?v=32"></script>
+    <script src="bot-queue-integration.js?v=32"></script>
+    <script src="queue-groups-safe.js?v=1"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=31')
+                navigator.serviceWorker.register('./sw.js?v=32')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
