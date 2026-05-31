@@ -1,11 +1,15 @@
 (() => {
   const OPTIONS_KEY = 'achou_levou_group_options';
   const SELECTED_KEY = 'achou_levou_selected_groups';
+
   const DEFAULT_GROUPS = [
     { id: 'Achou Levou 🚀', name: 'Achou Levou 🚀' },
     { id: 'Oferta Bruta 🔨', name: 'Oferta Bruta 🔨' }
   ];
+
   const realFetch = window.fetch.bind(window);
+  let lastTopSignature = '';
+  let lastBotSignature = '';
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -82,13 +86,8 @@
     const saved = safeJson(SELECTED_KEY, []);
     if (Array.isArray(saved) && saved.length) return saved.map(clean).filter(Boolean);
 
-    const select = $('#select-grupo');
-    const selectedFromSelect = Array.from(select?.selectedOptions || [])
-      .map(option => option.value || option.textContent.trim())
-      .filter(Boolean);
-
-    if (selectedFromSelect.length) return selectedFromSelect;
-    return [loadGroupOptions()[0]?.id].filter(Boolean);
+    const first = loadGroupOptions()[0]?.id;
+    return first ? [first] : [];
   }
 
   function saveSelectedGroups(groups) {
@@ -103,7 +102,10 @@
     const options = loadGroupOptions();
     const selected = loadSelectedGroups();
     const valid = selected.filter(id => options.some(option => option.id === id || option.name === id));
-    return valid.length ? valid.map(id => options.find(option => option.id === id || option.name === id)?.id || id) : selected;
+
+    return valid.length
+      ? valid.map(id => options.find(option => option.id === id || option.name === id)?.id || id)
+      : selected;
   }
 
   function syncOldSelect(selected) {
@@ -140,9 +142,23 @@
     });
   }
 
-  function renderList(containerSelector) {
+  function listSignature() {
+    const options = loadGroupOptions().map(group => `${group.id}:${group.name}`).join('|');
+    const selected = loadSelectedGroups().join('|');
+    return `${options}::${selected}`;
+  }
+
+  function renderList(containerSelector, force = false) {
     const container = $(containerSelector);
     if (!container) return;
+
+    const signature = listSignature();
+    const key = containerSelector === '#multiGroupsTopList' ? 'top' : 'bot';
+
+    if (!force) {
+      if (key === 'top' && lastTopSignature === signature) return;
+      if (key === 'bot' && lastBotSignature === signature) return;
+    }
 
     const options = loadGroupOptions();
     const selected = loadSelectedGroups();
@@ -154,14 +170,19 @@
       </label>
     `).join('');
 
+    if (key === 'top') lastTopSignature = signature;
+    if (key === 'bot') lastBotSignature = signature;
+
     updateSummaries(selected);
   }
 
   function handleListChange(containerSelector) {
     const selected = $$(`${containerSelector} input[type="checkbox"]:checked`).map(input => input.value);
     saveSelectedGroups(selected);
-    renderList('#multiGroupsTopList');
-    renderList('#botQueueGroupsList');
+    lastTopSignature = '';
+    lastBotSignature = '';
+    renderList('#multiGroupsTopList', true);
+    renderList('#botQueueGroupsList', true);
   }
 
   function renderTopSelector() {
@@ -244,6 +265,8 @@
           saveGroupOptions(groups);
           const validSelected = selectedGroups().filter(id => groups.some(group => group.id === id));
           saveSelectedGroups(validSelected.length ? validSelected : [groups[0].id]);
+          lastTopSignature = '';
+          lastBotSignature = '';
           renderTopSelector();
           renderBotSelector();
           if (result) result.textContent = `✅ ${groups.length} grupo(s) carregado(s). Marque os destinos desejados.`;
@@ -297,15 +320,12 @@
     saveGroupOptions(loadGroupOptions());
     saveSelectedGroups(loadSelectedGroups());
     renderTopSelector();
-    renderBotSelector();
     patchQueueFetch();
 
-    const observer = new MutationObserver(() => {
-      renderTopSelector();
+    const botPanelTimer = setInterval(() => {
       renderBotSelector();
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
+      if ($('#botQueueGroupsPanel')) clearInterval(botPanelTimer);
+    }, 800);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
