@@ -25,7 +25,7 @@
 
         <section class="card input-box">
             <label for="select-grupo">📱 Postar em qual grupo?</label>
-            <select id="select-grupo" multiple>
+            <select id="select-grupo">
                 <option value="Achou Levou 🚀">Achou Levou 🚀</option>
                 <option value="Oferta Bruta 🔨">Oferta Bruta 🔨</option>
             </select>
@@ -136,12 +136,11 @@
     <script src="gemini-client.js?v=27"></script>
     <script src="simple-ui.js?v=27"></script>
     <script src="bot-queue-integration.js?v=28"></script>
-    <script src="multi-groups.js?v=30"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=28')
+                navigator.serviceWorker.register('./sw.js?v=29')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
