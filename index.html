@@ -5,13 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Achou Levou 🚀</title>
 
+    <script>
+        (function () {
+            try {
+                localStorage.removeItem('achou_levou_group_options');
+                localStorage.removeItem('achou_levou_selected_groups');
+                localStorage.removeItem('achou_levou_recovery_20260530');
+
+                if ('caches' in window) {
+                    caches.keys().then(keys => keys.forEach(key => caches.delete(key))).catch(() => {});
+                }
+
+                if (location.search.includes('safe=1') && 'serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations()
+                        .then(regs => Promise.all(regs.map(reg => reg.unregister())))
+                        .then(() => console.log('Modo seguro: service workers removidos.'))
+                        .catch(() => {});
+                }
+
+                window.addEventListener('DOMContentLoaded', () => {
+                    const loader = document.getElementById('loader-global');
+                    if (loader) loader.style.display = 'none';
+
+                    setInterval(() => {
+                        const loaderAtual = document.getElementById('loader-global');
+                        if (loaderAtual && loaderAtual.style.display === 'flex') {
+                            setTimeout(() => {
+                                if (loaderAtual.style.display === 'flex') loaderAtual.style.display = 'none';
+                            }, 15000);
+                        }
+                    }, 3000);
+                });
+            } catch (error) {
+                console.log('Modo recuperação ignorou erro:', error);
+            }
+        })();
+    </script>
+
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0d1117" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=27">
-    <link rel="stylesheet" href="progress-style.css?v=27">
-    <link rel="stylesheet" href="simple-ui.css?v=27">
+    <link rel="stylesheet" href="style.css?v=31">
+    <link rel="stylesheet" href="progress-style.css?v=31">
+    <link rel="stylesheet" href="simple-ui.css?v=31">
 </head>
 <body>
     <div class="container">
@@ -125,22 +162,22 @@
         </div>
     </div>
 
-    <script src="script.js?v=27"></script>
-    <script src="progress-loader.js?v=27"></script>
-    <script src="product-image.js?v=27"></script>
-    <script src="enhancements.js?v=27"></script>
-    <script src="image-card-fix.js?v=27"></script>
-    <script src="app-dialog.js?v=27"></script>
-    <script src="bulk-whatsapp.js?v=27"></script>
-    <script src="shopee-helper.js?v=27"></script>
-    <script src="gemini-client.js?v=27"></script>
-    <script src="simple-ui.js?v=27"></script>
-    <script src="bot-queue-integration.js?v=28"></script>
+    <script src="script.js?v=31"></script>
+    <script src="progress-loader.js?v=31"></script>
+    <script src="product-image.js?v=31"></script>
+    <script src="enhancements.js?v=31"></script>
+    <script src="image-card-fix.js?v=31"></script>
+    <script src="app-dialog.js?v=31"></script>
+    <script src="bulk-whatsapp.js?v=31"></script>
+    <script src="shopee-helper.js?v=31"></script>
+    <script src="gemini-client.js?v=31"></script>
+    <script src="simple-ui.js?v=31"></script>
+    <script src="bot-queue-integration.js?v=31"></script>
 
     <script>
-        if ('serviceWorker' in navigator) {
+        if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=29')
+                navigator.serviceWorker.register('./sw.js?v=31')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
