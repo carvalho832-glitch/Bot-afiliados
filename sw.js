@@ -1,14 +1,14 @@
-const CACHE_VERSION = 'achou-levou-v5';
+const CACHE_VERSION = 'achou-levou-v6';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
 self.addEventListener('install', (event) => {
-    console.log('Robô Achou Levou v4 instalado com correção da API Gemini!');
+    console.log('Robô Achou Levou v6 instalado com seleção múltipla de grupos!');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Robô Achou Levou v4 ativado!');
+    console.log('Robô Achou Levou v6 ativado!');
     event.waitUntil(
         caches.keys().then(keys => Promise.all(
             keys
