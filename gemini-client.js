@@ -55,6 +55,63 @@
       .trim();
   }
 
+  function tem(texto, palavras) {
+    return palavras.some(palavra => texto.includes(palavra));
+  }
+
+  function beneficioCurto(produto) {
+    const p = (produto || '').toLowerCase();
+
+    if (tem(p, ['multivitamina', 'multi vitamina', 'polivitaminico', 'polivitamínico', 'vitaminas e minerais', 'centrum', 'lavitan'])) {
+      return 'Ajuda a complementar vitaminas e minerais na rotina diária.';
+    }
+
+    if (tem(p, ['vitamina c', 'acerola', 'camu'])) return 'Ajuda a complementar vitamina C no dia a dia.';
+    if (tem(p, ['vitamina d', 'd3'])) return 'Ajuda a complementar vitamina D na rotina.';
+    if (tem(p, ['b12', 'complexo b'])) return 'Ajuda a complementar vitaminas do complexo B.';
+    if (tem(p, ['omega', 'ômega', 'epa', 'dha'])) return 'Complementa o consumo de ômega 3 na rotina.';
+    if (tem(p, ['creatina'])) return 'Ajuda na rotina de treinos e desempenho físico.';
+    if (tem(p, ['whey', 'proteina', 'proteína', 'albumina'])) return 'Ajuda a complementar proteína de forma prática.';
+    if (tem(p, ['colageno', 'colágeno'])) return 'Ajuda na rotina de cuidados com pele, unhas e cabelos.';
+    if (tem(p, ['magnesio', 'magnésio'])) return 'Ajuda a complementar magnésio na rotina diária.';
+    if (tem(p, ['cafeina', 'cafeína', 'pre treino', 'pré treino'])) return 'Opção prática para dar mais energia na rotina.';
+
+    if (tem(p, ['smartwatch', 'relogio', 'relógio'])) return 'Facilita acompanhar horários, notificações e atividades.';
+    if (tem(p, ['fone', 'headset', 'bluetooth'])) return 'Mais praticidade para músicas, vídeos e chamadas.';
+    if (tem(p, ['notebook', 'laptop', 'tablet'])) return 'Ideal para estudos, trabalho e tarefas do dia a dia.';
+    if (tem(p, ['celular', 'smartphone', 'iphone', 'galaxy', 'motorola'])) return 'Prático para fotos, vídeos, redes sociais e apps.';
+
+    if (tem(p, ['air fryer', 'fritadeira'])) return 'Facilita preparar refeições rápidas com praticidade.';
+    if (tem(p, ['cafeteira', 'café', 'cafe'])) return 'Mais praticidade para preparar café na rotina.';
+    if (tem(p, ['liquidificador', 'batedeira', 'mixer'])) return 'Ajuda no preparo rápido de receitas e bebidas.';
+
+    if (tem(p, ['tenis', 'tênis', 'sapato', 'sandalia', 'sandália'])) return 'Conforto e estilo para usar no dia a dia.';
+    if (tem(p, ['blusa', 'camiseta', 'calça', 'calca', 'vestido', 'tricô', 'tricot'])) return 'Peça versátil para montar looks com conforto.';
+    if (tem(p, ['bolsa', 'mochila', 'necessaire'])) return 'Ajuda a organizar seus itens com praticidade.';
+    if (tem(p, ['toalha', 'lençol', 'lencol', 'cama', 'banho', 'edredom'])) return 'Ajuda a renovar a casa com mais conforto.';
+    if (tem(p, ['brinquedo', 'boneca', 'lego', 'hot wheels'])) return 'Boa opção para presentear e divertir as crianças.';
+
+    return 'Produto útil para facilitar a rotina e economizar.';
+  }
+
+  function dadosDaTela() {
+    const link = extrairLink(inputLink.value || '');
+    const produto = limparTitulo(displayProduto.value || 'Oferta especial');
+    const beneficio = beneficioCurto(produto);
+
+    return {
+      produto,
+      precoDe: displayDe?.value || '',
+      precoPor: displayPor?.value || '',
+      desconto: calcularDesconto(displayDe?.value || '', displayPor?.value || ''),
+      cupom: displayCupom?.value?.trim() || '',
+      loja: detectarLoja(link),
+      link,
+      beneficioSugerido: beneficio,
+      instrucoes: 'Crie uma mensagem curta para WhatsApp, com no máximo 6 linhas. Inclua uma linha curta com o benefício do produto. Não faça texto longo. Para suplementos, não prometa cura nem resultado garantido.'
+    };
+  }
+
   async function chamarGemini(dados) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 90000);
@@ -84,18 +141,34 @@
     }
   }
 
-  function dadosDaTela() {
-    const link = extrairLink(inputLink.value || '');
+  function mensagemTemBeneficio(mensagem) {
+    const texto = (mensagem || '').toLowerCase();
+    return /benef[ií]cio|ajuda|auxilia|ideal|pr[aá]tico|praticidade|conforto|rotina|complementa|facilita|serve para/.test(texto);
+  }
 
-    return {
-      produto: limparTitulo(displayProduto.value || 'Oferta especial'),
-      precoDe: displayDe?.value || '',
-      precoPor: displayPor?.value || '',
-      desconto: calcularDesconto(displayDe?.value || '', displayPor?.value || ''),
-      cupom: displayCupom?.value?.trim() || '',
-      loja: detectarLoja(link),
-      link
-    };
+  function inserirBeneficioSeFaltar(mensagem, dados) {
+    if (!mensagem || mensagemTemBeneficio(mensagem)) return mensagem;
+
+    const linhas = mensagem.split('\n').map(linha => linha.trim()).filter(Boolean);
+    const linhaBeneficio = `✅ ${dados.beneficioSugerido}`;
+
+    if (!linhas.length) return linhaBeneficio;
+
+    const posicao = linhas.length > 1 ? 1 : linhas.length;
+    linhas.splice(posicao, 0, linhaBeneficio);
+
+    return linhas.join('\n');
+  }
+
+  function limitarMensagem(mensagem) {
+    const linhas = mensagem.split('\n').map(linha => linha.trim()).filter(Boolean);
+    if (linhas.length <= 7) return mensagem;
+
+    return linhas.slice(0, 7).join('\n');
+  }
+
+  function ajustarMensagem(mensagem, dados) {
+    return limitarMensagem(inserirBeneficioSeFaltar(mensagem, dados));
   }
 
   function setMensagem(texto) {
@@ -134,14 +207,18 @@
       return;
     }
 
+    const dados = dadosDaTela();
     const textoOriginal = '🤖 Gerar mensagem com IA';
+
     btnGerar.disabled = true;
     btnGerar.innerText = '🤖 IA criando...';
-    messageBox.innerText = 'IA está criando a mensagem de venda...';
+    messageBox.innerText = `IA criando mensagem curta...\nBenefício: ${dados.beneficioSugerido}`;
 
     try {
-      const mensagem = await chamarGemini(dadosDaTela());
-      setMensagem(mensagem);
+      const mensagem = await chamarGemini(dados);
+      const mensagemAjustada = ajustarMensagem(mensagem, dados);
+
+      setMensagem(mensagemAjustada);
       btnGerar.innerText = '✅ Mensagem gerada';
       setTimeout(() => btnGerar.innerText = textoOriginal, 1800);
     } catch (erro) {
