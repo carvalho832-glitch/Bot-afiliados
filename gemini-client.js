@@ -2,6 +2,7 @@
   const API_URL = 'https://bot-afiliados-1fwi.onrender.com';
 
   const inputLink = document.getElementById('input-link');
+  const selectLoja = document.getElementById('select-loja');
   const displayProduto = document.getElementById('display-produto');
   const displayDe = document.getElementById('display-de');
   const displayPor = document.getElementById('display-por');
@@ -9,7 +10,6 @@
   const messageBox = document.getElementById('msg-preview');
   const btnGerar = document.getElementById('btn-gerar');
   const btnCopiar = document.getElementById('btn-copiar');
-  const btnSalvar = document.getElementById('btn-salvar');
 
   if (!inputLink || !displayProduto || !messageBox || !btnGerar) return;
 
@@ -18,14 +18,15 @@
   }
 
   function detectarLoja(link) {
-    const selectLoja = document.getElementById('select-loja');
     const escolha = selectLoja?.value || 'auto';
     if (escolha !== 'auto') return escolha;
 
     const l = (link || '').toLowerCase();
+
     if (l.includes('shopee') || l.includes('shp.ee') || l.includes('collshp')) return 'Shopee';
     if (l.includes('mercadolivre') || l.includes('mercado livre') || l.includes('meli.la')) return 'Mercado Livre';
     if (l.includes('amazon') || l.includes('amzn.to')) return 'Amazon';
+
     return 'Loja oficial';
   }
 
@@ -36,9 +37,11 @@
   function calcularDesconto(de, por) {
     const valorDe = moedaNumero(de);
     const valorPor = moedaNumero(por);
+
     if (valorDe > valorPor && valorPor > 0) {
       return `${Math.floor(((valorDe - valorPor) / valorDe) * 100)}% OFF`;
     }
+
     return '';
   }
 
@@ -70,9 +73,11 @@
       });
 
       const json = await resposta.json();
+
       if (!resposta.ok || !json.ok || !json.mensagem) {
         throw new Error(json?.error || 'Não consegui gerar a mensagem com Gemini.');
       }
+
       return json.mensagem.trim();
     } finally {
       clearTimeout(timer);
@@ -81,6 +86,7 @@
 
   function dadosDaTela() {
     const link = extrairLink(inputLink.value || '');
+
     return {
       produto: limparTitulo(displayProduto.value || 'Oferta especial'),
       precoDe: displayDe?.value || '',
@@ -92,53 +98,69 @@
     };
   }
 
+  function setMensagem(texto) {
+    window.__ultimaMensagemAchouLevou = texto;
+    messageBox.innerText = texto || 'Aguardando geração...';
+  }
+
+  function getMensagemEditada() {
+    const texto = (messageBox.innerText || '').trim();
+    return texto && texto !== 'Aguardando geração...' ? texto : '';
+  }
+
+  async function copiar(texto) {
+    if (!texto) {
+      alert('Gere uma mensagem primeiro!');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(texto);
+    } catch {
+      const area = document.createElement('textarea');
+      area.value = texto;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+
+    alert('Copiado! ✅');
+  }
+
   btnGerar.onclick = async () => {
     if (!displayProduto.value || displayProduto.value === 'Buscando...') {
       alert('Puxe os dados primeiro ou preencha o produto manualmente!');
       return;
     }
 
-    const textoOriginal = btnGerar.innerText;
+    const textoOriginal = '🤖 Gerar mensagem com IA';
     btnGerar.disabled = true;
-    btnGerar.innerText = '🤖 GEMINI CRIANDO...';
-    messageBox.innerText = 'Gemini está criando a mensagem de venda...';
+    btnGerar.innerText = '🤖 IA criando...';
+    messageBox.innerText = 'IA está criando a mensagem de venda...';
 
     try {
       const mensagem = await chamarGemini(dadosDaTela());
-      window.__ultimaMensagemAchouLevou = mensagem;
-      messageBox.innerText = mensagem;
-      btnGerar.innerText = '✅ MENSAGEM GERADA!';
-      setTimeout(() => btnGerar.innerText = textoOriginal || '✨ GERAR MENSAGEM', 1800);
+      setMensagem(mensagem);
+      btnGerar.innerText = '✅ Mensagem gerada';
+      setTimeout(() => btnGerar.innerText = textoOriginal, 1800);
     } catch (erro) {
       const textoErro = erro.name === 'AbortError'
         ? 'A IA demorou demais para responder. Tente novamente em alguns segundos.'
-        : (erro.message || 'Erro ao gerar mensagem com Gemini.');
+        : (erro.message || 'Erro ao gerar mensagem com IA.');
+
       window.__ultimaMensagemAchouLevou = '';
-      messageBox.innerText = `Não consegui gerar com Gemini agora. Detalhe: ${textoErro}`;
+      messageBox.innerText = `Não consegui gerar com IA agora. Detalhe: ${textoErro}`;
       alert(textoErro);
-      btnGerar.innerText = textoOriginal || '✨ GERAR MENSAGEM';
+      btnGerar.innerText = textoOriginal;
     } finally {
       btnGerar.disabled = false;
     }
   };
 
   if (btnCopiar) {
-    const copiarOriginal = btnCopiar.onclick;
     btnCopiar.onclick = async () => {
-      if (window.__ultimaMensagemAchouLevou && navigator.clipboard) {
-        await navigator.clipboard.writeText(window.__ultimaMensagemAchouLevou);
-        alert('Copiado! ✅');
-        return;
-      }
-      if (typeof copiarOriginal === 'function') copiarOriginal();
+      await copiar(getMensagemEditada() || window.__ultimaMensagemAchouLevou || '');
     };
-  }
-
-  if (btnSalvar) {
-    btnSalvar.addEventListener('click', () => {
-      if (window.__ultimaMensagemAchouLevou) {
-        messageBox.innerText = window.__ultimaMensagemAchouLevou;
-      }
-    }, true);
   }
 })();

@@ -1,0 +1,23 @@
+# Atualização da interface Achou Levou Bot
+
+Arquivos remodelados para deixar o gerador de ofertas mais limpo.
+
+O que muda:
+- Remove card de grupos da interface principal.
+- Remove foto do produto.
+- Remove painel grande do WhatsApp do topo.
+- Adiciona botão para abrir o painel do WhatsApp.
+- Mantém a lista de grupos dentro do painel do bot.
+- Adiciona excluir oferta individual.
+- Adiciona excluir todas as ofertas.
+- Adiciona botões para enviar oferta atual ou todas as ofertas salvas para a fila do robô.
+- Visual com estilo de bot, menos colorido e mais organizado.
+
+Como aplicar:
+1. Abra o repositório Bot-afiliados no GitHub.
+2. Substitua os arquivos pelos arquivos deste ZIP.
+3. Aguarde o GitHub Pages atualizar.
+4. No celular, abra o app com ?safe=1 uma vez para limpar cache:
+   https://carvalho832-glitch.github.io/Bot-afiliados/?safe=1
+5. Depois abra normalmente:
+   https://carvalho832-glitch.github.io/Bot-afiliados/

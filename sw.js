@@ -1,14 +1,14 @@
-const CACHE_VERSION = 'achou-levou-v7-hotfix';
+const CACHE_VERSION = 'achou-levou-v8-interface-bot';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
 self.addEventListener('install', (event) => {
-    console.log('Achou Levou hotfix v7 instalado.');
+    console.log('Achou Levou interface bot v8 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou hotfix v7 ativado. Limpando caches antigos.');
+    console.log('Achou Levou interface bot v8 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
@@ -21,7 +21,7 @@ self.addEventListener('fetch', (event) => {
 
     if (url.includes('multi-groups.js')) {
         event.respondWith(new Response(
-            "console.log('multi-groups bloqueado pelo hotfix do service worker.');",
+            "console.log('multi-groups bloqueado pelo service worker.');",
             {
                 headers: {
                     'Content-Type': 'application/javascript; charset=utf-8',
