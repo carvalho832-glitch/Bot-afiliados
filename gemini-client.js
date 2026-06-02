@@ -13,6 +13,26 @@
 
   if (!inputLink || !displayProduto || !messageBox || !btnGerar) return;
 
+  let ultimoToqueLink = 0;
+
+  function limparCampoLinkAoTocar() {
+    const agora = Date.now();
+    const temTexto = Boolean(inputLink.value.trim());
+
+    if (!temTexto) return;
+
+    // Evita disparar duas vezes no mesmo toque em celulares.
+    if (agora - ultimoToqueLink < 500) return;
+    ultimoToqueLink = agora;
+
+    inputLink.value = '';
+    inputLink.placeholder = 'Cole o novo link aqui...';
+    inputLink.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  inputLink.addEventListener('click', limparCampoLinkAoTocar);
+  inputLink.addEventListener('touchstart', limparCampoLinkAoTocar, { passive: true });
+
   function extrairLink(texto) {
     return texto.match(/https?:\/\/[^\s]+/)?.[0] || texto.trim();
   }
