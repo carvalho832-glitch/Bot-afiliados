@@ -20,10 +20,9 @@
     const temTexto = Boolean(inputLink.value.trim());
 
     if (!temTexto) return;
-
     if (agora - ultimoToqueLink < 500) return;
-    ultimoToqueLink = agora;
 
+    ultimoToqueLink = agora;
     inputLink.value = '';
     inputLink.placeholder = 'Cole o novo link aqui...';
     inputLink.dispatchEvent(new Event('input', { bubbles: true }));
@@ -74,60 +73,64 @@
       .trim();
   }
 
+  function tituloDestaque(produto) {
+    return limparTitulo(produto || 'Oferta especial').split(' ').slice(0, 12).join(' ');
+  }
+
   function tem(texto, palavras) {
     return palavras.some(palavra => texto.includes(palavra));
   }
 
-  function descricaoUsoCurta(produto) {
+  function chamadaVendaCurta(produto) {
     const p = (produto || '').toLowerCase();
 
     if (tem(p, ['zíper', 'ziper', 'fecho', 'cursor', 'costura', 'sem costura', 'conserto instantâneo', 'conserto instantaneo', 'reparo universal', 'kit reparo', 'kit de reparo'])) {
-      return 'Serve para reparar zíper de roupas, bolsas, mochilas e acessórios de forma prática.';
+      return 'Olha que prático: kit de zíper para reparar roupas, bolsas e mochilas sem complicação.';
     }
 
     if (tem(p, ['fita dupla face', 'cola instantânea', 'cola instantanea', 'adesivo reparo', 'reparo', 'conserto'])) {
-      return 'Serve para pequenos reparos do dia a dia de forma rápida e prática.';
+      return 'Ótimo achadinho para pequenos reparos do dia a dia com mais praticidade.';
     }
 
     if (tem(p, ['multivitamina', 'multi vitamina', 'polivitaminico', 'polivitamínico', 'vitaminas e minerais', 'centrum', 'lavitan'])) {
-      return 'Serve para complementar vitaminas e minerais na rotina diária.';
+      return 'Achadinho para complementar vitaminas e minerais na rotina diária.';
     }
 
-    if (tem(p, ['vitamina c', 'acerola', 'camu'])) return 'Serve para complementar vitamina C no dia a dia.';
-    if (tem(p, ['vitamina d', 'd3'])) return 'Serve para complementar vitamina D na rotina.';
-    if (tem(p, ['b12', 'complexo b'])) return 'Serve para complementar vitaminas do complexo B.';
-    if (tem(p, ['omega', 'ômega', 'epa', 'dha'])) return 'Serve para complementar ômega 3 na rotina.';
-    if (tem(p, ['creatina'])) return 'Serve para complementar a rotina de treinos.';
-    if (tem(p, ['whey', 'proteina', 'proteína', 'albumina'])) return 'Serve para complementar proteína de forma prática.';
-    if (tem(p, ['colageno', 'colágeno'])) return 'Serve para complementar a rotina de cuidados com pele, unhas e cabelos.';
-    if (tem(p, ['magnesio', 'magnésio'])) return 'Serve para complementar magnésio na rotina diária.';
-    if (tem(p, ['cafeina', 'cafeína', 'pre treino', 'pré treino'])) return 'Serve para incluir cafeína na rotina, conforme orientação do fabricante.';
+    if (tem(p, ['vitamina c', 'acerola', 'camu'])) return 'Achadinho para complementar vitamina C na rotina do dia a dia.';
+    if (tem(p, ['vitamina d', 'd3'])) return 'Achadinho para complementar vitamina D na rotina.';
+    if (tem(p, ['b12', 'complexo b'])) return 'Achadinho para complementar vitaminas do complexo B.';
+    if (tem(p, ['omega', 'ômega', 'epa', 'dha'])) return 'Achadinho para complementar ômega 3 na rotina.';
+    if (tem(p, ['creatina'])) return 'Achadinho para complementar sua rotina de treinos.';
+    if (tem(p, ['whey', 'proteina', 'proteína', 'albumina'])) return 'Achadinho para complementar proteína de forma prática.';
+    if (tem(p, ['colageno', 'colágeno'])) return 'Achadinho para complementar a rotina de cuidados pessoais.';
+    if (tem(p, ['magnesio', 'magnésio'])) return 'Achadinho para complementar magnésio na rotina diária.';
+    if (tem(p, ['cafeina', 'cafeína', 'pre treino', 'pré treino'])) return 'Achadinho para incluir cafeína na rotina, conforme orientação do fabricante.';
 
     if (tem(p, ['carrinho elétrico', 'carrinho eletrico', 'brinquedo', 'boneca', 'lego', 'hot wheels', 'maral', 'infantil 6v'])) {
-      return 'Serve para divertir as crianças e também é uma boa opção de presente.';
+      return 'Olha que legal: opção divertida para as crianças e ótima ideia de presente.';
     }
 
-    if (tem(p, ['smartwatch', 'relogio', 'relógio'])) return 'Serve para acompanhar horários, notificações e atividades no dia a dia.';
-    if (tem(p, ['fone', 'headset', 'bluetooth'])) return 'Serve para ouvir músicas, assistir vídeos e atender chamadas.';
-    if (tem(p, ['notebook', 'laptop', 'tablet'])) return 'Serve para estudos, trabalho, navegação e tarefas do dia a dia.';
-    if (tem(p, ['celular', 'smartphone', 'iphone', 'galaxy', 'motorola'])) return 'Serve para fotos, vídeos, redes sociais, apps e uso diário.';
+    if (tem(p, ['smartwatch', 'relogio', 'relógio'])) return 'Achadinho para acompanhar horários, notificações e atividades no dia a dia.';
+    if (tem(p, ['fone', 'headset', 'bluetooth'])) return 'Achadinho para ouvir músicas, vídeos e chamadas com praticidade.';
+    if (tem(p, ['notebook', 'laptop', 'tablet'])) return 'Achadinho para estudos, trabalho e tarefas do dia a dia.';
+    if (tem(p, ['celular', 'smartphone', 'iphone', 'galaxy', 'motorola'])) return 'Achadinho para fotos, vídeos, redes sociais, apps e uso diário.';
 
-    if (tem(p, ['air fryer', 'fritadeira'])) return 'Serve para preparar refeições rápidas com mais praticidade.';
-    if (tem(p, ['cafeteira', 'café', 'cafe'])) return 'Serve para preparar café com mais praticidade na rotina.';
-    if (tem(p, ['liquidificador', 'batedeira', 'mixer'])) return 'Serve para preparar receitas e bebidas com mais facilidade.';
+    if (tem(p, ['air fryer', 'fritadeira'])) return 'Achadinho para preparar refeições rápidas com mais praticidade.';
+    if (tem(p, ['cafeteira', 'café', 'cafe'])) return 'Achadinho para preparar café com mais praticidade na rotina.';
+    if (tem(p, ['liquidificador', 'batedeira', 'mixer'])) return 'Achadinho para preparar receitas e bebidas com mais facilidade.';
 
-    if (tem(p, ['tenis', 'tênis', 'sapato', 'sandalia', 'sandália'])) return 'Serve para usar no dia a dia, passeio ou trabalho com conforto.';
-    if (tem(p, ['blusa', 'camiseta', 'calça', 'calca', 'vestido', 'tricô', 'tricot'])) return 'Serve para compor looks do dia a dia com praticidade.';
-    if (tem(p, ['bolsa', 'mochila', 'necessaire'])) return 'Serve para carregar e organizar itens pessoais no dia a dia.';
-    if (tem(p, ['toalha', 'lençol', 'lencol', 'cama', 'banho', 'edredom'])) return 'Serve para renovar itens de casa e deixar a rotina mais confortável.';
+    if (tem(p, ['tenis', 'tênis', 'sapato', 'sandalia', 'sandália'])) return 'Achadinho para usar no dia a dia, passeio ou trabalho com conforto.';
+    if (tem(p, ['blusa', 'camiseta', 'calça', 'calca', 'vestido', 'tricô', 'tricot'])) return 'Achadinho para compor looks do dia a dia com praticidade.';
+    if (tem(p, ['bolsa', 'mochila', 'necessaire'])) return 'Achadinho para carregar e organizar seus itens pessoais no dia a dia.';
+    if (tem(p, ['toalha', 'lençol', 'lencol', 'cama', 'banho', 'edredom'])) return 'Achadinho para renovar a casa e deixar a rotina mais confortável.';
 
-    return 'Serve para facilitar a rotina com praticidade e economia.';
+    return 'Achadinho selecionado para facilitar a rotina com praticidade e economia.';
   }
 
   function dadosDaTela() {
     const link = extrairLink(inputLink.value || '');
     const produto = limparTitulo(displayProduto.value || 'Oferta especial');
-    const descricaoUso = descricaoUsoCurta(produto);
+    const chamadaVenda = chamadaVendaCurta(produto);
 
     return {
       produto,
@@ -137,9 +140,10 @@
       cupom: displayCupom?.value?.trim() || '',
       loja: detectarLoja(link),
       link,
-      descricaoUso,
-      beneficioSugerido: descricaoUso,
-      instrucoes: 'Crie uma mensagem curta para WhatsApp, com no máximo 6 linhas. Inclua uma linha curta dizendo para que serve o produto. Use exatamente o tipo do produto informado. Nunca troque a categoria do produto. Nunca remova o link informado. Não faça texto longo. Para suplementos, não prometa cura nem resultado garantido.'
+      chamadaVenda,
+      descricaoUso: chamadaVenda,
+      beneficioSugerido: chamadaVenda,
+      instrucoes: 'Crie um anúncio curto de venda para WhatsApp. Use tom chamativo e vendedor. Inclua uma linha curta falando o que é ou para que serve o produto, mas sem chamar de benefício. Use exatamente o tipo do produto informado. Nunca troque a categoria do produto. Nunca remova o link informado. Não faça texto longo. Para suplementos, não prometa cura nem resultado garantido.'
     };
   }
 
@@ -172,19 +176,25 @@
     }
   }
 
-  function aplicarDescricaoCorreta(mensagem, dados) {
+  function aplicarChamadaVendaCorreta(mensagem, dados) {
     const linhas = String(mensagem || '').split('\n').map(linha => linha.trim()).filter(Boolean);
-    const linhaDescricao = `✅ ${dados.descricaoUso || dados.beneficioSugerido}`;
+    const linhaVenda = `✨ ${dados.chamadaVenda || dados.descricaoUso || dados.beneficioSugerido}`;
 
-    if (!linhas.length) return linhaDescricao;
+    if (!linhas.length) return linhaVenda;
 
-    const indiceDescricao = linhas.findIndex(linha => linha.startsWith('✅'));
+    const indiceLinha = linhas.findIndex(linha =>
+      linha.startsWith('✅') ||
+      linha.startsWith('✨') ||
+      linha.toLowerCase().includes('serve para') ||
+      linha.toLowerCase().includes('suplemento prático') ||
+      linha.toLowerCase().includes('benefício')
+    );
 
-    if (indiceDescricao >= 0) {
-      linhas[indiceDescricao] = linhaDescricao;
+    if (indiceLinha >= 0) {
+      linhas[indiceLinha] = linhaVenda;
     } else {
       const posicao = linhas.length > 1 ? 1 : linhas.length;
-      linhas.splice(posicao, 0, linhaDescricao);
+      linhas.splice(posicao, 0, linhaVenda);
     }
 
     return linhas.join('\n');
@@ -238,7 +248,7 @@
   }
 
   function ajustarMensagem(mensagem, dados) {
-    let ajustada = aplicarDescricaoCorreta(mensagem, dados);
+    let ajustada = aplicarChamadaVendaCorreta(mensagem, dados);
     ajustada = garantirLink(ajustada, dados);
     ajustada = limitarMensagem(ajustada, dados);
     ajustada = garantirLink(ajustada, dados);
@@ -275,6 +285,26 @@
     alert('Copiado! ✅');
   }
 
+  function montarAnuncioLocal(dados) {
+    const linhas = [];
+    const cupomEhFrete = /frete|gr[aá]tis/i.test(dados.cupom || '');
+
+    linhas.push(`🔥 *${tituloDestaque(dados.produto)}!*`);
+    linhas.push(`✨ ${dados.chamadaVenda}`);
+    linhas.push('');
+
+    if (dados.precoDe && dados.precoDe !== 'R$ 0,00') linhas.push(`❌ De: ~${dados.precoDe}~`);
+    linhas.push(`💰 *POR APENAS: ${dados.precoPor && dados.precoPor !== 'R$ 0,00' ? dados.precoPor : 'Confira no site'}*`);
+    if (dados.desconto) linhas.push(`🔥 *${dados.desconto}!*`);
+    if (dados.cupom) linhas.push(cupomEhFrete ? `🚚 *Frete grátis:* ${dados.cupom}` : `🎫 *Cupom:* ${dados.cupom}`);
+
+    linhas.push('');
+    linhas.push('🔒 *Compre com segurança no site oficial:*');
+    linhas.push(`🛒 *Link ${dados.loja}:* ${dados.link}`);
+
+    return linhas.join('\n');
+  }
+
   btnGerar.onclick = async () => {
     if (!displayProduto.value || displayProduto.value === 'Buscando...') {
       alert('Puxe os dados primeiro ou preencha o produto manualmente!');
@@ -291,24 +321,24 @@
 
     btnGerar.disabled = true;
     btnGerar.innerText = '🤖 IA criando...';
-    messageBox.innerText = `IA criando mensagem curta...\nDescrição: ${dados.descricaoUso}`;
+    messageBox.innerText = `IA criando anúncio de venda...\nChamada: ${dados.chamadaVenda}`;
 
     try {
       const mensagem = await chamarGemini(dados);
-      const mensagemAjustada = ajustarMensagem(mensagem, dados);
+      let mensagemAjustada = ajustarMensagem(mensagem, dados);
+
+      if (!mensagemAjustada || mensagemAjustada.toLowerCase().includes('suplemento prático') && !dados.produto.toLowerCase().includes('suplemento')) {
+        mensagemAjustada = montarAnuncioLocal(dados);
+      }
 
       setMensagem(mensagemAjustada);
       btnGerar.innerText = '✅ Mensagem gerada';
       setTimeout(() => btnGerar.innerText = textoOriginal, 1800);
     } catch (erro) {
-      const textoErro = erro.name === 'AbortError'
-        ? 'A IA demorou demais para responder. Tente novamente em alguns segundos.'
-        : (erro.message || 'Erro ao gerar mensagem com IA.');
-
-      window.__ultimaMensagemAchouLevou = '';
-      messageBox.innerText = `Não consegui gerar com IA agora. Detalhe: ${textoErro}`;
-      alert(textoErro);
-      btnGerar.innerText = textoOriginal;
+      const mensagemFallback = montarAnuncioLocal(dados);
+      setMensagem(mensagemFallback);
+      btnGerar.innerText = '✅ Mensagem gerada';
+      setTimeout(() => btnGerar.innerText = textoOriginal, 1800);
     } finally {
       btnGerar.disabled = false;
     }
