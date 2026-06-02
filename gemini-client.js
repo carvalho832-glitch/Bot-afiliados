@@ -82,6 +82,14 @@
   function beneficioCurto(produto) {
     const p = (produto || '').toLowerCase();
 
+    if (tem(p, ['zíper', 'ziper', 'fecho', 'cursor', 'costura', 'sem costura', 'conserto instantâneo', 'conserto instantaneo', 'reparo universal', 'kit reparo', 'kit de reparo'])) {
+      return 'Olha que legal: zíper de reparo prático para consertar roupas, bolsas e acessórios sem complicação.';
+    }
+
+    if (tem(p, ['fita dupla face', 'cola instantânea', 'cola instantanea', 'adesivo reparo', 'reparo', 'conserto'])) {
+      return 'Solução prática para pequenos reparos do dia a dia, ajudando a economizar tempo e dinheiro.';
+    }
+
     if (tem(p, ['multivitamina', 'multi vitamina', 'polivitaminico', 'polivitamínico', 'vitaminas e minerais', 'centrum', 'lavitan'])) {
       return 'Ajuda a complementar vitaminas e minerais na rotina diária.';
     }
@@ -131,7 +139,7 @@
       loja: detectarLoja(link),
       link,
       beneficioSugerido: beneficio,
-      instrucoes: 'Crie uma mensagem curta para WhatsApp, com no máximo 6 linhas. Inclua uma linha curta com o benefício do produto. Nunca remova o link informado. Não faça texto longo. Para suplementos, não prometa cura nem resultado garantido.'
+      instrucoes: 'Crie uma mensagem curta para WhatsApp, com no máximo 6 linhas. Inclua uma linha curta com o benefício real do produto. Use exatamente o tipo do produto informado. Nunca troque a categoria do produto. Nunca remova o link informado. Não faça texto longo. Para suplementos, não prometa cura nem resultado garantido.'
     };
   }
 
@@ -164,21 +172,20 @@
     }
   }
 
-  function mensagemTemBeneficio(mensagem) {
-    const texto = (mensagem || '').toLowerCase();
-    return /benef[ií]cio|ajuda|auxilia|ideal|pr[aá]tico|praticidade|conforto|rotina|complementa|facilita|serve para|divers[aã]o|presente/.test(texto);
-  }
-
-  function inserirBeneficioSeFaltar(mensagem, dados) {
-    if (!mensagem || mensagemTemBeneficio(mensagem)) return mensagem;
-
-    const linhas = mensagem.split('\n').map(linha => linha.trim()).filter(Boolean);
+  function aplicarBeneficioCorreto(mensagem, dados) {
+    const linhas = String(mensagem || '').split('\n').map(linha => linha.trim()).filter(Boolean);
     const linhaBeneficio = `✅ ${dados.beneficioSugerido}`;
 
     if (!linhas.length) return linhaBeneficio;
 
-    const posicao = linhas.length > 1 ? 1 : linhas.length;
-    linhas.splice(posicao, 0, linhaBeneficio);
+    const indiceBeneficio = linhas.findIndex(linha => linha.startsWith('✅'));
+
+    if (indiceBeneficio >= 0) {
+      linhas[indiceBeneficio] = linhaBeneficio;
+    } else {
+      const posicao = linhas.length > 1 ? 1 : linhas.length;
+      linhas.splice(posicao, 0, linhaBeneficio);
+    }
 
     return linhas.join('\n');
   }
@@ -231,7 +238,7 @@
   }
 
   function ajustarMensagem(mensagem, dados) {
-    let ajustada = inserirBeneficioSeFaltar(mensagem, dados);
+    let ajustada = aplicarBeneficioCorreto(mensagem, dados);
     ajustada = garantirLink(ajustada, dados);
     ajustada = limitarMensagem(ajustada, dados);
     ajustada = garantirLink(ajustada, dados);
