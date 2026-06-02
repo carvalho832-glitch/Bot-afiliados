@@ -46,8 +46,8 @@
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=33">
-    <link rel="stylesheet" href="progress-style.css?v=33">
+    <link rel="stylesheet" href="style.css?v=36">
+    <link rel="stylesheet" href="progress-style.css?v=36">
 </head>
 <body>
     <div class="app-shell">
@@ -222,17 +222,17 @@
         </div>
     </div>
 
-    <script src="script.js?v=33"></script>
-    <script src="progress-loader.js?v=33"></script>
-    <script src="app-dialog.js?v=33"></script>
-    <script src="shopee-helper.js?v=33"></script>
-    <script src="gemini-client.js?v=33"></script>
-    <script src="bot-queue-integration.js?v=33"></script>
+    <script src="script.js?v=36"></script>
+    <script src="progress-loader.js?v=36"></script>
+    <script src="app-dialog.js?v=36"></script>
+    <script src="shopee-helper.js?v=36"></script>
+    <script src="gemini-client.js?v=36"></script>
+    <script src="bot-queue-integration.js?v=36"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=33')
+                navigator.serviceWorker.register('./sw.js?v=36')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
