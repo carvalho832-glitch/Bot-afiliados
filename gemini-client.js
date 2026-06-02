@@ -1,6 +1,4 @@
 (() => {
-  const API_URL = 'https://bot-afiliados-1fwi.onrender.com';
-
   const inputLink = document.getElementById('input-link');
   const selectLoja = document.getElementById('select-loja');
   const displayProduto = document.getElementById('display-produto');
@@ -17,9 +15,7 @@
 
   function limparCampoLinkAoTocar() {
     const agora = Date.now();
-    const temTexto = Boolean(inputLink.value.trim());
-
-    if (!temTexto) return;
+    if (!inputLink.value.trim()) return;
     if (agora - ultimoToqueLink < 500) return;
 
     ultimoToqueLink = agora;
@@ -31,40 +27,39 @@
   inputLink.addEventListener('click', limparCampoLinkAoTocar);
   inputLink.addEventListener('touchstart', limparCampoLinkAoTocar, { passive: true });
 
-  function extrairLink(texto) {
-    return texto.match(/https?:\/\/[^\s]+/)?.[0] || texto.trim();
+  function extrairLink(texto = '') {
+    return String(texto).match(/https?:\/\/[^\s]+/)?.[0] || String(texto).trim();
   }
 
-  function detectarLoja(link) {
+  function detectarLoja(link = '') {
     const escolha = selectLoja?.value || 'auto';
     if (escolha !== 'auto') return escolha;
 
-    const l = (link || '').toLowerCase();
-
+    const l = String(link).toLowerCase();
     if (l.includes('shopee') || l.includes('shp.ee') || l.includes('collshp')) return 'Shopee';
     if (l.includes('mercadolivre') || l.includes('mercado livre') || l.includes('meli.la')) return 'Mercado Livre';
     if (l.includes('amazon') || l.includes('amzn.to')) return 'Amazon';
-
     return 'Loja oficial';
   }
 
-  function moedaNumero(valor) {
-    return parseFloat((valor || '').replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+  function moedaNumero(valor = '') {
+    return parseFloat(String(valor).replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+  }
+
+  function temValor(valor = '') {
+    const v = String(valor || '').trim();
+    return v && v !== 'R$ 0,00' && v !== '0' && v.toLowerCase() !== 'não informado';
   }
 
   function calcularDesconto(de, por) {
     const valorDe = moedaNumero(de);
     const valorPor = moedaNumero(por);
-
-    if (valorDe > valorPor && valorPor > 0) {
-      return `${Math.floor(((valorDe - valorPor) / valorDe) * 100)}% OFF`;
-    }
-
+    if (valorDe > valorPor && valorPor > 0) return `${Math.floor(((valorDe - valorPor) / valorDe) * 100)}% OFF`;
     return '';
   }
 
-  function limparTitulo(produto) {
-    return (produto || 'Oferta especial')
+  function limparTitulo(produto = '') {
+    return String(produto || 'Oferta especial')
       .replace(/Amazon\.com\.br\s?:?\s?/gi, '')
       .replace(/\|\s?Mercado\s?Livre/gi, '')
       .replace(/- Mercado Livre/gi, '')
@@ -73,7 +68,7 @@
       .trim();
   }
 
-  function tituloDestaque(produto) {
+  function tituloDestaque(produto = '') {
     return limparTitulo(produto || 'Oferta especial').split(' ').slice(0, 12).join(' ');
   }
 
@@ -81,10 +76,27 @@
     return palavras.some(palavra => texto.includes(palavra));
   }
 
-  function chamadaVendaCurta(produto) {
-    const p = (produto || '').toLowerCase();
+  function chamadaVendaCurta(produto = '') {
+    const p = produto.toLowerCase();
 
-    if (tem(p, ['zíper', 'ziper', 'fecho', 'cursor', 'costura', 'sem costura', 'conserto instantâneo', 'conserto instantaneo', 'reparo universal', 'kit reparo', 'kit de reparo'])) {
+    // Prioridade: primeiro identifica o produto principal. Ex: pochete com zíper NÃO é kit de reparo de zíper.
+    if (tem(p, ['pochete', 'cintura tática', 'cintura tatica', 'bolsa de cintura'])) {
+      return 'Olha que prática: pochete para carregar celular, carteira, chaves e pequenos itens com organização.';
+    }
+
+    if (tem(p, ['mochila'])) {
+      return 'Achadinho para carregar seus itens com mais organização no trabalho, viagem ou dia a dia.';
+    }
+
+    if (tem(p, ['bolsa', 'necessaire'])) {
+      return 'Achadinho para carregar e organizar seus itens pessoais com praticidade.';
+    }
+
+    const ehZiperReparo =
+      tem(p, ['zíper', 'ziper', 'fecho', 'cursor']) &&
+      tem(p, ['kit', 'reparo', 'conserto', 'sem costura', 'universal', 'instantâneo', 'instantaneo']);
+
+    if (ehZiperReparo) {
       return 'Olha que prático: kit de zíper para reparar roupas, bolsas e mochilas sem complicação.';
     }
 
@@ -92,10 +104,7 @@
       return 'Ótimo achadinho para pequenos reparos do dia a dia com mais praticidade.';
     }
 
-    if (tem(p, ['multivitamina', 'multi vitamina', 'polivitaminico', 'polivitamínico', 'vitaminas e minerais', 'centrum', 'lavitan'])) {
-      return 'Achadinho para complementar vitaminas e minerais na rotina diária.';
-    }
-
+    if (tem(p, ['multivitamina', 'multi vitamina', 'polivitaminico', 'polivitamínico', 'vitaminas e minerais', 'centrum', 'lavitan'])) return 'Achadinho para complementar vitaminas e minerais na rotina diária.';
     if (tem(p, ['vitamina c', 'acerola', 'camu'])) return 'Achadinho para complementar vitamina C na rotina do dia a dia.';
     if (tem(p, ['vitamina d', 'd3'])) return 'Achadinho para complementar vitamina D na rotina.';
     if (tem(p, ['b12', 'complexo b'])) return 'Achadinho para complementar vitaminas do complexo B.';
@@ -106,9 +115,7 @@
     if (tem(p, ['magnesio', 'magnésio'])) return 'Achadinho para complementar magnésio na rotina diária.';
     if (tem(p, ['cafeina', 'cafeína', 'pre treino', 'pré treino'])) return 'Achadinho para incluir cafeína na rotina, conforme orientação do fabricante.';
 
-    if (tem(p, ['carrinho elétrico', 'carrinho eletrico', 'brinquedo', 'boneca', 'lego', 'hot wheels', 'maral', 'infantil 6v'])) {
-      return 'Olha que legal: opção divertida para as crianças e ótima ideia de presente.';
-    }
+    if (tem(p, ['carrinho elétrico', 'carrinho eletrico', 'brinquedo', 'boneca', 'lego', 'hot wheels', 'maral', 'infantil 6v'])) return 'Olha que legal: opção divertida para as crianças e ótima ideia de presente.';
 
     if (tem(p, ['smartwatch', 'relogio', 'relógio'])) return 'Achadinho para acompanhar horários, notificações e atividades no dia a dia.';
     if (tem(p, ['fone', 'headset', 'bluetooth'])) return 'Achadinho para ouvir músicas, vídeos e chamadas com praticidade.';
@@ -121,7 +128,6 @@
 
     if (tem(p, ['tenis', 'tênis', 'sapato', 'sandalia', 'sandália'])) return 'Achadinho para usar no dia a dia, passeio ou trabalho com conforto.';
     if (tem(p, ['blusa', 'camiseta', 'calça', 'calca', 'vestido', 'tricô', 'tricot'])) return 'Achadinho para compor looks do dia a dia com praticidade.';
-    if (tem(p, ['bolsa', 'mochila', 'necessaire'])) return 'Achadinho para carregar e organizar seus itens pessoais no dia a dia.';
     if (tem(p, ['toalha', 'lençol', 'lencol', 'cama', 'banho', 'edredom'])) return 'Achadinho para renovar a casa e deixar a rotina mais confortável.';
 
     return 'Achadinho selecionado para facilitar a rotina com praticidade e economia.';
@@ -140,119 +146,28 @@
       cupom: displayCupom?.value?.trim() || '',
       loja: detectarLoja(link),
       link,
-      chamadaVenda,
-      descricaoUso: chamadaVenda,
-      beneficioSugerido: chamadaVenda,
-      instrucoes: 'Crie um anúncio curto de venda para WhatsApp. Use tom chamativo e vendedor. Inclua uma linha curta falando o que é ou para que serve o produto, mas sem chamar de benefício. Use exatamente o tipo do produto informado. Nunca troque a categoria do produto. Nunca remova o link informado. Não faça texto longo. Para suplementos, não prometa cura nem resultado garantido.'
+      chamadaVenda
     };
   }
 
-  async function chamarGemini(dados) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 90000);
+  function montarAnuncioVenda(dados) {
+    const linhas = [];
+    const cupomEhFrete = /frete|gr[aá]tis/i.test(dados.cupom || '');
 
-    try {
-      const resposta = await fetch(`${API_URL}/gerar-mensagem`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain;charset=UTF-8',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(dados),
-        signal: controller.signal,
-        cache: 'no-store',
-        mode: 'cors'
-      });
+    linhas.push(`🔥 *${tituloDestaque(dados.produto)}!*`);
+    linhas.push(`✨ ${dados.chamadaVenda}`);
+    linhas.push('');
 
-      const json = await resposta.json();
+    if (temValor(dados.precoDe)) linhas.push(`❌ De: ~${dados.precoDe}~`);
+    linhas.push(`💰 *POR APENAS: ${temValor(dados.precoPor) ? dados.precoPor : 'Confira no site'}*`);
+    if (temValor(dados.desconto)) linhas.push(`🔥 *${dados.desconto}!*`);
+    if (temValor(dados.cupom)) linhas.push(cupomEhFrete ? `🚚 *Frete grátis:* ${dados.cupom}` : `🎫 *Cupom:* ${dados.cupom}`);
 
-      if (!resposta.ok || !json.ok || !json.mensagem) {
-        throw new Error(json?.error || 'Não consegui gerar a mensagem com Gemini.');
-      }
-
-      return json.mensagem.trim();
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  function aplicarChamadaVendaCorreta(mensagem, dados) {
-    const linhas = String(mensagem || '').split('\n').map(linha => linha.trim()).filter(Boolean);
-    const linhaVenda = `✨ ${dados.chamadaVenda || dados.descricaoUso || dados.beneficioSugerido}`;
-
-    if (!linhas.length) return linhaVenda;
-
-    const indiceLinha = linhas.findIndex(linha =>
-      linha.startsWith('✅') ||
-      linha.startsWith('✨') ||
-      linha.toLowerCase().includes('serve para') ||
-      linha.toLowerCase().includes('suplemento prático') ||
-      linha.toLowerCase().includes('benefício')
-    );
-
-    if (indiceLinha >= 0) {
-      linhas[indiceLinha] = linhaVenda;
-    } else {
-      const posicao = linhas.length > 1 ? 1 : linhas.length;
-      linhas.splice(posicao, 0, linhaVenda);
-    }
+    linhas.push('');
+    linhas.push('🔒 *Compre com segurança no site oficial:*');
+    linhas.push(`🛒 *Link ${dados.loja}:* ${dados.link}`);
 
     return linhas.join('\n');
-  }
-
-  function removerRodapeIncompleto(linhas, dados) {
-    const loja = (dados.loja || '').toLowerCase();
-    const link = dados.link || '';
-
-    return linhas.filter(linha => {
-      const l = linha.toLowerCase();
-      if (linha.includes(link)) return false;
-      if (l.includes('compre com segurança')) return false;
-      if (l.includes('link') && (l.includes(loja) || l.includes('loja') || l.includes('shopee') || l.includes('mercado livre') || l.includes('amazon'))) return false;
-      return true;
-    });
-  }
-
-  function garantirLink(mensagem, dados) {
-    const link = dados.link || extrairLink(inputLink.value || '');
-    if (!link) return mensagem;
-
-    const loja = dados.loja || detectarLoja(link);
-    const linhas = String(mensagem || '').split('\n').map(linha => linha.trim()).filter(Boolean);
-    const semRodape = removerRodapeIncompleto(linhas, { ...dados, link, loja });
-
-    semRodape.push('');
-    semRodape.push('🔒 *Compre com segurança no site oficial:*');
-    semRodape.push(`🛒 *Link ${loja}:* ${link}`);
-
-    return semRodape.join('\n');
-  }
-
-  function limitarMensagem(mensagem, dados) {
-    const link = dados.link || extrairLink(inputLink.value || '');
-    const loja = dados.loja || detectarLoja(link);
-    const linhas = String(mensagem || '').split('\n').map(linha => linha.trim()).filter(Boolean);
-
-    if (!link) {
-      return linhas.slice(0, 7).join('\n');
-    }
-
-    const corpo = removerRodapeIncompleto(linhas, { ...dados, link, loja });
-    const corpoLimpo = corpo.slice(0, 5);
-
-    corpoLimpo.push('');
-    corpoLimpo.push('🔒 *Compre com segurança no site oficial:*');
-    corpoLimpo.push(`🛒 *Link ${loja}:* ${link}`);
-
-    return corpoLimpo.join('\n');
-  }
-
-  function ajustarMensagem(mensagem, dados) {
-    let ajustada = aplicarChamadaVendaCorreta(mensagem, dados);
-    ajustada = garantirLink(ajustada, dados);
-    ajustada = limitarMensagem(ajustada, dados);
-    ajustada = garantirLink(ajustada, dados);
-    return ajustada;
   }
 
   function setMensagem(texto) {
@@ -266,10 +181,7 @@
   }
 
   async function copiar(texto) {
-    if (!texto) {
-      alert('Gere uma mensagem primeiro!');
-      return;
-    }
+    if (!texto) return alert('Gere uma mensagem primeiro!');
 
     try {
       await navigator.clipboard.writeText(texto);
@@ -285,27 +197,7 @@
     alert('Copiado! ✅');
   }
 
-  function montarAnuncioLocal(dados) {
-    const linhas = [];
-    const cupomEhFrete = /frete|gr[aá]tis/i.test(dados.cupom || '');
-
-    linhas.push(`🔥 *${tituloDestaque(dados.produto)}!*`);
-    linhas.push(`✨ ${dados.chamadaVenda}`);
-    linhas.push('');
-
-    if (dados.precoDe && dados.precoDe !== 'R$ 0,00') linhas.push(`❌ De: ~${dados.precoDe}~`);
-    linhas.push(`💰 *POR APENAS: ${dados.precoPor && dados.precoPor !== 'R$ 0,00' ? dados.precoPor : 'Confira no site'}*`);
-    if (dados.desconto) linhas.push(`🔥 *${dados.desconto}!*`);
-    if (dados.cupom) linhas.push(cupomEhFrete ? `🚚 *Frete grátis:* ${dados.cupom}` : `🎫 *Cupom:* ${dados.cupom}`);
-
-    linhas.push('');
-    linhas.push('🔒 *Compre com segurança no site oficial:*');
-    linhas.push(`🛒 *Link ${dados.loja}:* ${dados.link}`);
-
-    return linhas.join('\n');
-  }
-
-  btnGerar.onclick = async () => {
+  btnGerar.onclick = () => {
     if (!displayProduto.value || displayProduto.value === 'Buscando...') {
       alert('Puxe os dados primeiro ou preencha o produto manualmente!');
       return;
@@ -320,28 +212,16 @@
     }
 
     btnGerar.disabled = true;
-    btnGerar.innerText = '🤖 IA criando...';
-    messageBox.innerText = `IA criando anúncio de venda...\nChamada: ${dados.chamadaVenda}`;
+    btnGerar.innerText = '🤖 Criando anúncio...';
 
-    try {
-      const mensagem = await chamarGemini(dados);
-      let mensagemAjustada = ajustarMensagem(mensagem, dados);
+    const mensagem = montarAnuncioVenda(dados);
+    setMensagem(mensagem);
 
-      if (!mensagemAjustada || mensagemAjustada.toLowerCase().includes('suplemento prático') && !dados.produto.toLowerCase().includes('suplemento')) {
-        mensagemAjustada = montarAnuncioLocal(dados);
-      }
-
-      setMensagem(mensagemAjustada);
-      btnGerar.innerText = '✅ Mensagem gerada';
-      setTimeout(() => btnGerar.innerText = textoOriginal, 1800);
-    } catch (erro) {
-      const mensagemFallback = montarAnuncioLocal(dados);
-      setMensagem(mensagemFallback);
-      btnGerar.innerText = '✅ Mensagem gerada';
-      setTimeout(() => btnGerar.innerText = textoOriginal, 1800);
-    } finally {
+    btnGerar.innerText = '✅ Mensagem gerada';
+    setTimeout(() => {
+      btnGerar.innerText = textoOriginal;
       btnGerar.disabled = false;
-    }
+    }, 900);
   };
 
   if (btnCopiar) {
