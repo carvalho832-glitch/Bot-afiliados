@@ -76,6 +76,10 @@
     if (tem(p, ['magnesio', 'magnésio'])) return 'Ajuda a complementar magnésio na rotina diária.';
     if (tem(p, ['cafeina', 'cafeína', 'pre treino', 'pré treino'])) return 'Opção prática para dar mais energia na rotina.';
 
+    if (tem(p, ['carrinho elétrico', 'carrinho eletrico', 'brinquedo', 'boneca', 'lego', 'hot wheels', 'maral', 'infantil 6v'])) {
+      return 'Boa opção para presentear e deixar a brincadeira das crianças mais divertida.';
+    }
+
     if (tem(p, ['smartwatch', 'relogio', 'relógio'])) return 'Facilita acompanhar horários, notificações e atividades.';
     if (tem(p, ['fone', 'headset', 'bluetooth'])) return 'Mais praticidade para músicas, vídeos e chamadas.';
     if (tem(p, ['notebook', 'laptop', 'tablet'])) return 'Ideal para estudos, trabalho e tarefas do dia a dia.';
@@ -89,7 +93,6 @@
     if (tem(p, ['blusa', 'camiseta', 'calça', 'calca', 'vestido', 'tricô', 'tricot'])) return 'Peça versátil para montar looks com conforto.';
     if (tem(p, ['bolsa', 'mochila', 'necessaire'])) return 'Ajuda a organizar seus itens com praticidade.';
     if (tem(p, ['toalha', 'lençol', 'lencol', 'cama', 'banho', 'edredom'])) return 'Ajuda a renovar a casa com mais conforto.';
-    if (tem(p, ['brinquedo', 'boneca', 'lego', 'hot wheels'])) return 'Boa opção para presentear e divertir as crianças.';
 
     return 'Produto útil para facilitar a rotina e economizar.';
   }
@@ -108,7 +111,7 @@
       loja: detectarLoja(link),
       link,
       beneficioSugerido: beneficio,
-      instrucoes: 'Crie uma mensagem curta para WhatsApp, com no máximo 6 linhas. Inclua uma linha curta com o benefício do produto. Não faça texto longo. Para suplementos, não prometa cura nem resultado garantido.'
+      instrucoes: 'Crie uma mensagem curta para WhatsApp, com no máximo 6 linhas. Inclua uma linha curta com o benefício do produto. Nunca remova o link informado. Não faça texto longo. Para suplementos, não prometa cura nem resultado garantido.'
     };
   }
 
@@ -143,7 +146,7 @@
 
   function mensagemTemBeneficio(mensagem) {
     const texto = (mensagem || '').toLowerCase();
-    return /benef[ií]cio|ajuda|auxilia|ideal|pr[aá]tico|praticidade|conforto|rotina|complementa|facilita|serve para/.test(texto);
+    return /benef[ií]cio|ajuda|auxilia|ideal|pr[aá]tico|praticidade|conforto|rotina|complementa|facilita|serve para|divers[aã]o|presente/.test(texto);
   }
 
   function inserirBeneficioSeFaltar(mensagem, dados) {
@@ -160,15 +163,59 @@
     return linhas.join('\n');
   }
 
-  function limitarMensagem(mensagem) {
-    const linhas = mensagem.split('\n').map(linha => linha.trim()).filter(Boolean);
-    if (linhas.length <= 7) return mensagem;
+  function removerRodapeIncompleto(linhas, dados) {
+    const loja = (dados.loja || '').toLowerCase();
+    const link = dados.link || '';
 
-    return linhas.slice(0, 7).join('\n');
+    return linhas.filter(linha => {
+      const l = linha.toLowerCase();
+      if (linha.includes(link)) return false;
+      if (l.includes('compre com segurança')) return false;
+      if (l.includes('link') && (l.includes(loja) || l.includes('loja') || l.includes('shopee') || l.includes('mercado livre') || l.includes('amazon'))) return false;
+      return true;
+    });
+  }
+
+  function garantirLink(mensagem, dados) {
+    const link = dados.link || extrairLink(inputLink.value || '');
+    if (!link) return mensagem;
+
+    const loja = dados.loja || detectarLoja(link);
+    const linhas = String(mensagem || '').split('\n').map(linha => linha.trim()).filter(Boolean);
+    const semRodape = removerRodapeIncompleto(linhas, { ...dados, link, loja });
+
+    semRodape.push('');
+    semRodape.push('🔒 *Compre com segurança no site oficial:*');
+    semRodape.push(`🛒 *Link ${loja}:* ${link}`);
+
+    return semRodape.join('\n');
+  }
+
+  function limitarMensagem(mensagem, dados) {
+    const link = dados.link || extrairLink(inputLink.value || '');
+    const loja = dados.loja || detectarLoja(link);
+    const linhas = String(mensagem || '').split('\n').map(linha => linha.trim()).filter(Boolean);
+
+    if (!link) {
+      return linhas.slice(0, 7).join('\n');
+    }
+
+    const corpo = removerRodapeIncompleto(linhas, { ...dados, link, loja });
+    const corpoLimpo = corpo.slice(0, 5);
+
+    corpoLimpo.push('');
+    corpoLimpo.push('🔒 *Compre com segurança no site oficial:*');
+    corpoLimpo.push(`🛒 *Link ${loja}:* ${link}`);
+
+    return corpoLimpo.join('\n');
   }
 
   function ajustarMensagem(mensagem, dados) {
-    return limitarMensagem(inserirBeneficioSeFaltar(mensagem, dados));
+    let ajustada = inserirBeneficioSeFaltar(mensagem, dados);
+    ajustada = garantirLink(ajustada, dados);
+    ajustada = limitarMensagem(ajustada, dados);
+    ajustada = garantirLink(ajustada, dados);
+    return ajustada;
   }
 
   function setMensagem(texto) {
@@ -209,6 +256,11 @@
 
     const dados = dadosDaTela();
     const textoOriginal = '🤖 Gerar mensagem com IA';
+
+    if (!dados.link) {
+      alert('Cole o link de afiliado antes de gerar a mensagem.');
+      return;
+    }
 
     btnGerar.disabled = true;
     btnGerar.innerText = '🤖 IA criando...';
