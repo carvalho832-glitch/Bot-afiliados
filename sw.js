@@ -1,14 +1,14 @@
-const CACHE_VERSION = 'achou-levou-v37-radar-shopee';
+const CACHE_VERSION = 'achou-levou-v38-shopee-link-afiliado';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
 self.addEventListener('install', (event) => {
-    console.log('Achou Levou interface bot v37 instalada.');
+    console.log('Achou Levou interface bot v38 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface bot v37 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface bot v38 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
