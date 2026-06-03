@@ -1,0 +1,276 @@
+/* Correção visual v38: restaura botões, ações, cards salvos e mantém o Radar Shopee alinhado */
+
+button:hover {
+    filter: brightness(1.04);
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.68;
+}
+
+.btn-main,
+.btn-secondary,
+.btn-small {
+    align-items: center;
+    border-radius: 14px;
+    display: inline-flex;
+    font-weight: 950;
+    justify-content: center;
+    line-height: 1.2;
+    margin: 0;
+    min-height: 48px;
+    padding: 13px 14px;
+    text-align: center;
+    text-decoration: none;
+    width: 100%;
+}
+
+.btn-main {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: var(--button-text);
+}
+
+.btn-main.soft {
+    background: rgba(45, 212, 191, 0.14);
+    border: 1px solid rgba(45, 212, 191, 0.34);
+    color: var(--text);
+}
+
+.btn-secondary {
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.danger-soft {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.32);
+    color: var(--danger);
+}
+
+.actions {
+    display: grid;
+    gap: 9px;
+    grid-template-columns: 1fr;
+    margin-top: 12px;
+}
+
+.message-editor {
+    line-height: 1.5;
+    min-height: 170px;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+
+.saved-section {
+    margin-top: 12px;
+}
+
+.saved-header {
+    align-items: flex-start;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.saved-header h2 {
+    font-size: 21px;
+}
+
+.saved-header small {
+    color: var(--muted);
+    display: block;
+    font-size: 12px;
+    font-weight: 800;
+    margin-top: 4px;
+}
+
+.saved-header-actions {
+    display: grid;
+    gap: 8px;
+    min-width: 190px;
+}
+
+#lista-salvas {
+    display: grid;
+    gap: 10px;
+}
+
+.saved-card {
+    padding: 13px;
+}
+
+.saved-card-top {
+    align-items: flex-start;
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.saved-card-top strong {
+    display: block;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.saved-card-top small {
+    color: var(--muted);
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    margin-top: 4px;
+}
+
+.saved-index {
+    align-items: center;
+    background: rgba(45, 212, 191, 0.12);
+    border: 1px solid rgba(45, 212, 191, 0.28);
+    border-radius: 12px;
+    color: var(--primary);
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 950;
+    height: 32px;
+    justify-content: center;
+    min-width: 36px;
+}
+
+.saved-card pre {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 0 0 10px;
+    max-height: 150px;
+    overflow: auto;
+    padding: 11px;
+    white-space: pre-wrap;
+}
+
+.saved-actions {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1.2fr 0.85fr 0.85fr;
+}
+
+.btn-small {
+    font-size: 12px;
+    min-height: 42px;
+    padding: 10px 12px;
+}
+
+.btn-small.primary {
+    background: rgba(45, 212, 191, 0.16);
+    border: 1px solid rgba(45, 212, 191, 0.36);
+    color: var(--text);
+}
+
+.btn-small.neutral {
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.btn-small.danger {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.32);
+    color: var(--danger);
+}
+
+.empty-state {
+    border: 1px dashed var(--border);
+    border-radius: 16px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+    padding: 16px;
+    text-align: center;
+}
+
+#shopee-helper-box {
+    background: var(--input-bg) !important;
+    box-shadow: none !important;
+}
+
+.radar-shopee-box button,
+.radar-produto-actions button {
+    appearance: none;
+}
+
+.radar-produto-actions .usar,
+.radar-usar-produto {
+    background: var(--primary) !important;
+    color: var(--button-text) !important;
+}
+
+.radar-produto-actions .usar-gerar,
+.radar-usar-gerar {
+    background: var(--accent) !important;
+    color: var(--button-text) !important;
+}
+
+.loader-overlay {
+    align-items: center;
+    background: rgba(2, 6, 23, 0.86);
+    display: flex;
+    height: 100%;
+    justify-content: center;
+    left: 0;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 9999;
+}
+
+.loader-card {
+    background: var(--card-solid);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    color: var(--text);
+    padding: 18px;
+    text-align: center;
+    width: min(340px, calc(100vw - 34px));
+}
+
+.progress-bar-container {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    height: 12px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.progress-bar-animated {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    height: 100%;
+    transition: width 0.2s ease;
+}
+
+@media (min-width: 640px) {
+    .actions {
+        grid-template-columns: 1.2fr 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    .saved-header {
+        display: grid;
+    }
+
+    .saved-header-actions {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .saved-actions {
+        grid-template-columns: 1fr;
+    }
+}
