@@ -216,12 +216,13 @@ async function resolverLinkShopee(link) {
   }
 }
 
-function montarQueryShopee({ keyword, fields, usarSortType }) {
+function montarQueryShopee({ keyword, fields, usarSortType, pedirPageInfo }) {
   const args = ['page: 1', 'limit: 10'];
   if (usarSortType) args.push('sortType: 2');
   if (keyword) args.push(`keyword: "${escaparGraphqlString(keyword)}"`);
+  const pageInfo = pedirPageInfo ? ' pageInfo { page limit hasNextPage }' : '';
 
-  return `query { productOfferV2(${args.join(', ')}) { nodes { ${fields} } pageInfo { page limit totalCount hasNextPage } } }`;
+  return `query { productOfferV2(${args.join(', ')}) { nodes { ${fields} }${pageInfo} } }`;
 }
 
 function montarCabecalhoShopee(payload, timestamp) {
@@ -309,36 +310,39 @@ async function consultarShopeeProductOffer({ keyword, linkOriginal, linkResolvid
     'productName priceMin priceMax offerLink'
   ];
   const sortTentativas = [false, true];
+  const pageInfoTentativas = [false, true];
   let ultimoErro = null;
 
-  for (const usarSortType of sortTentativas) {
-    for (const fields of camposTentativa) {
-      const query = montarQueryShopee({ keyword, fields, usarSortType });
-      const payload = JSON.stringify({ query });
-      const timestamp = Math.floor(Date.now() / 1000);
+  for (const pedirPageInfo of pageInfoTentativas) {
+    for (const usarSortType of sortTentativas) {
+      for (const fields of camposTentativa) {
+        const query = montarQueryShopee({ keyword, fields, usarSortType, pedirPageInfo });
+        const payload = JSON.stringify({ query });
+        const timestamp = Math.floor(Date.now() / 1000);
 
-      const resposta = await fetch(SHOPEE_GRAPHQL_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ['Author' + 'ization']: montarCabecalhoShopee(payload, timestamp)
-        },
-        body: payload
-      });
+        const resposta = await fetch(SHOPEE_GRAPHQL_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            ['Author' + 'ization']: montarCabecalhoShopee(payload, timestamp)
+          },
+          body: payload
+        });
 
-      const json = await resposta.json().catch(() => null);
-      if (!resposta.ok || json?.errors?.length) {
-        const mensagemErro = json?.errors?.[0]?.message || json?.errors?.[0]?.extensions?.message || `Shopee respondeu HTTP ${resposta.status}`;
-        ultimoErro = new Error(mensagemErro);
-        console.error('Tentativa Shopee falhou:', mensagemErro);
-        continue;
+        const json = await resposta.json().catch(() => null);
+        if (!resposta.ok || json?.errors?.length) {
+          const mensagemErro = json?.errors?.[0]?.message || json?.errors?.[0]?.extensions?.message || `Shopee respondeu HTTP ${resposta.status}`;
+          ultimoErro = new Error(mensagemErro);
+          console.error('Tentativa Shopee falhou:', mensagemErro);
+          continue;
+        }
+
+        const produtos = listaProdutosShopee(json);
+        const escolhido = escolherProdutoShopee(produtos, keyword);
+        if (escolhido) return normalizarProdutoShopee(escolhido, linkOriginal, linkResolvido);
+        ultimoErro = new Error('Shopee respondeu, mas não retornou produtos para essa busca.');
       }
-
-      const produtos = listaProdutosShopee(json);
-      const escolhido = escolherProdutoShopee(produtos, keyword);
-      if (escolhido) return normalizarProdutoShopee(escolhido, linkOriginal, linkResolvido);
-      ultimoErro = new Error('Shopee respondeu, mas não retornou produtos para essa busca.');
     }
   }
 
