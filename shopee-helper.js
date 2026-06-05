@@ -44,11 +44,36 @@
         btnPuxar.innerText = ativo ? '🔎 Puxando Shopee...' : '🔎 Puxar produto';
     }
 
+    function nomePareceCodigoCurtoShopee(dados) {
+        const nome = String(dados?.produto || '').trim();
+        const semPreco = !dados?.precoPor && !dados?.precoDe;
+        const origemFallback = String(dados?.origem || '').includes('fallback');
+        const umaPalavraCurta = /^[a-z0-9]{4,12}$/i.test(nome);
+        const pareceTextoReal = /[áéíóúâêôãõç\s\-]/i.test(nome) || nome.length > 12;
+
+        return origemFallback && semPreco && umaPalavraCurta && !pareceTextoReal;
+    }
+
+    function normalizarProdutoShopee(dados) {
+        if (nomePareceCodigoCurtoShopee(dados)) {
+            return 'Oferta Shopee com desconto';
+        }
+
+        const produto = String(dados?.produto || '').trim();
+        if (!produto || produto === 'Buscando na Shopee...') return 'Oferta Shopee com desconto';
+
+        return produto;
+    }
+
     function preencherCampos(dados) {
-        displayProduto.value = dados.produto || 'Produto Shopee encontrado';
+        displayProduto.value = normalizarProdutoShopee(dados);
         if (displayDe) displayDe.value = dados.precoDe || '';
         if (displayPor) displayPor.value = dados.precoPor || '';
         if (displayCupom) displayCupom.value = dados.cupom || dados.desconto || displayCupom.value || '';
+
+        if (dados?.aviso && dados?.origem === 'shopee-fallback') {
+            console.warn('Shopee fallback:', dados.aviso);
+        }
     }
 
     async function puxarShopeePelaApi(link) {
@@ -92,7 +117,7 @@
         try {
             const dados = await puxarShopeePelaApi(link);
             preencherCampos(dados);
-            alert('Dados da Shopee puxados com sucesso! ✅');
+            alert('Dados da Shopee processados! ✅');
         } catch (erro) {
             console.error('Erro Shopee API:', erro);
             displayProduto.value = displayProduto.value === 'Buscando na Shopee...' ? 'Oferta Shopee com desconto' : displayProduto.value;
@@ -112,7 +137,7 @@
         }
 
         if (id === 'btn-fast-shopee-msg') {
-            if (!displayProduto.value || displayProduto.value === 'Buscando...' || displayProduto.value === 'Buscando na Shopee...') {
+            if (!displayProduto.value || displayProduto.value === 'Buscando...' || displayProduto.value === 'Buscando na Shopee...' || /^[a-z0-9]{4,12}$/i.test(displayProduto.value.trim())) {
                 displayProduto.value = 'Oferta Shopee com desconto';
             }
 
