@@ -23,7 +23,7 @@ const SHOPEE_GRAPHQL_URL = process.env.SHOPEE_GRAPHQL_URL || 'https://open-api.a
 const corsOptions = {
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
   optionsSuccessStatus: 204
 };
 
@@ -34,7 +34,7 @@ app.use((req, res, next) => {
   console.log(`[REQ] ${req.method} ${req.originalUrl}`);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Accept');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Accept,Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
@@ -310,20 +310,6 @@ function gerarSha256(texto) {
   return crypto.createHash('sha256').update(String(texto)).digest('hex');
 }
 
-function gerarAssinaturasShopee(appId, timestamp, secret, keyword) {
-  const baseCurta = `${appId}${timestamp}${secret}`;
-  const baseCurtaInvertida = `${secret}${appId}${timestamp}`;
-  const baseComKeyword = `${appId}${timestamp}${keyword || ''}${secret}`;
-  const basePadrao = `${appId}${timestamp}${secret}${keyword || ''}`;
-
-  return Array.from(new Set([
-    gerarSha256(baseCurta),
-    gerarSha256(baseCurtaInvertida),
-    gerarSha256(baseComKeyword),
-    gerarSha256(basePadrao)
-  ]));
-}
-
 function escaparGraphqlString(valor = '') {
   return String(valor)
     .replace(/\\/g, '\\\\')
@@ -387,15 +373,12 @@ async function resolverLinkShopee(link) {
   }
 }
 
-function montarQueryShopee({ appId, timestamp, signature, keyword, fields }) {
+function montarQueryShopee({ keyword, fields }) {
   const keywordArg = keyword ? `, keyword: "${escaparGraphqlString(keyword)}"` : '';
 
   return `
     query {
       productOfferV2(
-        appId: "${escaparGraphqlString(appId)}",
-        timestamp: ${timestamp},
-        signature: "${signature}",
         page: 1,
         limit: 10,
         siteId: 0,
@@ -413,6 +396,11 @@ function montarQueryShopee({ appId, timestamp, signature, keyword, fields }) {
       }
     }
   `;
+}
+
+function montarCabecalhoShopee(payload, timestamp) {
+  const assinatura = gerarSha256(`${SHOPEE_APP_ID}${timestamp}${payload}${SHOPEE_SECRET}`);
+  return `SHA256 Credential=${SHOPEE_APP_ID}, Timestamp=${timestamp}, Signature=${assinatura}`;
 }
 
 function normalizarDinheiroShopee(valor) {
@@ -505,57 +493,51 @@ async function consultarShopeeProductOffer({ keyword, linkOriginal, linkResolvid
     throw new Error('SHOPEE_APP_ID ou SHOPEE_SECRET não configurados no Render.');
   }
 
-  const timestamp = Math.floor(Date.now() / 1000);
   const camposTentativa = [
     'itemId productName price priceMin priceMax imageUrl offerLink productLink commissionRate commission sales priceDiscountRate shopName ratingStar',
     'itemId productName priceMin priceMax imageUrl offerLink productLink priceDiscountRate sales',
     'itemId productName priceMin priceMax offerLink productLink'
   ];
-  const assinaturas = gerarAssinaturasShopee(SHOPEE_APP_ID, timestamp, SHOPEE_SECRET, keyword);
 
   let ultimoErro = null;
 
   for (const fields of camposTentativa) {
-    for (const signature of assinaturas) {
-      const query = montarQueryShopee({
-        appId: SHOPEE_APP_ID,
-        timestamp,
-        signature,
-        keyword,
-        fields
-      });
+    const query = montarQueryShopee({ keyword, fields });
+    const payload = JSON.stringify({ query });
+    const timestamp = Math.floor(Date.now() / 1000);
 
-      const resposta = await fetch(SHOPEE_GRAPHQL_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ query })
-      });
+    const resposta = await fetch(SHOPEE_GRAPHQL_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ['Author' + 'ization']: montarCabecalhoShopee(payload, timestamp)
+      },
+      body: payload
+    });
 
-      let json = null;
-      try {
-        json = await resposta.json();
-      } catch {
-        json = null;
-      }
-
-      if (!resposta.ok || json?.errors?.length) {
-        ultimoErro = new Error(json?.errors?.[0]?.message || `Shopee respondeu HTTP ${resposta.status}`);
-        console.error('Tentativa Shopee falhou:', ultimoErro.message);
-        continue;
-      }
-
-      const produtos = listaProdutosShopee(json);
-      const escolhido = escolherProdutoShopee(produtos, keyword);
-
-      if (escolhido) {
-        return normalizarProdutoShopee(escolhido, linkOriginal, linkResolvido);
-      }
-
-      ultimoErro = new Error('Shopee respondeu, mas não retornou produtos para essa busca.');
+    let json = null;
+    try {
+      json = await resposta.json();
+    } catch {
+      json = null;
     }
+
+    if (!resposta.ok || json?.errors?.length) {
+      const mensagemErro = json?.errors?.[0]?.message || json?.errors?.[0]?.extensions?.message || `Shopee respondeu HTTP ${resposta.status}`;
+      ultimoErro = new Error(mensagemErro);
+      console.error('Tentativa Shopee falhou:', mensagemErro);
+      continue;
+    }
+
+    const produtos = listaProdutosShopee(json);
+    const escolhido = escolherProdutoShopee(produtos, keyword);
+
+    if (escolhido) {
+      return normalizarProdutoShopee(escolhido, linkOriginal, linkResolvido);
+    }
+
+    ultimoErro = new Error('Shopee respondeu, mas não retornou produtos para essa busca.');
   }
 
   throw ultimoErro || new Error('Não consegui consultar a API da Shopee.');
