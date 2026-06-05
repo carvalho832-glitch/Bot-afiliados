@@ -168,14 +168,43 @@ function extrairPrimeiroLink(texto = '') {
   return String(texto || '').match(/https?:\/\/[^\s]+/)?.[0] || String(texto || '').trim();
 }
 
+function decodificarHtml(texto = '') {
+  return String(texto || '')
+    .replace(/&quot;/g, '"')
+    .replace(/&#34;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function limparTituloShopee(titulo = '') {
+  return limparTexto(
+    decodificarHtml(titulo)
+      .replace(/\|\s*Shopee.*$/i, '')
+      .replace(/Shopee\s*Brasil\s*[-|:]?\s*/i, '')
+      .replace(/Compre\s+/i, '')
+      .replace(/online.*$/i, '')
+  );
+}
+
+function extrairTituloDoHtml(html = '') {
+  const texto = String(html || '');
+  const ogTitle = texto.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1]
+    || texto.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i)?.[1];
+  const title = texto.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1];
+  return limparTituloShopee(ogTitle || title || '');
+}
+
 function limparKeywordShopee(texto = '') {
   return limparTexto(
     String(texto || '')
       .replace(/https?:\/\/[^\s]+/gi, ' ')
       .replace(/[-_]+/g, ' ')
-      .replace(/\b(i|shop|product|br|item|produto)\b/gi, ' ')
+      .replace(/\b(s|shopee|com|br|i|shop|product|item|produto|oferta)\b/gi, ' ')
+      .replace(/\b[A-Za-z0-9]{8,}\b/g, ' ')
       .replace(/\d{5,}/g, ' ')
-  ).split(' ').slice(0, 8).join(' ');
+  ).split(' ').filter(p => p.length >= 2).slice(0, 10).join(' ');
 }
 
 function keywordPorUrl(url = '') {
@@ -194,9 +223,9 @@ function keywordPorUrl(url = '') {
 
 async function resolverLinkShopee(link) {
   const url = extrairPrimeiroLink(link);
-  if (!url) return '';
+  if (!url) return { linkResolvido: '', tituloPagina: '' };
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
+  const timer = setTimeout(() => controller.abort(), 12000);
   try {
     const resposta = await fetch(url, {
       method: 'GET',
@@ -207,10 +236,13 @@ async function resolverLinkShopee(link) {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
       }
     });
-    return resposta?.url || url;
+    const linkResolvido = resposta?.url || url;
+    const html = await resposta.text().catch(() => '');
+    const tituloPagina = extrairTituloDoHtml(html);
+    return { linkResolvido, tituloPagina };
   } catch (erro) {
     console.warn('Não consegui resolver link curto Shopee:', erro.message);
-    return url;
+    return { linkResolvido: url, tituloPagina: '' };
   } finally {
     clearTimeout(timer);
   }
@@ -221,7 +253,6 @@ function montarQueryShopee({ keyword, fields, usarSortType, pedirPageInfo }) {
   if (usarSortType) args.push('sortType: 2');
   if (keyword) args.push(`keyword: "${escaparGraphqlString(keyword)}"`);
   const pageInfo = pedirPageInfo ? ' pageInfo { page limit hasNextPage }' : '';
-
   return `query { productOfferV2(${args.join(', ')}) { nodes { ${fields} }${pageInfo} } }`;
 }
 
@@ -300,7 +331,25 @@ function normalizarProdutoShopee(item, linkOriginal, linkResolvido) {
   };
 }
 
-async function consultarShopeeProductOffer({ keyword, linkOriginal, linkResolvido }) {
+function produtoFallbackShopee({ tituloPagina, keyword, linkOriginal, linkResolvido, aviso }) {
+  const produto = limparTexto(tituloPagina || keyword || 'Oferta Shopee com desconto');
+  return {
+    ok: true,
+    loja: 'Shopee',
+    produto,
+    precoDe: '',
+    precoPor: '',
+    desconto: '',
+    cupom: '',
+    link: linkOriginal || linkResolvido,
+    linkOferta: linkOriginal || linkResolvido,
+    imagem: '',
+    origem: 'shopee-fallback',
+    aviso: aviso || 'Não achei a oferta pela API da Shopee, mas mantive o link e o nome para você gerar a mensagem.'
+  };
+}
+
+async function consultarShopeeProductOffer({ keywords, linkOriginal, linkResolvido }) {
   if (!SHOPEE_APP_ID || !SHOPEE_SECRET) throw new Error('SHOPEE_APP_ID ou SHOPEE_SECRET não configurados no Render.');
 
   const camposTentativa = [
@@ -313,35 +362,37 @@ async function consultarShopeeProductOffer({ keyword, linkOriginal, linkResolvid
   const pageInfoTentativas = [false, true];
   let ultimoErro = null;
 
-  for (const pedirPageInfo of pageInfoTentativas) {
-    for (const usarSortType of sortTentativas) {
-      for (const fields of camposTentativa) {
-        const query = montarQueryShopee({ keyword, fields, usarSortType, pedirPageInfo });
-        const payload = JSON.stringify({ query });
-        const timestamp = Math.floor(Date.now() / 1000);
+  for (const keyword of keywords.filter(Boolean)) {
+    for (const pedirPageInfo of pageInfoTentativas) {
+      for (const usarSortType of sortTentativas) {
+        for (const fields of camposTentativa) {
+          const query = montarQueryShopee({ keyword, fields, usarSortType, pedirPageInfo });
+          const payload = JSON.stringify({ query });
+          const timestamp = Math.floor(Date.now() / 1000);
 
-        const resposta = await fetch(SHOPEE_GRAPHQL_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            ['Author' + 'ization']: montarCabecalhoShopee(payload, timestamp)
-          },
-          body: payload
-        });
+          const resposta = await fetch(SHOPEE_GRAPHQL_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              ['Author' + 'ization']: montarCabecalhoShopee(payload, timestamp)
+            },
+            body: payload
+          });
 
-        const json = await resposta.json().catch(() => null);
-        if (!resposta.ok || json?.errors?.length) {
-          const mensagemErro = json?.errors?.[0]?.message || json?.errors?.[0]?.extensions?.message || `Shopee respondeu HTTP ${resposta.status}`;
-          ultimoErro = new Error(mensagemErro);
-          console.error('Tentativa Shopee falhou:', mensagemErro);
-          continue;
+          const json = await resposta.json().catch(() => null);
+          if (!resposta.ok || json?.errors?.length) {
+            const mensagemErro = json?.errors?.[0]?.message || json?.errors?.[0]?.extensions?.message || `Shopee respondeu HTTP ${resposta.status}`;
+            ultimoErro = new Error(mensagemErro);
+            console.error('Tentativa Shopee falhou:', mensagemErro);
+            continue;
+          }
+
+          const produtos = listaProdutosShopee(json);
+          const escolhido = escolherProdutoShopee(produtos, keyword);
+          if (escolhido) return normalizarProdutoShopee(escolhido, linkOriginal, linkResolvido);
+          ultimoErro = new Error('Shopee respondeu, mas não retornou produtos para essa busca.');
         }
-
-        const produtos = listaProdutosShopee(json);
-        const escolhido = escolherProdutoShopee(produtos, keyword);
-        if (escolhido) return normalizarProdutoShopee(escolhido, linkOriginal, linkResolvido);
-        ultimoErro = new Error('Shopee respondeu, mas não retornou produtos para essa busca.');
       }
     }
   }
@@ -362,14 +413,26 @@ app.get('/shopee/produto', async (req, res) => {
   if (!linkOriginal) return res.status(400).json({ ok: false, error: 'Informe o link da Shopee no parâmetro url.' });
 
   try {
-    const linkResolvido = await resolverLinkShopee(linkOriginal);
-    const keyword = limparTexto(req.query.keyword || keywordPorUrl(linkResolvido) || keywordPorUrl(linkOriginal));
-    if (!keyword) return res.status(400).json({ ok: false, error: 'Não consegui identificar uma palavra-chave no link da Shopee.', linkResolvido });
-    const produto = await consultarShopeeProductOffer({ keyword, linkOriginal, linkResolvido });
-    res.json({ ...produto, keyword, linkResolvido });
+    const { linkResolvido, tituloPagina } = await resolverLinkShopee(linkOriginal);
+    const keywordManual = limparKeywordShopee(req.query.keyword || '');
+    const keywordTitulo = limparKeywordShopee(tituloPagina || '');
+    const keywordUrl = limparKeywordShopee(keywordPorUrl(linkResolvido) || keywordPorUrl(linkOriginal));
+    const keywords = Array.from(new Set([keywordManual, keywordTitulo, keywordUrl].filter(Boolean)));
+
+    if (!keywords.length) {
+      return res.json(produtoFallbackShopee({ tituloPagina, keyword: '', linkOriginal, linkResolvido, aviso: 'Não consegui extrair uma palavra-chave do link curto da Shopee.' }));
+    }
+
+    try {
+      const produto = await consultarShopeeProductOffer({ keywords, linkOriginal, linkResolvido });
+      return res.json({ ...produto, keyword: keywords[0], keywords, linkResolvido, tituloPagina });
+    } catch (erroApi) {
+      console.warn('Fallback Shopee ativado:', erroApi.message);
+      return res.json(produtoFallbackShopee({ tituloPagina, keyword: keywords[0], linkOriginal, linkResolvido, aviso: erroApi.message }));
+    }
   } catch (erro) {
     console.error('Erro ao puxar produto Shopee:', erro);
-    res.status(500).json({ ok: false, error: 'Erro ao puxar dados da Shopee.', detalhe: erro.message });
+    res.json(produtoFallbackShopee({ tituloPagina: '', keyword: '', linkOriginal, linkResolvido: linkOriginal, aviso: erro.message }));
   }
 });
 
