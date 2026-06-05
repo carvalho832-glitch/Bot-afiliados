@@ -400,7 +400,7 @@ function montarQueryShopee({ keyword, fields }) {
 
 function montarCabecalhoShopee(payload, timestamp) {
   const assinatura = gerarSha256(`${SHOPEE_APP_ID}${timestamp}${payload}${SHOPEE_SECRET}`);
-  return `SHA256 Credential=${SHOPEE_APP_ID}, Timestamp=${timestamp}, Signature=${assinatura}`;
+  return `SHA256 Credential=${SHOPEE_APP_ID},Timestamp=${timestamp},Signature=${assinatura}`;
 }
 
 function normalizarDinheiroShopee(valor) {
