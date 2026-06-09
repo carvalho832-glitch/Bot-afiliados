@@ -8,7 +8,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface bot v42 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface bot v43 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
