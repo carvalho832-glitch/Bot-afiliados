@@ -3,7 +3,7 @@ const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
 self.addEventListener('install', (event) => {
-    console.log('Achou Levou interface bot v42 instalada.');
+    console.log('Achou Levou interface bot v43 instalada.');
     self.skipWaiting();
 });
 
