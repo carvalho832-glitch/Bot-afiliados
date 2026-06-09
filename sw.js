@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v42-shopee-codigo-curto';
+const CACHE_VERSION = 'achou-levou-v43-shopee-codigo-curto';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
