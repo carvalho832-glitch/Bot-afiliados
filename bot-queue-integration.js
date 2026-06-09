@@ -1,25 +1,53 @@
 (function () {
   const CONFIG_KEY = "achou_levou_bot_config";
+  const BOT_HTTPS_URL = "https://bot.achoulevoubot.uk";
 
   const DEFAULT_CONFIG = {
-    botUrl: "http://35.253.196.37:3010",
+    botUrl: BOT_HTTPS_URL,
     username: "julio",
     password: "AchouLevou2026"
   };
 
+  function normalizeBotUrl(url) {
+    let cleanUrl = String(url || "").trim().replace(/\/+$/, "");
+
+    // Migração automática: versões antigas usavam IP/HTTP.
+    // Página HTTPS não consegue enviar fetch para HTTP por bloqueio de mixed content.
+    if (
+      !cleanUrl ||
+      cleanUrl.includes("35.253.196.37") ||
+      cleanUrl.includes("localhost") ||
+      cleanUrl.includes("127.0.0.1") ||
+      cleanUrl.startsWith("http://")
+    ) {
+      return BOT_HTTPS_URL;
+    }
+
+    return cleanUrl;
+  }
+
   function loadConfig() {
     try {
       const saved = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
-      return {
+      const config = {
         ...DEFAULT_CONFIG,
         ...saved,
         botUrl: normalizeBotUrl(saved.botUrl || DEFAULT_CONFIG.botUrl)
       };
+
+      // Salva a URL corrigida para limpar configurações antigas do navegador.
+      if (saved.botUrl !== config.botUrl) {
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+      }
+
+      return config;
     } catch {
-      return {
+      const fallback = {
         ...DEFAULT_CONFIG,
         botUrl: normalizeBotUrl(DEFAULT_CONFIG.botUrl)
       };
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(fallback));
+      return fallback;
     }
   }
 
@@ -36,10 +64,6 @@
 
   function basicAuthHeader(username, password) {
     return "Basic " + btoa(`${username}:${password}`);
-  }
-
-  function normalizeBotUrl(url) {
-    return String(url || "").trim().replace(/\/+$/, "");
   }
 
   function setStatus(message, state = "idle") {
@@ -66,6 +90,16 @@
       .filter(Boolean);
   }
 
+  function formatFetchError(error, config) {
+    const msg = String(error?.message || error || "");
+
+    if (msg.includes("Failed to fetch") || error instanceof TypeError) {
+      return `Falha de conexão com o robô. Confirme se o painel abre em ${config.botUrl}/painel e se o robô está online.`;
+    }
+
+    return msg || "Erro desconhecido ao conectar com o robô.";
+  }
+
   async function sendMessages(messages) {
     const config = loadConfig();
     const cleanMessages = getCleanMessages(messages);
@@ -86,14 +120,21 @@
 
     const text = cleanMessages.join("\n---\n");
 
-    const response = await fetch(`${config.botUrl}/queue/add`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": basicAuthHeader(config.username, config.password)
-      },
-      body: JSON.stringify({ text })
-    });
+    let response;
+    try {
+      response = await fetch(`${config.botUrl}/queue/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": basicAuthHeader(config.username, config.password)
+        },
+        body: JSON.stringify({ text }),
+        cache: "no-store"
+      });
+    } catch (error) {
+      setStatus("Offline", "error");
+      throw new Error(formatFetchError(error, config));
+    }
 
     let json = null;
 
