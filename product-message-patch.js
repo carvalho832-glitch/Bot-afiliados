@@ -116,6 +116,10 @@ window.addEventListener('load', function () {
     return detalhe ? `${prefixo} ${detalhe},` : prefixo;
   }
 
+  function ehCelularGalaxy(produto = '') {
+    return /\bgalaxy\s?(a|s|m|z)\d+/i.test(produto) || /\bgalaxy\s?(fold|flip|note)\b/i.test(produto);
+  }
+
   function beneficioProduto(produto = '') {
     const nome = tituloCurto(produto);
     const p = limpar(produto).toLowerCase();
@@ -128,18 +132,18 @@ window.addEventListener('load', function () {
       return `Vitamina D3 + K2${extra} ajuda o corpo a aproveitar melhor o cálcio, contribuindo para ossos mais fortes, suporte muscular e bem-estar diário.`;
     }
 
-    if (contem(p, ['celular', 'smartphone', 'iphone', 'galaxy', 'samsung', 'motorola', 'xiaomi', 'redmi'])) {
-      const armazenamento = buscar(produto, /\b\d+\s?(gb|tb)\b/i);
-      const modelo = marca ? `da ${marca}` : 'moderno';
-      const comMemoria = armazenamento ? ` com ${armazenamento}` : '';
-      return `Celular ${modelo}${comMemoria}, ótimo para fotos, vídeos, redes sociais, aplicativos e uso diário com praticidade.`;
-    }
-
     if (contem(p, ['televisão', 'televisao', 'smart tv', 'tv ', ' tv', 'led', 'oled', 'qled', '4k'])) {
       const tela = buscar(produto, /\b\d{2,3}\s?(polegadas|pol|\")\b/i);
       const resolucao = p.includes('4k') ? ' 4K' : '';
       const info = tela ? ` de ${tela}${resolucao}` : resolucao;
       return `Smart TV${info} para assistir filmes, séries, jogos e conteúdos com mais conforto e qualidade de imagem.`;
+    }
+
+    if (contem(p, ['celular', 'smartphone', 'iphone', 'motorola', 'xiaomi', 'redmi']) || ehCelularGalaxy(produto)) {
+      const armazenamento = buscar(produto, /\b\d+\s?(gb|tb)\b/i);
+      const modelo = marca ? `da ${marca}` : 'moderno';
+      const comMemoria = armazenamento ? ` com ${armazenamento}` : '';
+      return `Celular ${modelo}${comMemoria}, ótimo para fotos, vídeos, redes sociais, aplicativos e uso diário com praticidade.`;
     }
 
     if (contem(p, ['creme de cabelo', 'creme capilar', 'máscara capilar', 'mascara capilar', 'máscara de tratamento', 'mascara de tratamento', 'shampoo', 'condicionador', 'leave-in', 'leave in'])) {
