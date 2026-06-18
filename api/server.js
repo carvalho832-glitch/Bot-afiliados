@@ -33,74 +33,6 @@ function temValor(valor = '') {
   );
 }
 
-function ehCelularGalaxy(produto = '') {
-  return /\bgalaxy\s?(a|s|m|z)\d+/i.test(produto) || /\bgalaxy\s?(fold|flip|note)\b/i.test(produto);
-}
-
-function beneficioProduto(produto = '') {
-  const p = produto.toLowerCase();
-
-  if (p.includes('zíper') || p.includes('ziper')) {
-    return 'Ideal para pequenos reparos em roupas, bolsas, mochilas e acessórios.';
-  }
-
-  if (p.includes('bolsa') || p.includes('mochila') || p.includes('pochete')) {
-    return 'Ajuda a organizar seus itens com praticidade no dia a dia.';
-  }
-
-  if (p.includes('air fryer') || p.includes('panela') || p.includes('cozinha')) {
-    return 'Mais praticidade para preparar refeições e lanches rápidos.';
-  }
-
-  if (
-    p.includes('smart tv') ||
-    p.includes('tv ') ||
-    p.includes(' tv') ||
-    p.includes('televisão') ||
-    p.includes('televisao') ||
-    p.includes('4k') ||
-    p.includes('oled') ||
-    p.includes('qled')
-  ) {
-    return 'Tela grande com ótima qualidade de imagem, ideal para filmes, séries, jogos e conteúdos do dia a dia.';
-  }
-
-  if (
-    p.includes('celular') ||
-    p.includes('smartphone') ||
-    p.includes('iphone') ||
-    p.includes('motorola') ||
-    p.includes('xiaomi') ||
-    p.includes('redmi') ||
-    ehCelularGalaxy(produto)
-  ) {
-    return 'Ideal para fotos, vídeos, redes sociais e uso diário.';
-  }
-
-  if (
-    p.includes('sapateira') ||
-    p.includes('organizador de sapato') ||
-    p.includes('organizador de calçado') ||
-    p.includes('organizador de calcado') ||
-    p.includes('organizador multiuso') ||
-    p.includes('organizadora multiuso') ||
-    p.includes('estante multiuso') ||
-    p.includes('prateleira multiuso')
-  ) {
-    return 'Ajuda a organizar calçados, livros, brinquedos e outros itens, deixando o ambiente mais prático e arrumado.';
-  }
-
-  if (p.includes('roupa') || p.includes('blusa') || p.includes('camisa') || p.includes('calça')) {
-    return 'Peça versátil para montar looks confortáveis e estilosos.';
-  }
-
-  if (p.includes('vitamina') || p.includes('suplemento') || p.includes('melatonina')) {
-    return 'Produto prático para complementar a rotina, seguindo as orientações do fabricante.';
-  }
-
-  return 'Oferta selecionada para quem busca praticidade, economia e compra segura.';
-}
-
 function montarMensagem(dados = {}) {
   const produto = limparTexto(dados.produto || dados.product || 'Oferta especial');
   const loja = limparTexto(dados.loja || dados.store || 'Loja oficial');
@@ -109,11 +41,11 @@ function montarMensagem(dados = {}) {
   const precoPor = limparTexto(dados.precoPor || dados.por || dados.price || 'Confira no site');
   const desconto = limparTexto(dados.desconto || '');
   const cupom = limparTexto(dados.cupom || '');
+  const cupomEhFrete = /frete|gr[aá]tis/i.test(cupom);
 
   const linhas = [];
 
   linhas.push(`🔥 *${produto}!*`);
-  linhas.push(`✅ ${beneficioProduto(produto)}`);
   linhas.push('');
 
   if (temValor(precoDe)) {
@@ -127,7 +59,7 @@ function montarMensagem(dados = {}) {
   }
 
   if (temValor(cupom)) {
-    linhas.push(`🎫 *Cupom:* ${cupom}`);
+    linhas.push(cupomEhFrete ? `🚚 *Frete grátis:* ${cupom}` : `🎫 *Cupom:* ${cupom}`);
   }
 
   linhas.push('');
