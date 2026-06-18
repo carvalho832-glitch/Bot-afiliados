@@ -1,14 +1,14 @@
-const CACHE_VERSION = 'achou-levou-v44-smart-tv'; 
+const CACHE_VERSION = 'achou-levou-v45-sapateira'; 
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
 self.addEventListener('install', (event) => {
-    console.log('Achou Levou interface bot v44 instalada.');
+    console.log('Achou Levou interface bot v45 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface bot v44 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface bot v45 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
