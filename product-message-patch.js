@@ -146,6 +146,10 @@ window.addEventListener('load', function () {
       return `Celular ${modelo}${comMemoria}, ótimo para fotos, vídeos, redes sociais, aplicativos e uso diário com praticidade.`;
     }
 
+    if (contem(p, ['sapateira', 'organizador de sapato', 'organizador de calçado', 'organizador de calcado', 'organizador multiuso', 'organizadora multiuso', 'estante multiuso', 'prateleira multiuso'])) {
+      return 'Sapateira multiuso para organizar calçados, livros, brinquedos e outros itens, ajudando a deixar o ambiente mais prático e arrumado.';
+    }
+
     if (contem(p, ['creme de cabelo', 'creme capilar', 'máscara capilar', 'mascara capilar', 'máscara de tratamento', 'mascara de tratamento', 'shampoo', 'condicionador', 'leave-in', 'leave in'])) {
       if (contem(p, ['hidratação', 'hidratacao', 'hidratante'])) return 'Creme capilar para ajudar na hidratação dos fios, deixando o cabelo com aparência mais macia, cuidada e bonita.';
       if (contem(p, ['cachos', 'cacheado', 'cacheados'])) return 'Creme capilar para ajudar na definição dos cachos, deixando os fios com mais forma, cuidado e movimento.';
