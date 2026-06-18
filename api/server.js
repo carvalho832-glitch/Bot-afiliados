@@ -77,6 +77,19 @@ function beneficioProduto(produto = '') {
     return 'Ideal para fotos, vídeos, redes sociais e uso diário.';
   }
 
+  if (
+    p.includes('sapateira') ||
+    p.includes('organizador de sapato') ||
+    p.includes('organizador de calçado') ||
+    p.includes('organizador de calcado') ||
+    p.includes('organizador multiuso') ||
+    p.includes('organizadora multiuso') ||
+    p.includes('estante multiuso') ||
+    p.includes('prateleira multiuso')
+  ) {
+    return 'Ajuda a organizar calçados, livros, brinquedos e outros itens, deixando o ambiente mais prático e arrumado.';
+  }
+
   if (p.includes('roupa') || p.includes('blusa') || p.includes('camisa') || p.includes('calça')) {
     return 'Peça versátil para montar looks confortáveis e estilosos.';
   }
