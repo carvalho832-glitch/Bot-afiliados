@@ -33,6 +33,10 @@ function temValor(valor = '') {
   );
 }
 
+function ehCelularGalaxy(produto = '') {
+  return /\bgalaxy\s?(a|s|m|z)\d+/i.test(produto) || /\bgalaxy\s?(fold|flip|note)\b/i.test(produto);
+}
+
 function beneficioProduto(produto = '') {
   const p = produto.toLowerCase();
 
@@ -48,7 +52,28 @@ function beneficioProduto(produto = '') {
     return 'Mais praticidade para preparar refeições e lanches rápidos.';
   }
 
-  if (p.includes('celular') || p.includes('smartphone') || p.includes('iphone') || p.includes('samsung')) {
+  if (
+    p.includes('smart tv') ||
+    p.includes('tv ') ||
+    p.includes(' tv') ||
+    p.includes('televisão') ||
+    p.includes('televisao') ||
+    p.includes('4k') ||
+    p.includes('oled') ||
+    p.includes('qled')
+  ) {
+    return 'Tela grande com ótima qualidade de imagem, ideal para filmes, séries, jogos e conteúdos do dia a dia.';
+  }
+
+  if (
+    p.includes('celular') ||
+    p.includes('smartphone') ||
+    p.includes('iphone') ||
+    p.includes('motorola') ||
+    p.includes('xiaomi') ||
+    p.includes('redmi') ||
+    ehCelularGalaxy(produto)
+  ) {
     return 'Ideal para fotos, vídeos, redes sociais e uso diário.';
   }
 
