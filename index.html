@@ -47,9 +47,9 @@
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=50">
-    <link rel="stylesheet" href="progress-style.css?v=50">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=50">
+    <link rel="stylesheet" href="style.css?v=51">
+    <link rel="stylesheet" href="progress-style.css?v=51">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=51">
 </head>
 <body>
     <div class="app-shell">
@@ -61,6 +61,7 @@
             </div>
 
             <div class="header-actions">
+                <a href="enviar-grupos.html?v=1&safe=1" class="icon-action" style="display:inline-flex;align-items:center;text-decoration:none;">Enviar por grupo</a>
                 <button id="btn-abrir-painel-bot" class="icon-action" type="button">Painel WhatsApp</button>
                 <button id="btn-tema" class="theme-toggle" type="button" aria-label="Alternar modo claro ou escuro">🌙</button>
             </div>
@@ -80,7 +81,7 @@
             </div>
             <div>
                 <strong>Fluxo limpo</strong>
-                <p>Cole o link, gere a mensagem com IA, salve na fila e envie para o robô. Os grupos continuam no painel do WhatsApp.</p>
+                <p>Cole o link, gere a mensagem com IA, salve na fila e envie para o robô. Use “Enviar por grupo” quando quiser escolher destinos específicos.</p>
             </div>
         </section>
 
@@ -224,18 +225,18 @@
         </div>
     </div>
 
-    <script src="script.js?v=50"></script>
-    <script src="progress-loader.js?v=50"></script>
-    <script src="app-dialog.js?v=50"></script>
-    <script src="shopee-helper.js?v=50"></script>
-    <script src="gemini-client.js?v=50"></script>
-    <script src="product-message-patch.js?v=50"></script>
-    <script src="bot-queue-integration.js?v=50"></script>
+    <script src="script.js?v=51"></script>
+    <script src="progress-loader.js?v=51"></script>
+    <script src="app-dialog.js?v=51"></script>
+    <script src="shopee-helper.js?v=51"></script>
+    <script src="gemini-client.js?v=51"></script>
+    <script src="product-message-patch.js?v=51"></script>
+    <script src="bot-queue-integration.js?v=51"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=50')
+                navigator.serviceWorker.register('./sw.js?v=51')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
