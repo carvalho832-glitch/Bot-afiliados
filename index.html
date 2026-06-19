@@ -46,9 +46,9 @@
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=46">
-    <link rel="stylesheet" href="progress-style.css?v=46">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=46">
+    <link rel="stylesheet" href="style.css?v=47">
+    <link rel="stylesheet" href="progress-style.css?v=47">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=47">
 </head>
 <body>
     <div class="app-shell">
@@ -79,7 +79,7 @@
             </div>
             <div>
                 <strong>Fluxo limpo</strong>
-                <p>Cole o link, gere a mensagem com IA, salve na fila e envie para o robô. Os grupos continuam no painel do WhatsApp.</p>
+                <p>Cole o link, gere a mensagem com IA, escolha os grupos, salve na fila e envie para o robô.</p>
             </div>
         </section>
 
@@ -223,18 +223,19 @@
         </div>
     </div>
 
-    <script src="script.js?v=46"></script>
-    <script src="progress-loader.js?v=46"></script>
-    <script src="app-dialog.js?v=46"></script>
-    <script src="shopee-helper.js?v=46"></script>
-    <script src="gemini-client.js?v=46"></script>
-    <script src="product-message-patch.js?v=46"></script>
-    <script src="bot-queue-integration.js?v=46"></script>
+    <script src="script.js?v=47"></script>
+    <script src="progress-loader.js?v=47"></script>
+    <script src="app-dialog.js?v=47"></script>
+    <script src="shopee-helper.js?v=47"></script>
+    <script src="gemini-client.js?v=47"></script>
+    <script src="product-message-patch.js?v=47"></script>
+    <script src="bot-queue-integration.js?v=47"></script>
+    <script src="target-groups.js?v=1"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=46')
+                navigator.serviceWorker.register('./sw.js?v=47')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
