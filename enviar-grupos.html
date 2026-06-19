@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enviar para grupos | Achou Levou Bot</title>
+  <meta name="theme-color" content="#07111f">
+  <style>
+    :root {
+      --bg: #07111f;
+      --card: rgba(15, 23, 42, 0.86);
+      --card-solid: #101a2b;
+      --input-bg: rgba(2, 6, 23, 0.58);
+      --text: #e6edf3;
+      --muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.20);
+      --primary: #2dd4bf;
+      --accent: #38bdf8;
+      --danger: #f87171;
+      --button-text: #03131f;
+      --shadow: 0 22px 60px rgba(0, 0, 0, 0.38);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(45, 212, 191, 0.16), transparent 28rem),
+        radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 24rem),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, Arial, Helvetica, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      padding: 14px;
+    }
+
+    .app-shell {
+      margin: 0 auto;
+      max-width: 760px;
+      padding-bottom: 32px;
+    }
+
+    .app-header {
+      align-items: flex-start;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 6px 0 14px;
+    }
+
+    .eyebrow {
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+      margin: 0 0 5px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      color: var(--text);
+      font-size: 27px;
+      line-height: 1.05;
+      margin: 0;
+    }
+
+    .header-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.35;
+      margin: 7px 0 0;
+    }
+
+    .card, .status-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+      padding: 16px;
+    }
+
+    .status-card {
+      align-items: center;
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      padding: 13px 14px;
+    }
+
+    .status-label {
+      color: var(--muted);
+      display: block;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+    }
+
+    .status-pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text);
+      display: inline-flex;
+      font-size: 12px;
+      font-weight: 900;
+      min-width: 98px;
+      justify-content: center;
+      padding: 8px 11px;
+    }
+
+    .status-pill.ok {
+      background: rgba(45, 212, 191, 0.14);
+      border-color: rgba(45, 212, 191, 0.42);
+      color: var(--primary);
+    }
+
+    .status-pill.error {
+      background: rgba(248, 113, 113, 0.14);
+      border-color: rgba(248, 113, 113, 0.38);
+      color: var(--danger);
+    }
+
+    .section-heading {
+      align-items: center;
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .section-heading span {
+      align-items: center;
+      background: rgba(45, 212, 191, 0.14);
+      border: 1px solid rgba(45, 212, 191, 0.34);
+      border-radius: 14px;
+      color: var(--primary);
+      display: inline-flex;
+      font-weight: 1000;
+      height: 34px;
+      justify-content: center;
+      width: 34px;
+    }
+
+    .section-heading strong {
+      display: block;
+      font-size: 15px;
+    }
+
+    .section-heading small, .muted {
+      color: var(--muted);
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+      margin-top: 2px;
+    }
+
+    textarea, input {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      padding: 13px;
+      width: 100%;
+    }
+
+    textarea {
+      line-height: 1.45;
+      min-height: 220px;
+      resize: vertical;
+      white-space: pre-wrap;
+    }
+
+    label {
+      color: var(--muted);
+      display: block;
+      font-size: 12px;
+      font-weight: 900;
+      margin: 12px 0 6px;
+    }
+
+    button, a.button-link {
+      align-items: center;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      font-family: inherit;
+      font-weight: 950;
+      justify-content: center;
+      line-height: 1.2;
+      min-height: 48px;
+      padding: 13px 14px;
+      text-align: center;
+      text-decoration: none;
+      width: 100%;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.68;
+    }
+
+    .btn-main {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: var(--button-text);
+    }
+
+    .btn-secondary {
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .danger-soft {
+      background: rgba(248, 113, 113, 0.12);
+      border: 1px solid rgba(248, 113, 113, 0.32);
+      color: var(--danger);
+    }
+
+    .actions {
+      display: grid;
+      gap: 9px;
+      grid-template-columns: 1fr;
+      margin-top: 12px;
+    }
+
+    .group-actions {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin: 12px 0;
+    }
+
+    .group-actions button {
+      min-height: 42px;
+      padding: 10px 8px;
+    }
+
+    .groups-list {
+      background: rgba(2, 6, 23, 0.18);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: grid;
+      gap: 8px;
+      max-height: 235px;
+      overflow-y: auto;
+      padding: 8px;
+      scrollbar-width: thin;
+    }
+
+    .groups-list::-webkit-scrollbar { width: 8px; }
+    .groups-list::-webkit-scrollbar-thumb {
+      background: rgba(45, 212, 191, 0.45);
+      border-radius: 999px;
+    }
+
+    .group-option {
+      align-items: center;
+      background: var(--card-solid);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      color: var(--text);
+      display: flex;
+      gap: 10px;
+      margin: 0;
+      min-height: 42px;
+      padding: 10px;
+    }
+
+    .group-option input {
+      flex: 0 0 auto;
+      width: auto;
+    }
+
+    .group-option span {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .result {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      line-height: 1.45;
+      margin-top: 12px;
+      min-height: 50px;
+      padding: 12px;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 520px) {
+      .group-actions { grid-template-columns: 1fr; }
+      .groups-list { max-height: 190px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Central de ofertas</p>
+        <h1>Enviar para grupos</h1>
+        <p class="header-subtitle">Página leve para escolher grupos sem travar a tela principal.</p>
+      </div>
+    </header>
+
+    <section class="status-card">
+      <div>
+        <span class="status-label">Status do robô</span>
+        <strong id="bot-status-text">Aguardando teste</strong>
+      </div>
+      <span id="bot-status-pill" class="status-pill">Pronto</span>
+    </section>
+
+    <section class="card">
+      <div class="section-heading">
+        <span>1</span>
+        <div>
+          <strong>Mensagem da oferta</strong>
+          <small>Cole aqui a propaganda pronta.</small>
+        </div>
+      </div>
+
+      <textarea id="mensagem" placeholder="Cole aqui a mensagem da oferta..."></textarea>
+
+      <div class="actions">
+        <button id="btn-colar" class="btn-secondary" type="button">📋 Colar da área de transferência</button>
+        <button id="btn-limpar-msg" class="btn-secondary danger-soft" type="button">🧹 Limpar mensagem</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-heading">
+        <span>2</span>
+        <div>
+          <strong>Grupos de destino</strong>
+          <small>Os grupos só carregam quando você tocar no botão abaixo.</small>
+        </div>
+      </div>
+
+      <button id="btn-carregar" class="btn-main" type="button">🔄 Carregar grupos</button>
+
+      <div class="group-actions">
+        <button id="btn-todos" class="btn-secondary" type="button">✅ Todos</button>
+        <button id="btn-autorizados" class="btn-secondary" type="button">🎯 Autorizados</button>
+        <button id="btn-limpar" class="btn-secondary danger-soft" type="button">🧹 Limpar</button>
+      </div>
+
+      <div id="groups-list" class="groups-list">Toque em “Carregar grupos”.</div>
+      <small id="resumo" class="muted">Nenhum grupo selecionado.</small>
+    </section>
+
+    <section class="card">
+      <div class="section-heading">
+        <span>3</span>
+        <div>
+          <strong>Enviar ao robô</strong>
+          <small>Se o robô não responder em 20 segundos, a tela destrava sozinha.</small>
+        </div>
+      </div>
+
+      <button id="btn-enviar" class="btn-main" type="button">🚀 Enviar para o robô</button>
+      <div id="resultado" class="result">Aguardando envio...</div>
+    </section>
+
+    <section class="card">
+      <div class="actions">
+        <a class="button-link btn-secondary" href="./?v=50&safe=1">⬅️ Voltar à Central de Ofertas</a>
+        <a class="button-link btn-secondary" href="https://bot.achoulevoubot.uk/painel" target="_blank">🤖 Abrir painel do Robocop</a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const CONFIG_KEY = "achou_levou_bot_config";
+    const DEFAULT_CONFIG = {
+      botUrl: "https://bot.achoulevoubot.uk",
+      username: "julio",
+      password: "AchouLevou2026"
+    };
+
+    let gruposWhatsApp = [];
+    let gruposAutorizados = [];
+
+    const mensagemEl = document.getElementById("mensagem");
+    const listaEl = document.getElementById("groups-list");
+    const resumoEl = document.getElementById("resumo");
+    const resultadoEl = document.getElementById("resultado");
+    const statusText = document.getElementById("bot-status-text");
+    const statusPill = document.getElementById("bot-status-pill");
+
+    function setStatus(text, state) {
+      statusText.textContent = text;
+      statusPill.textContent = text;
+      statusPill.className = "status-pill" + (state ? " " + state : "");
+    }
+
+    function normalizeBotUrl(url) {
+      const clean = String(url || "").trim().replace(/\/+$/, "");
+      if (!clean || clean.startsWith("http://") || clean.includes("localhost") || clean.includes("127.0.0.1")) {
+        return DEFAULT_CONFIG.botUrl;
+      }
+      return clean;
+    }
+
+    function loadConfig() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
+        return {
+          ...DEFAULT_CONFIG,
+          ...saved,
+          botUrl: normalizeBotUrl(saved.botUrl || DEFAULT_CONFIG.botUrl)
+        };
+      } catch {
+        return DEFAULT_CONFIG;
+      }
+    }
+
+    function basicAuthHeader(username, password) {
+      return "Basic " + btoa(`${username}:${password}`);
+    }
+
+    function fetchJsonWithTimeout(url, options = {}, timeoutMs = 20000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+        cache: "no-store"
+      })
+        .then(async response => {
+          let json = null;
+          try { json = await response.json(); } catch { json = null; }
+          if (!response.ok || (json && json.ok === false)) {
+            throw new Error(json?.error || "Resposta inválida do robô.");
+          }
+          return json;
+        })
+        .catch(error => {
+          if (error.name === "AbortError") {
+            throw new Error("Tempo esgotado. O robô demorou para responder, mas a tela foi liberada.");
+          }
+          throw error;
+        })
+        .finally(() => clearTimeout(timer));
+    }
+
+    function botFetch(path, options = {}, timeoutMs = 20000) {
+      const config = loadConfig();
+      const headers = { ...(options.headers || {}) };
+
+      if (config.username && config.password) {
+        headers.Authorization = basicAuthHeader(config.username, config.password);
+      }
+
+      return fetchJsonWithTimeout(`${config.botUrl}${path}`, {
+        ...options,
+        headers
+      }, timeoutMs);
+    }
+
+    function normalizarGrupo(grupo) {
+      if (!grupo) return null;
+      if (typeof grupo === "string") {
+        const value = grupo.trim();
+        return value ? { id: value, name: value } : null;
+      }
+      const id = String(grupo.id || grupo.chatId || grupo.value || grupo._serialized || "").trim();
+      const name = String(grupo.name || grupo.nome || grupo.title || grupo.label || id).trim();
+      return id ? { id, name: name || id } : null;
+    }
+
+    function gruposUnicos(lista) {
+      const map = new Map();
+      (Array.isArray(lista) ? lista : []).forEach(grupo => {
+        const n = normalizarGrupo(grupo);
+        if (n && !map.has(n.id)) map.set(n.id, n);
+      });
+      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[char]));
+    }
+
+    function selecionados() {
+      return Array.from(document.querySelectorAll(".grupo-check:checked")).map(input => ({
+        id: input.value,
+        name: input.dataset.name || input.value
+      }));
+    }
+
+    function atualizarResumo() {
+      const total = selecionados().length;
+      resumoEl.textContent = total ? `Destino: ${total} grupo(s) selecionado(s).` : "Nenhum grupo selecionado.";
+    }
+
+    function renderizarGrupos() {
+      if (!gruposWhatsApp.length) {
+        listaEl.textContent = "Nenhum grupo encontrado.";
+        atualizarResumo();
+        return;
+      }
+
+      const autorizados = new Set(gruposAutorizados.map(g => String(g.id)));
+
+      listaEl.innerHTML = gruposWhatsApp.map(grupo => {
+        const checked = autorizados.has(String(grupo.id)) ? "checked" : "";
+        return `
+          <label class="group-option">
+            <input type="checkbox" class="grupo-check" value="${escapeHtml(grupo.id)}" data-name="${escapeHtml(grupo.name)}" ${checked}>
+            <span>${escapeHtml(grupo.name)}</span>
+          </label>
+        `;
+      }).join("");
+
+      document.querySelectorAll(".grupo-check").forEach(input => input.addEventListener("change", atualizarResumo));
+      atualizarResumo();
+    }
+
+    async function carregarGrupos() {
+      const btn = document.getElementById("btn-carregar");
+      btn.disabled = true;
+      btn.textContent = "Carregando...";
+      listaEl.textContent = "Buscando grupos no Robocop...";
+      resultadoEl.textContent = "Carregando grupos com timeout de segurança...";
+
+      try {
+        try {
+          const settings = await botFetch("/settings", {}, 15000);
+          gruposAutorizados = gruposUnicos(settings?.settings?.selectedGroups || []);
+        } catch {
+          gruposAutorizados = [];
+        }
+
+        try {
+          const groups = await botFetch("/groups", {}, 15000);
+          gruposWhatsApp = gruposUnicos(groups?.groups || []);
+        } catch {
+          gruposWhatsApp = gruposAutorizados;
+        }
+
+        renderizarGrupos();
+        resultadoEl.textContent = "Grupos carregados. Agora cole a mensagem e envie.";
+        setStatus("Conectado", "ok");
+      } catch (error) {
+        listaEl.textContent = "Não consegui carregar grupos.";
+        resultadoEl.textContent = "Erro ao carregar grupos: " + error.message;
+        setStatus("Erro", "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🔄 Carregar grupos";
+      }
+    }
+
+    async function enviar() {
+      const btn = document.getElementById("btn-enviar");
+      const text = mensagemEl.value.trim();
+      const selectedGroups = selecionados();
+
+      if (!text) {
+        resultadoEl.textContent = "Cole a mensagem da oferta antes de enviar.";
+        return;
+      }
+
+      if (!selectedGroups.length) {
+        resultadoEl.textContent = "Selecione pelo menos um grupo.";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Enviando...";
+      resultadoEl.textContent = `Enviando para ${selectedGroups.length} grupo(s)...\nSe passar de 20 segundos, a tela libera sozinha.`;
+      setStatus("Enviando", "");
+
+      try {
+        const json = await botFetch("/queue/add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, selectedGroups })
+        }, 20000);
+
+        const added = json?.added ?? 1;
+        resultadoEl.textContent = `✅ Oferta adicionada à fila do robô.\nItens adicionados: ${added}\nDestino: ${selectedGroups.map(g => g.name).join(", ")}`;
+        setStatus("Fila atualizada", "ok");
+        btn.textContent = "✅ Enviado";
+        setTimeout(() => { btn.textContent = "🚀 Enviar para o robô"; }, 1800);
+      } catch (error) {
+        resultadoEl.textContent = "Erro: " + error.message;
+        setStatus("Erro", "error");
+        btn.textContent = "🚀 Enviar para o robô";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById("btn-carregar").addEventListener("click", carregarGrupos);
+    document.getElementById("btn-enviar").addEventListener("click", enviar);
+
+    document.getElementById("btn-todos").addEventListener("click", () => {
+      document.querySelectorAll(".grupo-check").forEach(input => { input.checked = true; });
+      atualizarResumo();
+    });
+
+    document.getElementById("btn-autorizados").addEventListener("click", () => {
+      const autorizados = new Set(gruposAutorizados.map(g => String(g.id)));
+      document.querySelectorAll(".grupo-check").forEach(input => {
+        input.checked = autorizados.has(String(input.value));
+      });
+      atualizarResumo();
+    });
+
+    document.getElementById("btn-limpar").addEventListener("click", () => {
+      document.querySelectorAll(".grupo-check").forEach(input => { input.checked = false; });
+      atualizarResumo();
+    });
+
+    document.getElementById("btn-limpar-msg").addEventListener("click", () => {
+      mensagemEl.value = "";
+      resultadoEl.textContent = "Mensagem limpa.";
+    });
+
+    document.getElementById("btn-colar").addEventListener("click", async () => {
+      try {
+        mensagemEl.value = await navigator.clipboard.readText();
+        resultadoEl.textContent = "Mensagem colada.";
+      } catch {
+        resultadoEl.textContent = "Não consegui colar automaticamente. Cole manualmente no campo.";
+      }
+    });
+
+    botFetch("/status", {}, 8000)
+      .then(json => setStatus(json?.status || "Online", "ok"))
+      .catch(() => setStatus("Não testado", ""));
+  </script>
+</body>
+</html>
