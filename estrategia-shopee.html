@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estratégia Shopee | Achou Levou Bot</title>
+  <meta name="theme-color" content="#07111f">
+  <style>
+    :root {
+      --bg: #07111f;
+      --card: rgba(15, 23, 42, 0.88);
+      --card2: #101a2b;
+      --input: rgba(2, 6, 23, 0.58);
+      --text: #e6edf3;
+      --muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.20);
+      --primary: #2dd4bf;
+      --accent: #38bdf8;
+      --orange: #fb6a18;
+      --yellow: #fbbf24;
+      --green: #22c55e;
+      --danger: #f87171;
+      --shadow: 0 22px 60px rgba(0, 0, 0, 0.38);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(251, 106, 24, 0.20), transparent 26rem),
+        radial-gradient(circle at top right, rgba(56, 189, 248, 0.16), transparent 24rem),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, Arial, Helvetica, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      padding: 14px;
+    }
+
+    .app {
+      margin: 0 auto;
+      max-width: 980px;
+      padding-bottom: 28px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(7, 17, 31, 0.92));
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      margin-bottom: 12px;
+      overflow: hidden;
+      padding: 18px;
+      position: relative;
+    }
+
+    .hero::after {
+      background: radial-gradient(circle, rgba(251, 106, 24, 0.32), transparent 60%);
+      content: "";
+      height: 160px;
+      position: absolute;
+      right: -60px;
+      top: -70px;
+      width: 160px;
+    }
+
+    .eyebrow {
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.14em;
+      margin: 0 0 6px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: clamp(34px, 9vw, 62px);
+      line-height: 0.98;
+      margin: 0;
+      max-width: 720px;
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 span { color: var(--orange); }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.4;
+      margin: 10px 0 0;
+      max-width: 720px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    a, button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn, button {
+      align-items: center;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      display: inline-flex;
+      font-family: inherit;
+      font-weight: 950;
+      justify-content: center;
+      min-height: 46px;
+      padding: 12px 13px;
+      text-align: center;
+      text-decoration: none;
+      width: 100%;
+    }
+
+    .btn-main {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #03131f;
+    }
+
+    .btn-orange {
+      background: linear-gradient(135deg, var(--orange), #f59e0b);
+      color: #fff;
+    }
+
+    .btn-soft {
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 15px;
+    }
+
+    .card.full { grid-column: 1 / -1; }
+
+    .head {
+      align-items: center;
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .icon {
+      align-items: center;
+      background: rgba(45, 212, 191, 0.14);
+      border: 1px solid rgba(45, 212, 191, 0.34);
+      border-radius: 16px;
+      display: inline-flex;
+      flex: 0 0 auto;
+      font-size: 24px;
+      height: 46px;
+      justify-content: center;
+      width: 46px;
+    }
+
+    .head h2 {
+      font-size: 20px;
+      line-height: 1.15;
+      margin: 0;
+    }
+
+    .head p {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+      margin: 3px 0 0;
+    }
+
+    .pill {
+      align-items: center;
+      background: rgba(251, 106, 24, 0.13);
+      border: 1px solid rgba(251, 106, 24, 0.34);
+      border-radius: 999px;
+      color: #fed7aa;
+      display: inline-flex;
+      font-size: 12px;
+      font-weight: 950;
+      justify-content: center;
+      padding: 8px 12px;
+    }
+
+    .now-box {
+      background: rgba(251, 106, 24, 0.12);
+      border: 1px solid rgba(251, 106, 24, 0.34);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .now-time {
+      color: var(--orange);
+      font-size: 40px;
+      font-weight: 1000;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .now-category {
+      font-size: 20px;
+      font-weight: 1000;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .now-tip {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.4;
+    }
+
+    .progress-wrap {
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      height: 14px;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .progress-bar {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      height: 100%;
+      transition: width .2s ease;
+    }
+
+    .counter {
+      color: var(--muted);
+      display: flex;
+      font-size: 12px;
+      font-weight: 900;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+
+    .list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .item {
+      align-items: center;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .item.done {
+      border-color: rgba(34, 197, 94, 0.45);
+      opacity: 0.72;
+    }
+
+    .check {
+      align-items: center;
+      appearance: none;
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: inline-flex;
+      flex: 0 0 auto;
+      height: 30px;
+      justify-content: center;
+      width: 30px;
+    }
+
+    .check:checked {
+      background: var(--green);
+      border-color: var(--green);
+    }
+
+    .check:checked::after {
+      color: white;
+      content: "✓";
+      font-size: 20px;
+      font-weight: 1000;
+    }
+
+    .item-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-title {
+      display: block;
+      font-size: 14px;
+      font-weight: 1000;
+      line-height: 1.25;
+    }
+
+    .item-sub {
+      color: var(--muted);
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+      margin-top: 3px;
+    }
+
+    .time-chip {
+      background: rgba(56, 189, 248, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.32);
+      border-radius: 11px;
+      color: #bae6fd;
+      flex: 0 0 auto;
+      font-size: 13px;
+      font-weight: 950;
+      padding: 7px 8px;
+    }
+
+    .hot {
+      background: rgba(251, 106, 24, 0.16);
+      border-color: rgba(251, 106, 24, 0.38);
+      color: #fed7aa;
+    }
+
+    .mix-row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 36px 1fr auto;
+      align-items: center;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      padding: 10px;
+    }
+
+    .mix-count {
+      align-items: center;
+      background: rgba(34, 197, 94, 0.16);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      border-radius: 12px;
+      color: #bbf7d0;
+      display: inline-flex;
+      font-weight: 1000;
+      height: 34px;
+      justify-content: center;
+      width: 34px;
+    }
+
+    .qty {
+      align-items: center;
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .qty button {
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid var(--border);
+      color: var(--text);
+      min-height: 32px;
+      padding: 0;
+      width: 34px;
+    }
+
+    .keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+
+    .keyword {
+      background: rgba(34, 197, 94, 0.09);
+      border: 1px solid rgba(34, 197, 94, 0.34);
+      border-radius: 14px;
+      color: var(--text);
+      font-size: 13px;
+      min-height: 38px;
+      padding: 9px 11px;
+      width: auto;
+    }
+
+    .keyword.copied {
+      background: rgba(45, 212, 191, 0.18);
+      border-color: rgba(45, 212, 191, 0.5);
+      color: #99f6e4;
+    }
+
+    .days {
+      display: grid;
+      gap: 8px;
+    }
+
+    .day-card {
+      align-items: center;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 44px 1fr;
+      padding: 10px;
+    }
+
+    .day-num {
+      align-items: center;
+      background: var(--yellow);
+      border-radius: 12px;
+      color: #111827;
+      display: inline-flex;
+      font-weight: 1000;
+      height: 36px;
+      justify-content: center;
+      width: 36px;
+    }
+
+    .textarea {
+      background: var(--input);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.45;
+      min-height: 100px;
+      outline: none;
+      padding: 12px;
+      resize: vertical;
+      width: 100%;
+    }
+
+    .toast {
+      background: rgba(2, 6, 23, 0.92);
+      border: 1px solid rgba(45, 212, 191, 0.42);
+      border-radius: 999px;
+      bottom: 14px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 900;
+      left: 50%;
+      opacity: 0;
+      padding: 11px 15px;
+      pointer-events: none;
+      position: fixed;
+      transform: translate(-50%, 12px);
+      transition: .2s ease;
+      z-index: 20;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 12px; }
+      .grid { grid-template-columns: 1fr; }
+      .nav { grid-template-columns: 1fr; }
+      .card, .hero { border-radius: 22px; padding: 14px; }
+      .now-time { font-size: 34px; }
+      .item { align-items: flex-start; }
+      .time-chip { margin-top: 2px; }
+      .mix-row { grid-template-columns: 36px 1fr; }
+      .qty { grid-column: 1 / -1; }
+      .keyword { flex: 1 1 calc(50% - 9px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <p class="eyebrow">Painel de trabalho</p>
+      <h1>Estratégia de <span>Postagem Shopee</span></h1>
+      <p class="subtitle">Use este painel para saber o que postar, quando postar, quais palavras garimpar e o que já foi feito hoje.</p>
+      <div class="nav">
+        <a class="btn btn-soft" href="./?v=52&safe=1">⬅️ Central de Ofertas</a>
+        <a class="btn btn-main" href="enviar-grupos.html?v=1&safe=1">🚀 Enviar por grupo</a>
+        <a class="btn btn-orange" href="https://bot.achoulevoubot.uk/painel" target="_blank">🤖 Painel WhatsApp</a>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <div class="head">
+          <div class="icon">🎯</div>
+          <div>
+            <h2>O que postar agora</h2>
+            <p>Baseado no horário recomendado da estratégia.</p>
+          </div>
+        </div>
+        <div class="now-box">
+          <div id="now-time" class="now-time">--:--</div>
+          <div id="now-category" class="now-category">Carregando...</div>
+          <div id="now-tip" class="now-tip">A próxima faixa de postagem aparece aqui.</div>
+        </div>
+        <div class="actions" style="margin-top:12px;display:grid;gap:8px;grid-template-columns:1fr 1fr;">
+          <button class="btn-soft" id="copy-now">📋 Copiar tema</button>
+          <a class="btn btn-main" href="enviar-grupos.html?v=1&safe=1">🚀 Enviar oferta</a>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <div class="icon">📊</div>
+          <div>
+            <h2>Progresso do dia</h2>
+            <p>Meta prática: 15 ofertas por grupo.</p>
+          </div>
+        </div>
+        <div class="progress-wrap"><div id="daily-bar" class="progress-bar" style="width:0%"></div></div>
+        <div class="counter"><span id="daily-count">0 de 15 ofertas</span><span id="daily-percent">0%</span></div>
+        <div class="actions" style="margin-top:12px;display:grid;gap:8px;grid-template-columns:1fr 1fr;">
+          <button class="btn-soft" id="reset-today">🔄 Zerar hoje</button>
+          <button class="btn-orange" id="finish-day">🏁 Fechar 15</button>
+        </div>
+      </section>
+
+      <section class="card full">
+        <div class="head">
+          <div class="icon">⏰</div>
+          <div>
+            <h2>Horários recomendados</h2>
+            <p>Marque conforme postar. O progresso fica salvo no celular.</p>
+          </div>
+        </div>
+        <div id="schedule-list" class="list"></div>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <div class="icon">📦</div>
+          <div>
+            <h2>Mix ideal das 15 ofertas</h2>
+            <p>Use os botões + e - para controlar o que já separou.</p>
+          </div>
+        </div>
+        <div id="mix-list" class="list"></div>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <div class="icon">🔎</div>
+          <div>
+            <h2>Palavras-chave para garimpar</h2>
+            <p>Toque para copiar e pesquisar na Shopee.</p>
+          </div>
+        </div>
+        <div id="keywords" class="keywords"></div>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <div class="icon">📅</div>
+          <div>
+            <h2>Plano dos próximos 7 dias</h2>
+            <p>Uma direção por dia, sem postar no escuro.</p>
+          </div>
+        </div>
+        <div id="days" class="days"></div>
+      </section>
+
+      <section class="card">
+        <div class="head">
+          <div class="icon">🏆</div>
+          <div>
+            <h2>Campeões para repostar</h2>
+            <p>Anote produtos que venderam ou chamaram atenção.</p>
+          </div>
+        </div>
+        <textarea id="champions" class="textarea" placeholder="Ex: Coberdrom casal, fone Bose, organizador de cozinha..."></textarea>
+        <div class="actions" style="margin-top:10px;display:grid;gap:8px;grid-template-columns:1fr 1fr;">
+          <button id="save-notes" class="btn-main">💾 Salvar notas</button>
+          <button id="copy-notes" class="btn-soft">📋 Copiar notas</button>
+        </div>
+      </section>
+
+      <section class="card full">
+        <div class="head">
+          <div class="icon">🧠</div>
+          <div>
+            <h2>Resumo estratégico</h2>
+            <p>O foco é repetir o que converte, variar preço, horário e chamada.</p>
+          </div>
+        </div>
+        <div class="list">
+          <div class="item"><div class="icon" style="height:38px;width:38px;font-size:20px;">🛍️</div><div><strong class="item-title">Seu público compra utilidade + roupa + presente + economia.</strong><span class="item-sub">Mulheres 81,7%, faixa forte 35-44 e 45+.</span></div></div>
+          <div class="item"><div class="icon" style="height:38px;width:38px;font-size:20px;">🔁</div><div><strong class="item-title">Reposte campeões com nova chamada.</strong><span class="item-sub">Produto que já engajou merece segunda chance em horário nobre.</span></div></div>
+          <div class="item"><div class="icon" style="height:38px;width:38px;font-size:20px;">🎯</div><div><strong class="item-title">Menos aleatório, mais foco.</strong><span class="item-sub">Use o mix e os horários para não cansar os grupos.</span></div></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Copiado!</div>
+
+  <script>
+    const STORAGE = "estrategia_shopee_v1";
+
+    const schedule = [
+      { time: "06:00", title: "Casa / limpeza / utilidade barata", hot: false, keywords: ["limpeza casa", "organizador casa", "cozinha"] },
+      { time: "08:00", title: "Moda feminina ou calçado", hot: false, keywords: ["calça feminina", "sapatilha feminina", "sandália feminina"] },
+      { time: "10:30", title: "Beleza / cuidado pessoal", hot: false, keywords: ["beleza feminina", "escova secadora", "meia feminina"] },
+      { time: "12:00", title: "Produto família ou infantil", hot: false, keywords: ["kit família", "camiseta família", "presente família"] },
+      { time: "14:00", title: "Casa / cozinha / organização", hot: false, keywords: ["organizador casa", "cozinha", "limpeza casa"] },
+      { time: "16:00", title: "Produto de preço baixo e fácil de comprar", hot: false, keywords: ["promoção casa", "achadinhos", "utilidade barata"] },
+      { time: "18:00", title: "Melhor oferta do dia", hot: true, keywords: ["oferta relâmpago", "mais vendido", "cupom"] },
+      { time: "19:30", title: "Moda feminina / ferramenta / maior valor", hot: false, keywords: ["bota feminina", "furadeira", "moda plus size"] },
+      { time: "21:00", title: "Oferta forte + Shopee Vídeo", hot: false, keywords: ["produto viral", "cozinha", "beleza feminina"] },
+      { time: "22:00", title: "Produto viral ou beleza", hot: false, keywords: ["chinelo nuvem", "escova secadora", "produto viral"] }
+    ];
+
+    const mix = [
+      { id: "moda", target: 4, name: "Moda feminina / calçados / roupa confortável" },
+      { id: "casa", target: 4, name: "Casa, limpeza, cozinha, organização e utilidades" },
+      { id: "beleza", target: 3, name: "Beleza, cuidado pessoal e higiene" },
+      { id: "familia", target: 2, name: "Família, infantil, presentes e camisetas" },
+      { id: "ferramenta", target: 1, name: "Ferramenta / carro / produto mais masculino" },
+      { id: "viral", target: 1, name: "Teste livre, produto viral ou novidade" }
+    ];
+
+    const keywords = [
+      "calça feminina", "sapatilha feminina", "bota feminina", "sandália feminina", "moda plus size", "kit família",
+      "camiseta família", "lava jato portátil", "furadeira", "organizador casa", "limpeza casa", "cozinha",
+      "escova secadora", "beleza feminina", "meia feminina", "chinelo nuvem"
+    ];
+
+    const days = [
+      "Moda feminina + calçados",
+      "Casa, limpeza e organização",
+      "Beleza e cuidado pessoal",
+      "Família, infantil e presentes",
+      "Ferramentas leves e utilidades",
+      "Mistão dos produtos que já venderam",
+      "Repostar os campeões com nova chamada"
+    ];
+
+    function todayKey() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+
+    function loadState() {
+      try {
+        const all = JSON.parse(localStorage.getItem(STORAGE) || "{}");
+        return all[todayKey()] || { schedule: {}, mix: {}, notes: "" };
+      } catch {
+        return { schedule: {}, mix: {}, notes: "" };
+      }
+    }
+
+    function saveState(state) {
+      let all = {};
+      try { all = JSON.parse(localStorage.getItem(STORAGE) || "{}"); } catch {}
+      all[todayKey()] = state;
+      localStorage.setItem(STORAGE, JSON.stringify(all));
+    }
+
+    let state = loadState();
+
+    function toast(text) {
+      const el = document.getElementById("toast");
+      el.textContent = text;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 1400);
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast("Copiado: " + text);
+      } catch {
+        toast("Não consegui copiar. Segure e copie manualmente.");
+      }
+    }
+
+    function minutes(time) {
+      const [h,m] = time.split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function currentSlot() {
+      const now = new Date();
+      const current = now.getHours() * 60 + now.getMinutes();
+      let selected = schedule[0];
+      for (const slot of schedule) {
+        if (minutes(slot.time) <= current) selected = slot;
+      }
+      return selected;
+    }
+
+    function renderNow() {
+      const now = new Date();
+      const slot = currentSlot();
+      document.getElementById("now-time").textContent = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      document.getElementById("now-category").textContent = slot.title;
+      document.getElementById("now-tip").textContent = `Tema indicado para agora: ${slot.keywords.join(", ")}.`;
+    }
+
+    function renderSchedule() {
+      const wrap = document.getElementById("schedule-list");
+      wrap.innerHTML = schedule.map((item, index) => {
+        const done = !!state.schedule[item.time];
+        return `
+          <label class="item ${done ? "done" : ""}">
+            <input class="check schedule-check" type="checkbox" data-time="${item.time}" ${done ? "checked" : ""}>
+            <span class="time-chip ${item.hot ? "hot" : ""}">${item.time}</span>
+            <span class="item-main">
+              <strong class="item-title">${item.title}</strong>
+              <span class="item-sub">Sugestões: ${item.keywords.join(", ")}</span>
+            </span>
+          </label>
+        `;
+      }).join("");
+
+      document.querySelectorAll(".schedule-check").forEach(input => {
+        input.addEventListener("change", () => {
+          state.schedule[input.dataset.time] = input.checked;
+          saveState(state);
+          renderSchedule();
+          updateProgress();
+        });
+      });
+    }
+
+    function renderMix() {
+      const wrap = document.getElementById("mix-list");
+      wrap.innerHTML = mix.map(item => {
+        const done = Number(state.mix[item.id] || 0);
+        return `
+          <div class="mix-row">
+            <span class="mix-count">${item.target}</span>
+            <span class="item-main">
+              <strong class="item-title">${item.name}</strong>
+              <span class="item-sub">Separadas: ${done} de ${item.target}</span>
+            </span>
+            <span class="qty">
+              <button data-mix="${item.id}" data-action="minus">−</button>
+              <strong>${done}</strong>
+              <button data-mix="${item.id}" data-action="plus">+</button>
+            </span>
+          </div>
+        `;
+      }).join("");
+
+      document.querySelectorAll("[data-mix]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const id = btn.dataset.mix;
+          const current = Number(state.mix[id] || 0);
+          state.mix[id] = Math.max(0, current + (btn.dataset.action === "plus" ? 1 : -1));
+          saveState(state);
+          renderMix();
+          updateProgress();
+        });
+      });
+    }
+
+    function renderKeywords() {
+      const wrap = document.getElementById("keywords");
+      wrap.innerHTML = keywords.map(word => `<button class="keyword" data-word="${word}">${word}</button>`).join("");
+      document.querySelectorAll(".keyword").forEach(btn => {
+        btn.addEventListener("click", () => {
+          copyText(btn.dataset.word);
+          btn.classList.add("copied");
+          setTimeout(() => btn.classList.remove("copied"), 900);
+        });
+      });
+    }
+
+    function renderDays() {
+      const wrap = document.getElementById("days");
+      wrap.innerHTML = days.map((text, index) => `
+        <div class="day-card">
+          <span class="day-num">${index + 1}</span>
+          <strong class="item-title">Dia ${index + 1} → ${text}</strong>
+        </div>
+      `).join("");
+    }
+
+    function updateProgress() {
+      const scheduleDone = Object.values(state.schedule || {}).filter(Boolean).length;
+      const mixDone = Object.values(state.mix || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+      const total = Math.min(15, Math.max(scheduleDone, mixDone));
+      const percent = Math.round((total / 15) * 100);
+      document.getElementById("daily-bar").style.width = percent + "%";
+      document.getElementById("daily-count").textContent = `${total} de 15 ofertas`;
+      document.getElementById("daily-percent").textContent = `${percent}%`;
+    }
+
+    document.getElementById("copy-now").addEventListener("click", () => {
+      const slot = currentSlot();
+      copyText(`${slot.title}\nPalavras-chave: ${slot.keywords.join(", ")}`);
+    });
+
+    document.getElementById("reset-today").addEventListener("click", () => {
+      if (!confirm("Zerar o progresso de hoje?")) return;
+      state = { schedule: {}, mix: {}, notes: "" };
+      document.getElementById("champions").value = "";
+      saveState(state);
+      renderSchedule();
+      renderMix();
+      updateProgress();
+      toast("Progresso zerado");
+    });
+
+    document.getElementById("finish-day").addEventListener("click", () => {
+      mix.forEach(item => state.mix[item.id] = item.target);
+      saveState(state);
+      renderMix();
+      updateProgress();
+      toast("Meta de 15 marcada");
+    });
+
+    document.getElementById("save-notes").addEventListener("click", () => {
+      state.notes = document.getElementById("champions").value;
+      saveState(state);
+      toast("Notas salvas");
+    });
+
+    document.getElementById("copy-notes").addEventListener("click", () => copyText(document.getElementById("champions").value || "Sem notas."));
+
+    document.getElementById("champions").value = state.notes || "";
+    renderNow();
+    renderSchedule();
+    renderMix();
+    renderKeywords();
+    renderDays();
+    updateProgress();
+    setInterval(renderNow, 30000);
+  </script>
+</body>
+</html>
