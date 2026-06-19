@@ -47,9 +47,9 @@
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=52">
-    <link rel="stylesheet" href="progress-style.css?v=52">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=52">
+    <link rel="stylesheet" href="style.css?v=53">
+    <link rel="stylesheet" href="progress-style.css?v=53">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=53">
 </head>
 <body>
     <div class="app-shell">
@@ -82,6 +82,20 @@
             <div>
                 <strong>Fluxo limpo</strong>
                 <p>Cole o link, gere a mensagem com IA, salve na fila e envie para o robô. Use “Enviar por grupo” quando quiser escolher destinos específicos.</p>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="section-heading">
+                <span>🎯</span>
+                <div>
+                    <strong>Painéis de apoio</strong>
+                    <small>Use a estratégia para guiar o dia e depois envie por grupo.</small>
+                </div>
+            </div>
+            <div class="actions">
+                <a href="estrategia-shopee.html?v=1&safe=1" class="btn-main">📊 Estratégia Shopee</a>
+                <a href="enviar-grupos.html?v=1&safe=1" class="btn-secondary">🚀 Enviar por grupo</a>
             </div>
         </section>
 
@@ -225,18 +239,18 @@
         </div>
     </div>
 
-    <script src="script.js?v=52"></script>
-    <script src="progress-loader.js?v=52"></script>
-    <script src="app-dialog.js?v=52"></script>
-    <script src="shopee-helper.js?v=52"></script>
-    <script src="gemini-client.js?v=52"></script>
-    <script src="product-message-patch.js?v=52"></script>
-    <script src="bot-queue-integration.js?v=52"></script>
+    <script src="script.js?v=53"></script>
+    <script src="progress-loader.js?v=53"></script>
+    <script src="app-dialog.js?v=53"></script>
+    <script src="shopee-helper.js?v=53"></script>
+    <script src="gemini-client.js?v=53"></script>
+    <script src="product-message-patch.js?v=53"></script>
+    <script src="bot-queue-integration.js?v=53"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=52')
+                navigator.serviceWorker.register('./sw.js?v=53')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
