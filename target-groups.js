@@ -7,6 +7,116 @@
   let gruposAutorizados = [];
   let carregou = false;
 
+  function injectStyles() {
+    if (document.getElementById("target-groups-scroll-style")) return;
+
+    const style = document.createElement("style");
+    style.id = "target-groups-scroll-style";
+    style.textContent = `
+      .target-groups-card {
+        background: var(--input-bg);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        display: grid;
+        gap: 10px;
+        margin: 12px 0;
+        padding: 12px;
+      }
+
+      .target-groups-head strong {
+        color: var(--text);
+        display: block;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      .target-groups-head small,
+      .target-groups-summary {
+        color: var(--muted);
+        display: block;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.35;
+        margin-top: 4px;
+      }
+
+      .target-groups-actions {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .target-groups-actions .btn-secondary {
+        min-height: 40px;
+        padding: 10px 8px;
+      }
+
+      .target-groups-list {
+        background: rgba(2, 6, 23, 0.18);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        display: grid;
+        gap: 8px;
+        max-height: 220px;
+        overflow-y: auto;
+        padding: 8px;
+        scrollbar-width: thin;
+      }
+
+      .target-groups-list::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .target-groups-list::-webkit-scrollbar-thumb {
+        background: rgba(45, 212, 191, 0.45);
+        border-radius: 999px;
+      }
+
+      .target-group-option {
+        align-items: center;
+        background: var(--card-solid);
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        color: var(--text);
+        display: flex;
+        gap: 10px;
+        margin: 0;
+        min-height: 42px;
+        padding: 10px;
+      }
+
+      .target-group-option input {
+        flex: 0 0 auto;
+        width: auto;
+      }
+
+      .target-group-option span {
+        flex: 1;
+        font-size: 12px;
+        font-weight: 900;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+      }
+
+      .saved-target-badge {
+        color: var(--primary) !important;
+        font-weight: 950 !important;
+      }
+
+      @media (max-width: 520px) {
+        .target-groups-list {
+          max-height: 185px;
+        }
+
+        .target-groups-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
   function escapeHtml(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, char => ({
       "&": "&amp;",
@@ -147,6 +257,8 @@
   }
 
   function criarCardDestino() {
+    injectStyles();
+
     if (document.getElementById("target-groups-card")) return;
 
     const preview = document.getElementById("msg-preview");
@@ -468,6 +580,7 @@
   }
 
   async function iniciar() {
+    injectStyles();
     criarCardDestino();
     substituirEnvioDoRobo();
     interceptarSalvarNaFila();
