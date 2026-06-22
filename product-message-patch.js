@@ -64,7 +64,7 @@ window.addEventListener('load', function () {
     if (temValor(desconto)) linhas.push(`🔥 *${desconto}!*`);
     if (temValor(cupom)) linhas.push(cupomEhFrete ? `🚚 *Frete grátis:* ${cupom}` : `🎫 *Cupom:* ${cupom}`);
     linhas.push('');
-    linhas.push('🔒 *Compre com segurança no site oficial:');
+    linhas.push('🔒 *Compre com segurança no site oficial:*');
     linhas.push(`🛒 *Link ${loja}:* ${link}`);
 
     const mensagem = linhas.join('\n');
@@ -79,13 +79,13 @@ window.addEventListener('load', function () {
   const botaoTodas = document.getElementById('btn-enviar-todas-robo');
   if (!lista) return;
 
-  let holdTimer = null;
-  let drag = null;
-
   const style = document.createElement('style');
   style.textContent = `
-    .saved-index{touch-action:none;user-select:none;cursor:grab;position:relative}.saved-index::after{content:'↕';font-size:10px;margin-left:4px;opacity:.75}.saved-card.map-dragging{position:fixed!important;z-index:999998!important;pointer-events:none!important;box-shadow:0 22px 55px rgba(0,0,0,.55)!important;outline:2px solid rgba(45,212,191,.9)!important;transform:scale(.985);opacity:.98}.map-placeholder{border:2px dashed rgba(45,212,191,.75);border-radius:24px;background:rgba(45,212,191,.08);margin:10px 0}.reorder-toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:999999;background:rgba(15,23,42,.96);border:1px solid rgba(45,212,191,.45);border-radius:999px;color:#e6edf3;font-size:12px;font-weight:900;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,.35);pointer-events:none;text-align:center;max-width:92vw}`;
+    .saved-index{touch-action:manipulation;user-select:none;cursor:pointer;position:relative}.saved-index::after{content:'✎';font-size:10px;margin-left:4px;opacity:.8}.saved-index.edit-mode{outline:2px solid rgba(251,191,36,.85);box-shadow:0 0 0 4px rgba(251,191,36,.12)}.reorder-toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:999999;background:rgba(15,23,42,.96);border:1px solid rgba(45,212,191,.45);border-radius:999px;color:#e6edf3;font-size:12px;font-weight:900;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,.35);pointer-events:none;text-align:center;max-width:92vw}`;
   document.head.appendChild(style);
+
+  function cards() { return Array.from(lista.querySelectorAll('.saved-card')); }
+  function textoDoCard(card) { return card.querySelector('pre')?.textContent?.trim() || ''; }
 
   function toast(texto) {
     let t = document.querySelector('.reorder-toast');
@@ -96,128 +96,98 @@ window.addEventListener('load', function () {
     }
     t.textContent = texto;
     clearTimeout(t._timer);
-    t._timer = setTimeout(() => t.remove(), 1600);
+    t._timer = setTimeout(() => t.remove(), 1700);
   }
 
-  function cards() { return Array.from(lista.querySelectorAll('.saved-card')); }
-  function textoDoCard(card) { return card.querySelector('pre')?.textContent?.trim() || ''; }
   function renumerar() {
     cards().forEach((card, index) => {
       const idx = card.querySelector('.saved-index');
       if (idx) idx.textContent = String(index + 1).padStart(2, '0');
     });
   }
+
   function lerLocalStorage() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORAGE_OFERTAS) || '[]');
       return Array.isArray(raw) ? raw : [];
     } catch { return []; }
   }
+
   function salvarOrdemAtual() {
     const textos = cards().map(textoDoCard).filter(Boolean);
     const antigos = lerLocalStorage();
     const mapa = new Map();
+
     antigos.forEach(item => {
       const texto = typeof item === 'string' ? item : (item.texto || item.mensagem || item.message || item.text || '');
       if (!texto) return;
       if (!mapa.has(texto)) mapa.set(texto, []);
       mapa.get(texto).push(item);
     });
+
     const novos = textos.map((texto, index) => {
       const listaItens = mapa.get(texto) || [];
       const item = listaItens.shift();
       if (item && typeof item === 'object') return { ...item, texto, ordem: index + 1 };
       return { id: Date.now() + index, texto, criadoEm: new Date().toISOString(), ordem: index + 1 };
     });
+
     localStorage.setItem(STORAGE_OFERTAS, JSON.stringify(novos));
     renumerar();
   }
 
-  function positionCard(clientY) {
-    if (!drag) return;
-    const top = clientY - drag.offsetY;
-    drag.card.style.top = `${top}px`;
+  function trocarPosicao(origem, destino) {
+    const listaCards = cards();
+    const cardOrigem = listaCards[origem];
+    const cardDestino = listaCards[destino];
+    if (!cardOrigem || !cardDestino || cardOrigem === cardDestino) return false;
 
-    const viewportH = window.innerHeight;
-    if (clientY < 90) window.scrollBy(0, -12);
-    if (clientY > viewportH - 90) window.scrollBy(0, 12);
-
-    const sortable = cards().filter(card => card !== drag.card);
-    let inserted = false;
-    for (const card of sortable) {
-      const rect = card.getBoundingClientRect();
-      if (clientY < rect.top + rect.height / 2) {
-        lista.insertBefore(drag.placeholder, card);
-        inserted = true;
-        break;
-      }
-    }
-    if (!inserted) lista.appendChild(drag.placeholder);
-    renumerar();
-  }
-
-  function startDrag(card, event) {
-    const rect = card.getBoundingClientRect();
-    const placeholder = document.createElement('div');
-    placeholder.className = 'map-placeholder';
-    placeholder.style.height = `${rect.height}px`;
-    lista.insertBefore(placeholder, card);
-
-    drag = {
-      card,
-      placeholder,
-      offsetY: event.clientY - rect.top,
-      width: rect.width,
-      left: rect.left,
-      pointerId: event.pointerId
-    };
-
-    card.classList.add('map-dragging');
-    card.style.width = `${rect.width}px`;
-    card.style.left = `${rect.left}px`;
-    card.style.top = `${rect.top}px`;
-    document.body.style.userSelect = 'none';
-    toast('🔓 Arraste a oferta para cima ou para baixo.');
-    positionCard(event.clientY);
-  }
-
-  function finishDrag() {
-    clearTimeout(holdTimer);
-    holdTimer = null;
-    if (!drag) return;
-
-    const { card, placeholder } = drag;
-    lista.insertBefore(card, placeholder);
-    placeholder.remove();
-    card.classList.remove('map-dragging');
-    card.style.width = '';
-    card.style.left = '';
-    card.style.top = '';
-    document.body.style.userSelect = '';
-    drag = null;
+    const novaOrdem = listaCards.slice();
+    novaOrdem[origem] = cardDestino;
+    novaOrdem[destino] = cardOrigem;
+    novaOrdem.forEach(card => lista.appendChild(card));
     salvarOrdemAtual();
-    toast('✅ Ordem salva. Enviar todas seguirá essa sequência.');
+    return true;
   }
 
-  lista.addEventListener('pointerdown', function (event) {
+  function abrirEditorNumero(card) {
+    const listaCards = cards();
+    const origem = listaCards.indexOf(card);
+    if (origem < 0) return;
+
+    const total = listaCards.length;
+    const atual = origem + 1;
+    const badge = card.querySelector('.saved-index');
+    if (badge) badge.classList.add('edit-mode');
+
+    const resposta = prompt(`Mover oferta ${String(atual).padStart(2, '0')} para qual número?\nDigite de 1 a ${total}.\n\nExemplo: digite 10 para trocar com a posição 10.`, String(atual));
+
+    if (badge) badge.classList.remove('edit-mode');
+    if (resposta === null) return;
+
+    const destinoNumero = Number(String(resposta).replace(/\D/g, ''));
+    if (!Number.isInteger(destinoNumero) || destinoNumero < 1 || destinoNumero > total) {
+      alert(`Número inválido. Use um número de 1 a ${total}.`);
+      return;
+    }
+
+    const destino = destinoNumero - 1;
+    if (destino === origem) return;
+
+    if (trocarPosicao(origem, destino)) {
+      toast(`✅ Oferta ${String(atual).padStart(2, '0')} trocada com a ${String(destinoNumero).padStart(2, '0')}.`);
+    }
+  }
+
+  lista.addEventListener('click', function (event) {
     const handle = event.target.closest('.saved-index');
     if (!handle) return;
     const card = handle.closest('.saved-card');
     if (!card) return;
-
     event.preventDefault();
-    clearTimeout(holdTimer);
-    holdTimer = setTimeout(() => startDrag(card, event), 450);
-  }, { passive: false });
-
-  window.addEventListener('pointermove', function (event) {
-    if (!drag) return;
-    event.preventDefault();
-    positionCard(event.clientY);
-  }, { passive: false });
-
-  window.addEventListener('pointerup', finishDrag);
-  window.addEventListener('pointercancel', finishDrag);
+    event.stopPropagation();
+    abrirEditorNumero(card);
+  });
 
   if (botaoTodas) {
     botaoTodas.addEventListener('click', async function (event) {
