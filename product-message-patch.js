@@ -30,11 +30,7 @@ window.addEventListener('load', function () {
   }
 
   function moedaNumero(valor = '') {
-    return parseFloat(
-      String(valor || '')
-        .replace(/[^\d,]/g, '')
-        .replace(',', '.')
-    ) || 0;
+    return parseFloat(String(valor || '').replace(/[^\d,]/g, '').replace(',', '.')) || 0;
   }
 
   function temValor(valor = '') {
@@ -45,25 +41,17 @@ window.addEventListener('load', function () {
   function calcularDesconto(de, por) {
     const valorDe = moedaNumero(de);
     const valorPor = moedaNumero(por);
-
-    if (valorDe > valorPor && valorPor > 0) {
-      return `${Math.floor(((valorDe - valorPor) / valorDe) * 100)}% OFF`;
-    }
-
+    if (valorDe > valorPor && valorPor > 0) return `${Math.floor(((valorDe - valorPor) / valorDe) * 100)}% OFF`;
     return '';
   }
 
   function detectarLoja(link = '') {
     const escolha = selectLoja?.value || 'auto';
-
     if (escolha !== 'auto') return escolha;
-
     const l = String(link).toLowerCase();
-
     if (l.includes('shopee') || l.includes('shp.ee') || l.includes('collshp')) return 'Shopee';
     if (l.includes('mercadolivre') || l.includes('mercado livre') || l.includes('meli.la')) return 'Mercado Livre';
     if (l.includes('amazon') || l.includes('amzn.to')) return 'Amazon';
-
     return 'Loja oficial';
   }
 
@@ -77,41 +65,21 @@ window.addEventListener('load', function () {
     const loja = detectarLoja(link);
     const cupomEhFrete = /frete|gr[aá]tis/i.test(cupom);
 
-    if (!produto || produto === 'Buscando...') {
-      alert('Puxe os dados primeiro ou preencha o produto manualmente!');
-      return;
-    }
-
-    if (!link) {
-      alert('Cole o link de afiliado antes de gerar a mensagem.');
-      return;
-    }
+    if (!produto || produto === 'Buscando...') return alert('Puxe os dados primeiro ou preencha o produto manualmente!');
+    if (!link) return alert('Cole o link de afiliado antes de gerar a mensagem.');
 
     const linhas = [];
-
     linhas.push(`🔥 *${tituloCurto(produto)}!*`);
     linhas.push('');
-
     if (temValor(precoDe)) linhas.push(`❌ De: ~${precoDe}~`);
-
     linhas.push(`💰 *POR APENAS: ${temValor(precoPor) ? precoPor : 'Confira no site'}*`);
-
     if (temValor(desconto)) linhas.push(`🔥 *${desconto}!*`);
-
-    if (temValor(cupom)) {
-      linhas.push(
-        cupomEhFrete
-          ? `🚚 *Frete grátis:* ${cupom}`
-          : `🎫 *Cupom:* ${cupom}`
-      );
-    }
-
+    if (temValor(cupom)) linhas.push(cupomEhFrete ? `🚚 *Frete grátis:* ${cupom}` : `🎫 *Cupom:* ${cupom}`);
     linhas.push('');
     linhas.push('🔒 *Compre com segurança no site oficial:*');
     linhas.push(`🛒 *Link ${loja}:* ${link}`);
 
     const mensagem = linhas.join('\n');
-
     window.__ultimaMensagemAchouLevou = mensagem;
     messageBox.innerText = mensagem;
   };
@@ -124,12 +92,11 @@ window.addEventListener('load', function () {
   if (!lista) return;
 
   let timer = null;
-  let cardAtivo = null;
-  let emMovimento = false;
+  let cardSelecionado = null;
 
   const style = document.createElement('style');
   style.textContent = `
-    .saved-index{touch-action:none;user-select:none;cursor:grab;position:relative}.saved-index::after{content:'↕';font-size:10px;margin-left:4px;opacity:.75}.saved-card.reorder-active{outline:2px solid rgba(45,212,191,.85);box-shadow:0 0 0 4px rgba(45,212,191,.12),0 18px 44px rgba(0,0,0,.45);transform:scale(.985);opacity:.96}.reorder-toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:999999;background:rgba(15,23,42,.96);border:1px solid rgba(45,212,191,.45);border-radius:999px;color:#e6edf3;font-size:12px;font-weight:900;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,.35);pointer-events:none}`;
+    .saved-index{touch-action:manipulation;user-select:none;cursor:pointer;position:relative}.saved-index::after{content:'↕';font-size:10px;margin-left:4px;opacity:.75}.saved-card.reorder-source{outline:2px solid rgba(45,212,191,.9);box-shadow:0 0 0 4px rgba(45,212,191,.12),0 18px 44px rgba(0,0,0,.45)}.saved-card.reorder-target{outline:2px dashed rgba(251,191,36,.85)}.reorder-toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:999999;background:rgba(15,23,42,.96);border:1px solid rgba(45,212,191,.45);border-radius:999px;color:#e6edf3;font-size:12px;font-weight:900;padding:10px 14px;box-shadow:0 12px 32px rgba(0,0,0,.35);pointer-events:none;text-align:center;max-width:92vw}`;
   document.head.appendChild(style);
 
   function cards() {
@@ -145,7 +112,12 @@ window.addEventListener('load', function () {
     }
     t.textContent = texto;
     clearTimeout(t._timer);
-    t._timer = setTimeout(() => t.remove(), 1600);
+    t._timer = setTimeout(() => t.remove(), 1900);
+  }
+
+  function limparSelecao() {
+    cards().forEach(card => card.classList.remove('reorder-source', 'reorder-target'));
+    cardSelecionado = null;
   }
 
   function renumerar() {
@@ -159,9 +131,7 @@ window.addEventListener('load', function () {
     try {
       const raw = JSON.parse(localStorage.getItem(STORAGE_OFERTAS) || '[]');
       return Array.isArray(raw) ? raw : [];
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   }
 
   function textoDoCard(card) {
@@ -183,9 +153,7 @@ window.addEventListener('load', function () {
     const novos = textos.map((texto, index) => {
       const listaItens = mapa.get(texto) || [];
       const item = listaItens.shift();
-      if (item && typeof item === 'object') {
-        return { ...item, texto, ordem: index + 1 };
-      }
+      if (item && typeof item === 'object') return { ...item, texto, ordem: index + 1 };
       return { id: Date.now() + index, texto, criadoEm: new Date().toISOString(), ordem: index + 1 };
     });
 
@@ -193,24 +161,33 @@ window.addEventListener('load', function () {
     renumerar();
   }
 
-  function moverPorY(y) {
-    if (!cardAtivo) return;
-    const outros = cards().filter(card => card !== cardAtivo);
-    const alvo = outros.find(card => {
-      const rect = card.getBoundingClientRect();
-      return y < rect.top + rect.height / 2;
-    });
-
-    if (alvo) lista.insertBefore(cardAtivo, alvo);
-    else lista.appendChild(cardAtivo);
-    renumerar();
+  function selecionar(card) {
+    limparSelecao();
+    cardSelecionado = card;
+    card.classList.add('reorder-source');
+    toast('🔓 Oferta selecionada. Toque no número do card onde ela deve ficar.');
   }
 
-  function iniciarMovimento(card) {
-    cardAtivo = card;
-    emMovimento = true;
-    card.classList.add('reorder-active');
-    toast('🔓 Movendo oferta. Arraste pelo número e solte para salvar.');
+  function moverPara(cardDestino) {
+    if (!cardSelecionado || cardSelecionado === cardDestino) {
+      limparSelecao();
+      return;
+    }
+
+    const origemIndex = cards().indexOf(cardSelecionado);
+    const destinoIndex = cards().indexOf(cardDestino);
+
+    cardDestino.classList.add('reorder-target');
+
+    if (origemIndex < destinoIndex) {
+      lista.insertBefore(cardSelecionado, cardDestino.nextSibling);
+    } else {
+      lista.insertBefore(cardSelecionado, cardDestino);
+    }
+
+    salvarOrdemAtual();
+    limparSelecao();
+    toast('✅ Ordem salva. Enviar todas seguirá essa sequência.');
   }
 
   lista.addEventListener('pointerdown', function (event) {
@@ -219,34 +196,30 @@ window.addEventListener('load', function () {
     const card = handle.closest('.saved-card');
     if (!card) return;
 
-    timer = setTimeout(() => iniciarMovimento(card), 650);
+    timer = setTimeout(() => selecionar(card), 600);
   }, { passive: true });
 
-  window.addEventListener('pointermove', function (event) {
-    if (!emMovimento || !cardAtivo) return;
-    event.preventDefault();
-    moverPorY(event.clientY);
-  }, { passive: false });
-
-  window.addEventListener('pointerup', function () {
+  lista.addEventListener('pointerup', function (event) {
     clearTimeout(timer);
-    timer = null;
+    const handle = event.target.closest('.saved-index');
+    if (!handle) return;
+    const card = handle.closest('.saved-card');
+    if (!card) return;
 
-    if (emMovimento && cardAtivo) {
-      cardAtivo.classList.remove('reorder-active');
-      salvarOrdemAtual();
-      toast('✅ Nova ordem salva. Enviar todas seguirá esta sequência.');
+    if (cardSelecionado && cardSelecionado !== card) {
+      moverPara(card);
     }
-
-    cardAtivo = null;
-    emMovimento = false;
   });
 
-  window.addEventListener('pointercancel', function () {
+  lista.addEventListener('pointercancel', function () {
     clearTimeout(timer);
-    if (cardAtivo) cardAtivo.classList.remove('reorder-active');
-    cardAtivo = null;
-    emMovimento = false;
+  });
+
+  document.addEventListener('click', function (event) {
+    if (!cardSelecionado) return;
+    if (event.target.closest('.saved-index')) return;
+    if (event.target.closest('.saved-card')) return;
+    limparSelecao();
   });
 
   if (botaoTodas) {
