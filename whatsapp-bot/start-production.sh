@@ -12,8 +12,28 @@ mkdir -p "$PUPPETEER_CACHE_DIR"
 # Reaplica correções idempotentes depois de qualquer git pull ou restauração.
 node runtime-fixes.mjs
 
-# O whatsapp-web.js depende de uma versão compatível do Chrome no cache do Puppeteer.
-if ! find "$PUPPETEER_CACHE_DIR" -type f -name chrome -perm -u+x -print -quit 2>/dev/null | grep -q .; then
+# Descobre a versão exata do Chrome exigida pelo puppeteer-core instalado.
+EXPECTED_CHROME="$(node - <<'NODE'
+try {
+  const revisions = require('./node_modules/puppeteer-core/lib/cjs/puppeteer/revisions.js');
+  process.stdout.write(String(revisions.PUPPETEER_REVISIONS?.chrome || ''));
+} catch {
+  process.stdout.write('');
+}
+NODE
+)"
+
+CHROME_READY=false
+if [[ -n "$EXPECTED_CHROME" ]]; then
+  if find "$PUPPETEER_CACHE_DIR" -type f -name chrome -path "*${EXPECTED_CHROME}*" -perm -u+x -print -quit 2>/dev/null | grep -q .; then
+    CHROME_READY=true
+  fi
+elif find "$PUPPETEER_CACHE_DIR" -type f -name chrome -perm -u+x -print -quit 2>/dev/null | grep -q .; then
+  CHROME_READY=true
+fi
+
+# Instala a versão compatível quando ela não existir, mesmo que haja uma versão antiga no cache.
+if [[ "$CHROME_READY" != true ]]; then
   AVAILABLE_KB="$(df -Pk / | awk 'NR==2 { print $4 }')"
 
   if [[ -n "$AVAILABLE_KB" && "$AVAILABLE_KB" -lt 900000 ]]; then
@@ -22,7 +42,7 @@ if ! find "$PUPPETEER_CACHE_DIR" -type f -name chrome -perm -u+x -print -quit 2>
     exit 1
   fi
 
-  echo "🌐 Chrome do Puppeteer não encontrado. Instalando automaticamente..."
+  echo "🌐 Chrome compatível não encontrado. Instalando automaticamente..."
   npx puppeteer browsers install chrome
 fi
 
