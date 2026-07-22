@@ -5,6 +5,7 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$APP_DIR"
 
 export PORT="${PORT:-3010}"
+export TZ="${TZ:-America/Sao_Paulo}"
 export PUPPETEER_CACHE_DIR="${PUPPETEER_CACHE_DIR:-$HOME/.cache/puppeteer}"
 
 mkdir -p "$PUPPETEER_CACHE_DIR"
@@ -12,6 +13,7 @@ mkdir -p "$PUPPETEER_CACHE_DIR"
 # Reaplica correções idempotentes depois de qualquer git pull ou restauração.
 node runtime-fixes.mjs
 node panel-groups-retry.mjs
+node timezone-fix.mjs
 
 # Descobre a versão exata do Chrome exigida pelo puppeteer-core instalado.
 EXPECTED_CHROME="$(node - <<'NODE'
