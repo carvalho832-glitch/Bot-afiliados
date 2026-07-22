@@ -23,6 +23,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: '3010',
+        TZ: 'America/Sao_Paulo',
         PUPPETEER_CACHE_DIR: path.join(os.homedir(), '.cache', 'puppeteer')
       }
     }
