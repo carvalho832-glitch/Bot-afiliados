@@ -11,6 +11,7 @@ mkdir -p "$PUPPETEER_CACHE_DIR"
 
 # Reaplica correções idempotentes depois de qualquer git pull ou restauração.
 node runtime-fixes.mjs
+node panel-groups-retry.mjs
 
 # Descobre a versão exata do Chrome exigida pelo puppeteer-core instalado.
 EXPECTED_CHROME="$(node - <<'NODE'
