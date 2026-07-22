@@ -16,10 +16,11 @@ fi
 
 npm install
 node runtime-fixes.mjs
+node panel-groups-retry.mjs
 
-# Remove o fiscal antigo, que reiniciava o processo em intervalos fixos.
+# Remove somente processos antigos que realmente interferem no bot.
+# O processo achou-levou-timer é independente e deve permanecer ativo.
 pm2 delete fiscal-grupos-observador >/dev/null 2>&1 || true
-pm2 delete achou-levou-timer >/dev/null 2>&1 || true
 pm2 delete achou-levou-whatsapp >/dev/null 2>&1 || true
 
 pm2 start ecosystem.config.cjs
