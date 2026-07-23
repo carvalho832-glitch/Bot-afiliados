@@ -1,0 +1,28 @@
+name: Verificar Bot WhatsApp
+
+on:
+  push:
+    paths:
+      - 'whatsapp-bot/**'
+      - '.github/workflows/check-whatsapp-bot.yml'
+  pull_request:
+    paths:
+      - 'whatsapp-bot/**'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: whatsapp-bot
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Instalar dependências sem baixar navegador
+        run: npm install --ignore-scripts
+      - name: Verificar sintaxe e scripts
+        run: npm run check
