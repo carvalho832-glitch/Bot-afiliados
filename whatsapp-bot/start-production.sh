@@ -10,15 +10,10 @@ export PUPPETEER_CACHE_DIR="${PUPPETEER_CACHE_DIR:-$HOME/.cache/puppeteer}"
 
 mkdir -p "$PUPPETEER_CACHE_DIR"
 
-# Reaplica correções idempotentes depois de qualquer git pull ou restauração.
-node runtime-fixes.mjs
-node panel-groups-retry.mjs
-node timezone-fix.mjs
-node queue-readiness-fix.mjs
-node queue-direct-send-fix.mjs
-node ghost-groups-fix.mjs
+node --check server.js
+node --check bot-store.mjs
+node --check bot-engine.mjs
 
-# Descobre a versão exata do Chrome exigida pelo puppeteer-core instalado.
 EXPECTED_CHROME="$(node - <<'NODE'
 try {
   const revisions = require('./node_modules/puppeteer-core/lib/cjs/puppeteer/revisions.js');
@@ -38,17 +33,14 @@ elif find "$PUPPETEER_CACHE_DIR" -type f -name chrome -perm -u+x -print -quit 2>
   CHROME_READY=true
 fi
 
-# Instala a versão compatível quando ela não existir, mesmo que haja uma versão antiga no cache.
 if [[ "$CHROME_READY" != true ]]; then
   AVAILABLE_KB="$(df -Pk / | awk 'NR==2 { print $4 }')"
-
   if [[ -n "$AVAILABLE_KB" && "$AVAILABLE_KB" -lt 900000 ]]; then
     echo "❌ Espaço insuficiente para instalar o Chrome do Puppeteer."
-    echo "Disponível: $((AVAILABLE_KB / 1024)) MB. Libere pelo menos 900 MB e tente novamente."
+    echo "Disponível: $((AVAILABLE_KB / 1024)) MB. Libere pelo menos 900 MB."
     exit 1
   fi
-
-  echo "🌐 Chrome compatível não encontrado. Instalando automaticamente..."
+  echo "🌐 Instalando o Chrome compatível com o Puppeteer..."
   npx puppeteer browsers install chrome
 fi
 
