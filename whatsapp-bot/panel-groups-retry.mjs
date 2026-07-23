@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const serverFile = path.join(__dirname, 'server.js');
 const retryMarker = 'ACHOU_LEVOU_GRUPOS_RETRY_V1';
-const stableMarker = 'ACHOU_LEVOU_GRUPOS_ESTAVEIS_V2';
+const stableMarker = 'ACHOU_LEVOU_GRUPOS_ESTAVEIS_V3';
 
 if (!fs.existsSync(serverFile)) {
   throw new Error(`Arquivo não encontrado: ${serverFile}`);
@@ -36,21 +36,32 @@ if (!source.includes(retryMarker)) {
 
 if (!source.includes(stableMarker)) {
   const stateAnchor = 'let gruposDisponiveis = [];';
-  if (!source.includes(stateAnchor)) {
-    throw new Error('Não foi possível localizar o estado da lista de grupos.');
+  if (!source.includes('let gruposCarregando = false;')) {
+    if (!source.includes(stateAnchor)) {
+      throw new Error('Não foi possível localizar o estado da lista de grupos.');
+    }
+    source = source.replace(
+      stateAnchor,
+      `${stateAnchor}\nlet gruposCarregando = false;\nlet gruposCarregadosUmaVez = false;`
+    );
   }
-
-  source = source.replace(
-    stateAnchor,
-    `${stateAnchor}\nlet gruposCarregando = false;\nlet gruposCarregadosUmaVez = false; // ${stableMarker}`
-  );
 
   const loadGroupsPattern = /async function carregarGrupos\(\) \{[\s\S]*?\n\}\n\nasync function salvarConfiguracao/;
   const loadGroupsReplacement = `async function carregarGrupos() {
+  // ${stableMarker}: atualiza a lista sem desfazer escolhas ainda não salvas.
   if (gruposCarregando) return;
   gruposCarregando = true;
 
   const box = document.getElementById('gruposLista');
+  const checksAntes = Array.from(document.querySelectorAll('.grupo-check'));
+  const haviaSelecaoNaTela = checksAntes.length > 0;
+  const idsMarcadosAntes = new Set(
+    checksAntes.filter(input => input.checked).map(input => String(input.value))
+  );
+  const categoriasAntes = {};
+  document.querySelectorAll('.categoria-grupo').forEach(select => {
+    categoriasAntes[String(select.dataset.id)] = select.value || 'geral';
+  });
 
   try {
     const resposta = await fetch('/groups?ts=' + Date.now(), { cache: 'no-store' });
@@ -61,7 +72,6 @@ if (!source.includes(stableMarker)) {
     }
 
     const novosGrupos = Array.isArray(json.groups) ? json.groups : [];
-
     if (!novosGrupos.length) {
       throw new Error('Nenhum grupo retornado pelo WhatsApp.');
     }
@@ -69,10 +79,20 @@ if (!source.includes(stableMarker)) {
     gruposDisponiveis = novosGrupos;
     gruposCarregadosUmaVez = true;
     renderizarGrupos();
+
+    if (haviaSelecaoNaTela) {
+      document.querySelectorAll('.grupo-check').forEach(input => {
+        input.checked = idsMarcadosAntes.has(String(input.value));
+      });
+      document.querySelectorAll('.categoria-grupo').forEach(select => {
+        const id = String(select.dataset.id);
+        if (categoriasAntes[id]) select.value = categoriasAntes[id];
+      });
+      atualizarResumoGrupos();
+    }
   } catch (erro) {
     console.warn('Falha temporária ao atualizar grupos:', erro.message);
 
-    // Se a lista já apareceu, nunca a apaga por causa de uma falha temporária.
     if (gruposCarregadosUmaVez || gruposDisponiveis.length) return;
 
     const fallback = Array.isArray(settingsAtual?.selectedGroups)
@@ -102,7 +122,7 @@ async function salvarConfiguracao`;
 
 if (changed) {
   fs.writeFileSync(serverFile, source, 'utf8');
-  console.log('✅ Painel configurado para manter a lista de grupos estável.');
+  console.log('✅ Painel atualizado sem desfazer a seleção manual dos grupos.');
 } else {
-  console.log('✅ Proteção da lista de grupos já está aplicada.');
+  console.log('✅ Proteção da seleção de grupos já está aplicada.');
 }
