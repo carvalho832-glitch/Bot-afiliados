@@ -14,6 +14,7 @@ mkdir -p "$PUPPETEER_CACHE_DIR"
 node runtime-fixes.mjs
 node panel-groups-retry.mjs
 node timezone-fix.mjs
+node queue-readiness-fix.mjs
 
 # Descobre a versão exata do Chrome exigida pelo puppeteer-core instalado.
 EXPECTED_CHROME="$(node - <<'NODE'
