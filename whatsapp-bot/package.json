@@ -1,14 +1,15 @@
 {
   "name": "achou-levou-whatsapp-bot",
-  "version": "1.1.0",
-  "description": "Bot WhatsApp do Achou Levou com inicialização resiliente, reparo automático e PM2.",
+  "version": "2.0.0",
+  "description": "Bot WhatsApp Achou Levou com fila persistente, grupos ativos e painel estável.",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "bash start-production.sh",
     "start:raw": "node server.js",
-    "repair": "node runtime-fixes.mjs",
     "setup:production": "bash setup-server.sh",
+    "check": "node --check server.js && node --check bot-store.mjs && node --check bot-engine.mjs && bash -n start-production.sh && bash -n setup-server.sh",
+    "doctor": "bash bot-doctor.sh",
     "dev": "node --watch server.js"
   },
   "dependencies": {
