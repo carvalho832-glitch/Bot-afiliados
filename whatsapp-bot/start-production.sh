@@ -16,6 +16,7 @@ node panel-groups-retry.mjs
 node timezone-fix.mjs
 node queue-readiness-fix.mjs
 node queue-direct-send-fix.mjs
+node ghost-groups-fix.mjs
 
 # Descobre a versão exata do Chrome exigida pelo puppeteer-core instalado.
 EXPECTED_CHROME="$(node - <<'NODE'
