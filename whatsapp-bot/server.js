@@ -102,13 +102,30 @@ app.get('/settings', (req, res) => {
   res.json({ ok: true, settings: getSettings(), categorias: CATEGORIAS });
 });
 
-app.post('/settings', (req, res) => {
+app.post('/settings', async (req, res) => {
   const allowed = ['enabled', 'selectedGroups', 'groups', 'groupCategories', 'windowStart', 'windowEnd', 'intervalMinutes', 'offersPerBatch', 'dailyLimit'];
   const partial = {};
   for (const key of allowed) {
     if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) partial[key] = req.body[key];
   }
-  res.json({ ok: true, settings: saveSettings(partial) });
+
+  const settings = saveSettings(partial);
+  let queue = getQueueSummary();
+
+  if (!settings.enabled) {
+    queue = stopQueue();
+  } else if (queue.running && queue.pending > 0) {
+    try {
+      const restarted = await startQueue();
+      queue = restarted.queue;
+      console.log('[FILA] Configuração alterada; temporizador recalculado imediatamente.');
+    } catch (error) {
+      console.warn('[FILA] Configuração salva, mas o reagendamento aguardará o watchdog:', error?.message || error);
+      queue = getQueueSummary();
+    }
+  }
+
+  res.json({ ok: true, settings, queue });
 });
 
 app.get('/groups', async (req, res) => {
