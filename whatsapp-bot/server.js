@@ -30,6 +30,7 @@ import {
   getDiagnostics,
   initializeBot
 } from './bot-engine.mjs';
+import { startQueueWatchdog } from './queue-watchdog.mjs';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3010);
@@ -209,6 +210,7 @@ process.on('uncaughtException', error => {
 });
 
 initializeBot();
+startQueueWatchdog();
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[SERVIDOR] Bot v2.0.0 rodando em http://localhost:${PORT}`);
