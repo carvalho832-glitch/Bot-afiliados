@@ -38,13 +38,11 @@ export function startQueueWatchdog() {
       const blockReason = getBlockReason(connection.status, settings);
       if (blockReason) return;
 
-      const nextRunAtMs = runtime.nextRunAt ? Date.parse(runtime.nextRunAt) : 0;
-      const timerStale = !Number.isFinite(nextRunAtMs) || nextRunAtMs <= Date.now() + WATCHDOG_INTERVAL_MS;
-
-      if (timerStale) {
-        console.log('[WATCHDOG] Fila liberada e pendente. Acionando novo ciclo.');
-        await processQueue();
-      }
+      // Quando as configurações mudam, o setTimeout antigo pode continuar apontando
+      // para um horário calculado com o intervalo anterior. Se não existe bloqueio
+      // real neste momento, a fila já está liberada e deve ser processada agora.
+      console.log('[WATCHDOG] Fila liberada e pendente. Acionando novo ciclo.');
+      await processQueue();
     } catch (error) {
       console.error('[WATCHDOG] Falha ao verificar fila:', error?.stack || error);
     } finally {
