@@ -1,14 +1,14 @@
-const CACHE_VERSION = 'achou-levou-v46-sem-beneficio'; 
+const CACHE_VERSION = 'achou-levou-v54-painel-apoio-removido'; 
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
 self.addEventListener('install', (event) => {
-    console.log('Achou Levou interface bot v46 instalada.');
+    console.log('Achou Levou interface bot v54 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface bot v46 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface bot v54 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
