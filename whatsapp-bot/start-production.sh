@@ -7,12 +7,14 @@ cd "$APP_DIR"
 export PORT="${PORT:-3010}"
 export TZ="${TZ:-America/Sao_Paulo}"
 export PUPPETEER_CACHE_DIR="${PUPPETEER_CACHE_DIR:-$HOME/.cache/puppeteer}"
+export SEND_DEDUP_TTL_MS="${SEND_DEDUP_TTL_MS:-120000}"
 
 mkdir -p "$PUPPETEER_CACHE_DIR"
 
 node --check server.js
 node --check bot-store.mjs
 node --check bot-engine.mjs
+node --check whatsapp-safe-preload.cjs
 
 EXPECTED_CHROME="$(node - <<'NODE'
 try {
@@ -44,4 +46,4 @@ if [[ "$CHROME_READY" != true ]]; then
   npx puppeteer browsers install chrome
 fi
 
-exec node server.js
+exec node --require ./whatsapp-safe-preload.cjs server.js
