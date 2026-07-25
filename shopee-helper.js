@@ -117,7 +117,12 @@
         try {
             const dados = await puxarShopeePelaApi(link);
             preencherCampos(dados);
-            alert('Dados da Shopee processados! ✅');
+
+            if (dados?.origem === 'shopee-fallback') {
+                alert(`A Shopee não retornou os dados automáticos.\n\nMotivo: ${dados.aviso || 'motivo não informado'}\n\nEnvie esse aviso para ajustarmos o sistema.`);
+            } else {
+                alert('Dados da Shopee processados! ✅');
+            }
         } catch (erro) {
             console.error('Erro Shopee API:', erro);
             displayProduto.value = displayProduto.value === 'Buscando na Shopee...' ? 'Oferta Shopee com desconto' : displayProduto.value;
