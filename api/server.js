@@ -5,6 +5,7 @@ import crypto from 'crypto';
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SHOPEE_API_URL = 'https://open-api.affiliate.shopee.com.br/graphql';
+const MICROLINK_API_URL = 'https://api.microlink.io';
 
 app.use(cors({
   origin: '*',
@@ -150,7 +151,7 @@ async function resolverLinkShopee(link) {
     ultimoLink = atual;
 
     const idsDiretos = extrairIdsShopee(atual);
-    if (idsDiretos) return { linkExpandido: atual, ids: idsDiretos };
+    if (idsDiretos) return { linkExpandido: atual, ids: idsDiretos, metodo: 'redirect-http' };
 
     const destinoParametro = extrairDestinoDeParametros(atual);
     if (destinoParametro && !visitados.has(destinoParametro)) candidatos.unshift(destinoParametro);
@@ -191,7 +192,7 @@ async function resolverLinkShopee(link) {
 
         for (const url of urls) {
           const ids = extrairIdsShopee(url);
-          if (ids) return { linkExpandido: url, ids };
+          if (ids) return { linkExpandido: url, ids, metodo: 'html-http' };
           if (!visitados.has(url)) candidatos.push(url);
         }
       }
@@ -200,7 +201,61 @@ async function resolverLinkShopee(link) {
     }
   }
 
-  return { linkExpandido: ultimoLink, ids: extrairIdsShopee(ultimoLink) };
+  return { linkExpandido: ultimoLink, ids: extrairIdsShopee(ultimoLink), metodo: 'http-sem-ids' };
+}
+
+async function resolverLinkViaNavegador(link) {
+  try {
+    const url = new URL(MICROLINK_API_URL);
+    url.searchParams.set('url', link);
+    url.searchParams.set('prerender', 'true');
+    url.searchParams.set('ttl', '0');
+
+    const resposta = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+
+    const json = await resposta.json().catch(() => null);
+    if (!resposta.ok || json?.status !== 'success') {
+      throw new Error(json?.message || `Navegador remoto respondeu HTTP ${resposta.status}.`);
+    }
+
+    const candidatos = [
+      json?.data?.url,
+      json?.data?.canonical?.url,
+      json?.data?.author?.url,
+      ...extrairUrlsDoTexto(JSON.stringify(json || {}))
+    ].filter(Boolean);
+
+    for (const candidato of candidatos) {
+      const limpo = decodificarVariasVezes(candidato);
+      const ids = extrairIdsShopee(limpo);
+      if (ids) {
+        return {
+          linkExpandido: limpo,
+          ids,
+          metodo: 'navegador-remoto',
+          tituloDetectado: limparTexto(json?.data?.title || '')
+        };
+      }
+    }
+
+    return {
+      linkExpandido: limparTexto(json?.data?.url || link),
+      ids: null,
+      metodo: 'navegador-remoto-sem-ids',
+      tituloDetectado: limparTexto(json?.data?.title || '')
+    };
+  } catch (erro) {
+    console.warn('Falha no navegador remoto para link Shopee:', erro.message);
+    return {
+      linkExpandido: link,
+      ids: null,
+      metodo: 'navegador-remoto-erro',
+      erro: erro.message
+    };
+  }
 }
 
 function criarAutorizacaoShopee(payload) {
@@ -268,7 +323,7 @@ async function consultarProdutoShopee({ shopId, itemId }) {
   return produto;
 }
 
-function normalizarProdutoShopee(produto, linkOriginal, linkExpandido) {
+function normalizarProdutoShopee(produto, linkOriginal, linkExpandido, metodoResolucao) {
   const minimo = Number(produto.priceMin || produto.price || 0);
   const maximo = Number(produto.priceMax || produto.price || minimo || 0);
   const descontoPercentual = Number(produto.priceDiscountRate || 0);
@@ -294,6 +349,7 @@ function normalizarProdutoShopee(produto, linkOriginal, linkExpandido) {
     linkOferta,
     linkOriginal,
     linkExpandido,
+    metodoResolucao,
     imagem: limparTexto(produto.imageUrl || ''),
     itemId: String(produto.itemId || ''),
     shopId: String(produto.shopId || ''),
@@ -347,18 +403,35 @@ app.get('/shopee/produto', async (req, res) => {
   }
 
   try {
-    const resolucao = await resolverLinkShopee(link);
+    let resolucao = await resolverLinkShopee(link);
+
+    if (!resolucao.ids) {
+      const resolucaoNavegador = await resolverLinkViaNavegador(link);
+      if (resolucaoNavegador.ids || resolucaoNavegador.linkExpandido !== link) {
+        resolucao = resolucaoNavegador;
+      }
+    }
 
     if (!resolucao.ids) {
       return res.json(respostaFallbackShopee(
         link,
-        'Não consegui identificar itemId e shopId depois de seguir os redirecionamentos do link curto.',
-        { linkExpandido: resolucao.linkExpandido }
+        'Não consegui identificar itemId e shopId mesmo usando o navegador remoto para abrir o link curto.',
+        {
+          linkExpandido: resolucao.linkExpandido,
+          metodoResolucao: resolucao.metodo,
+          tituloDetectado: resolucao.tituloDetectado || '',
+          detalheResolucao: resolucao.erro || ''
+        }
       ));
     }
 
     const produto = await consultarProdutoShopee(resolucao.ids);
-    return res.json(normalizarProdutoShopee(produto, link, resolucao.linkExpandido));
+    return res.json(normalizarProdutoShopee(
+      produto,
+      link,
+      resolucao.linkExpandido,
+      resolucao.metodo
+    ));
   } catch (error) {
     console.error('Erro na API oficial da Shopee:', error);
     return res.json(respostaFallbackShopee(
