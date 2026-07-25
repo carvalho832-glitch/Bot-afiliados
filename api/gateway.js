@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 
@@ -7,6 +8,12 @@ const PORT = Number(process.env.PORT || 3000);
 const INTERNAL_PORT = Number(process.env.INTERNAL_API_PORT || 3001);
 const INTERNAL_URL = `http://127.0.0.1:${INTERNAL_PORT}`;
 
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization']
+}));
+app.options('*', cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
