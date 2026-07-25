@@ -47,9 +47,9 @@
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=54">
-    <link rel="stylesheet" href="progress-style.css?v=54">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=54">
+    <link rel="stylesheet" href="style.css?v=56">
+    <link rel="stylesheet" href="progress-style.css?v=56">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=56">
 </head>
 <body>
     <div class="app-shell">
@@ -75,9 +75,7 @@
         </section>
 
         <section class="card intro-card">
-            <div class="robot-mark" aria-hidden="true">
-                <span></span>
-            </div>
+            <div class="robot-mark" aria-hidden="true"><span></span></div>
             <div>
                 <strong>Fluxo limpo</strong>
                 <p>Cole o link, gere a mensagem com IA, salve na fila e envie para o robô.</p>
@@ -88,10 +86,7 @@
             <section class="card input-box">
                 <div class="section-heading">
                     <span>1</span>
-                    <div>
-                        <strong>Produto</strong>
-                        <small>Cole o link da oferta</small>
-                    </div>
+                    <div><strong>Produto</strong><small>Cole o link da oferta</small></div>
                 </div>
 
                 <label for="input-link">Link do produto</label>
@@ -112,10 +107,7 @@
             <section class="card fields-grid">
                 <div class="section-heading">
                     <span>2</span>
-                    <div>
-                        <strong>Dados da oferta</strong>
-                        <small>Edite se precisar</small>
-                    </div>
+                    <div><strong>Dados da oferta</strong><small>Edite se precisar</small></div>
                 </div>
 
                 <div class="field">
@@ -143,10 +135,7 @@
             <section class="card message-card">
                 <div class="section-heading">
                     <span>3</span>
-                    <div>
-                        <strong>Mensagem da IA</strong>
-                        <small>Pode editar antes de salvar</small>
-                    </div>
+                    <div><strong>Mensagem da IA</strong><small>Pode editar antes de salvar</small></div>
                 </div>
 
                 <div id="msg-preview" class="message-editor" contenteditable="true" role="textbox" aria-label="Mensagem gerada pela IA">Aguardando geração...</div>
@@ -168,13 +157,11 @@
                     <h2>Ofertas salvas</h2>
                     <small id="total-ofertas">0 salva(s)</small>
                 </div>
-
                 <div class="saved-header-actions">
                     <button id="btn-enviar-todas-robo" class="btn-secondary" type="button">🚀 Enviar todas ao robô</button>
                     <button id="btn-limpar-ofertas" class="btn-secondary danger-soft" type="button">Excluir todas</button>
                 </div>
             </div>
-
             <div id="lista-salvas"></div>
         </section>
     </div>
@@ -183,40 +170,24 @@
         <div class="loader-card tech-loader-card">
             <div class="tech-grid"></div>
             <div class="scan-line"></div>
-
-            <div class="loader-status-pill">
-                <span class="status-dot"></span>
-                IA garimpando oferta
-            </div>
-
+            <div class="loader-status-pill"><span class="status-dot"></span>IA garimpando oferta</div>
             <div class="tech-robot-stage">
                 <div class="holo-ring ring-one"></div>
                 <div class="holo-ring ring-two"></div>
                 <div class="data-orbit orbit-one"></div>
                 <div class="data-orbit orbit-two"></div>
-
                 <div class="tech-robot">
                     <div class="robot-antenna"></div>
-                    <div class="robot-head">
-                        <div class="robot-visor">
-                            <span></span>
-                            <span></span>
-                        </div>
-                    </div>
+                    <div class="robot-head"><div class="robot-visor"><span></span><span></span></div></div>
                     <div class="robot-neck"></div>
-                    <div class="robot-body">
-                        <div class="robot-core"></div>
-                    </div>
+                    <div class="robot-body"><div class="robot-core"></div></div>
                 </div>
             </div>
-
             <p class="loader-title" id="loader-title">Analisando produto...</p>
             <p class="loader-subtitle" id="loader-subtitle">preparando captura de dados</p>
-
             <div class="progress-bar-container tech-progress" id="loader-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                 <div id="loader-progress-bar" class="progress-bar-animated" style="width: 0%;"></div>
             </div>
-
             <div class="loader-progress-meta">
                 <span id="loader-progress-text">0%</span>
                 <span id="loader-progress-phase">iniciando</span>
@@ -224,18 +195,18 @@
         </div>
     </div>
 
-    <script src="script.js?v=54"></script>
-    <script src="progress-loader.js?v=54"></script>
-    <script src="app-dialog.js?v=54"></script>
-    <script src="shopee-helper.js?v=54"></script>
-    <script src="gemini-client.js?v=54"></script>
-    <script src="product-message-patch.js?v=54"></script>
-    <script src="bot-queue-integration.js?v=54"></script>
+    <script src="script.js?v=56"></script>
+    <script src="progress-loader.js?v=56"></script>
+    <script src="app-dialog.js?v=56"></script>
+    <script src="shopee-helper.js?v=56"></script>
+    <script src="gemini-client.js?v=56"></script>
+    <script src="product-message-patch.js?v=56"></script>
+    <script src="bot-queue-integration.js?v=56"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=54')
+                navigator.serviceWorker.register('./sw.js?v=56')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
