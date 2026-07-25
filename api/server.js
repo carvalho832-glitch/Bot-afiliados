@@ -22,17 +22,12 @@ function limparTexto(valor = '') {
 function extrairLink(valor = '') {
   const texto = limparTexto(valor);
   const encontrado = texto.match(/https?:\/\/[^\s]+/);
-  return encontrado ? encontrado[0] : texto;
+  return encontrado ? encontrado[0].replace(/[),.;]+$/, '') : texto;
 }
 
 function temValor(valor = '') {
   const texto = limparTexto(valor);
-  return Boolean(
-    texto &&
-    texto !== 'R$ 0,00' &&
-    texto !== '0' &&
-    texto.toLowerCase() !== 'não informado'
-  );
+  return Boolean(texto && texto !== 'R$ 0,00' && texto !== '0' && texto.toLowerCase() !== 'não informado');
 }
 
 function montarMensagem(dados = {}) {
@@ -61,15 +56,25 @@ function montarMensagem(dados = {}) {
 function formatarMoeda(valor) {
   const numero = Number(valor);
   if (!Number.isFinite(numero) || numero <= 0) return '';
-  return numero.toLocaleString('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2
-  });
+  return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
+}
+
+function decodificar(valor = '') {
+  let atual = String(valor || '');
+  for (let i = 0; i < 4; i += 1) {
+    try {
+      const proximo = decodeURIComponent(atual);
+      if (proximo === atual) break;
+      atual = proximo;
+    } catch {
+      break;
+    }
+  }
+  return atual.replace(/\\u002F/gi, '/').replace(/\\\//g, '/').replace(/&amp;/gi, '&');
 }
 
 function extrairIdsShopee(valor = '') {
-  const texto = String(valor || '');
+  const texto = decodificar(String(valor || ''));
   const padroes = [
     /\/product\/(\d+)\/(\d+)/i,
     /-i\.(\d+)\.(\d+)/i,
@@ -96,33 +101,130 @@ function limparCodigoShopee(valor = '') {
   return limparTexto(valor).toUpperCase().replace(/\s+/g, '');
 }
 
+function extrairUrls(texto = '') {
+  const conteudo = decodificar(texto);
+  return [...new Set((conteudo.match(/https?:\/\/[^\s"'<>\\]+/gi) || []).map(url => url.replace(/[),.;]+$/, '')))];
+}
+
+function montarLinkCompleto(ids) {
+  if (!ids?.shopId || !ids?.itemId) return '';
+  return `https://shopee.com.br/product/${ids.shopId}/${ids.itemId}`;
+}
+
+async function requisitarComTimeout(url, opcoes = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...opcoes, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function converterLinkCurtoShopee(linkOriginal) {
+  const idsDiretos = extrairIdsShopee(linkOriginal);
+  if (idsDiretos) {
+    return {
+      ok: true,
+      linkCompleto: montarLinkCompleto(idsDiretos),
+      ids: idsDiretos,
+      metodo: 'link-direto'
+    };
+  }
+
+  const fila = [linkOriginal];
+  const visitados = new Set();
+  let ultimoLink = linkOriginal;
+  const erros = [];
+
+  while (fila.length && visitados.size < 12) {
+    const atual = fila.shift();
+    if (!atual || visitados.has(atual)) continue;
+    visitados.add(atual);
+    ultimoLink = atual;
+
+    const idsAtual = extrairIdsShopee(atual);
+    if (idsAtual) {
+      return { ok: true, linkCompleto: montarLinkCompleto(idsAtual), ids: idsAtual, metodo: 'redirecionamento' };
+    }
+
+    try {
+      const resposta = await requisitarComTimeout(atual, {
+        method: 'GET',
+        redirect: 'manual',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      const location = resposta.headers.get('location');
+      if (location) {
+        const proximo = new URL(location, atual).toString();
+        const idsLocation = extrairIdsShopee(proximo);
+        if (idsLocation) {
+          return { ok: true, linkCompleto: montarLinkCompleto(idsLocation), ids: idsLocation, metodo: 'header-location' };
+        }
+        if (!visitados.has(proximo)) fila.unshift(proximo);
+      }
+
+      if (resposta.url && resposta.url !== atual && !visitados.has(resposta.url)) fila.unshift(resposta.url);
+
+      const tipo = resposta.headers.get('content-type') || '';
+      if (/text|html|json|javascript/i.test(tipo)) {
+        const corpo = await resposta.text();
+        const candidatos = extrairUrls(corpo).filter(url => /shopee\.com\.br|s\.shopee\.com\.br|shp\.ee/i.test(url));
+
+        const canonical = corpo.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)/i)?.[1] ||
+          corpo.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)/i)?.[1];
+        if (canonical) candidatos.unshift(new URL(decodificar(canonical), atual).toString());
+
+        const refresh = corpo.match(/http-equiv=["']?refresh["']?[^>]*content=["'][^;]+;\s*url=([^"']+)/i)?.[1];
+        if (refresh) candidatos.unshift(new URL(decodificar(refresh), atual).toString());
+
+        for (const candidato of candidatos) {
+          const ids = extrairIdsShopee(candidato);
+          if (ids) {
+            return { ok: true, linkCompleto: montarLinkCompleto(ids), ids, metodo: 'html' };
+          }
+          if (!visitados.has(candidato)) fila.push(candidato);
+        }
+      }
+    } catch (erro) {
+      erros.push(erro?.name === 'AbortError' ? 'tempo esgotado' : erro.message);
+    }
+  }
+
+  return {
+    ok: false,
+    linkCompleto: ultimoLink,
+    ids: null,
+    metodo: 'nao-convertido',
+    detalhe: erros.filter(Boolean).slice(-3).join(' | ')
+  };
+}
+
 function criarAutorizacaoShopee(payload) {
   const appId = limparTexto(process.env.SHOPEE_APP_ID);
   const secret = limparTexto(process.env.SHOPEE_SECRET);
   if (!appId || !secret) throw new Error('Credenciais da Shopee não configuradas no servidor.');
 
   const timestamp = Math.floor(Date.now() / 1000).toString();
-  const assinatura = crypto
-    .createHash('sha256')
-    .update(`${appId}${timestamp}${payload}${secret}`, 'utf8')
-    .digest('hex');
-
+  const assinatura = crypto.createHash('sha256').update(`${appId}${timestamp}${payload}${secret}`, 'utf8').digest('hex');
   return `SHA256 Credential=${appId}, Timestamp=${timestamp}, Signature=${assinatura}`;
 }
 
 async function executarConsultaShopee(query) {
   const payload = JSON.stringify({ query });
   const authorization = criarAutorizacaoShopee(payload);
-
-  const resposta = await fetch(SHOPEE_API_URL, {
+  const resposta = await requisitarComTimeout(SHOPEE_API_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': authorization
-    },
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': authorization },
     body: payload
-  });
+  }, 15000);
 
   const json = await resposta.json().catch(() => null);
   if (!resposta.ok) throw new Error(`Shopee respondeu com HTTP ${resposta.status}.`);
@@ -134,46 +236,18 @@ async function executarConsultaShopee(query) {
 }
 
 function camposProdutoShopee() {
-  return `
-    itemId
-    shopId
-    productName
-    productLink
-    offerLink
-    imageUrl
-    shopName
-    price
-    priceMin
-    priceMax
-    priceDiscountRate
-    sales
-    ratingStar
-    commission
-    commissionRate
-  `;
+  return `itemId shopId productName productLink offerLink imageUrl shopName price priceMin priceMax priceDiscountRate sales ratingStar commission commissionRate`;
 }
 
 async function consultarProdutoShopeePorIds({ shopId, itemId }) {
-  const query = `query ProdutoShopee {
-    productOfferV2(shopId: ${Number(shopId)}, itemId: ${Number(itemId)}, limit: 1) {
-      nodes { ${camposProdutoShopee()} }
-      pageInfo { page limit hasNextPage }
-    }
-  }`;
-
+  const query = `query ProdutoShopee { productOfferV2(shopId: ${Number(shopId)}, itemId: ${Number(itemId)}, limit: 1) { nodes { ${camposProdutoShopee()} } pageInfo { page limit hasNextPage } } }`;
   const json = await executarConsultaShopee(query);
   return json?.data?.productOfferV2?.nodes?.[0] || null;
 }
 
 async function consultarProdutoShopeePorCodigo(codigo) {
   const codigoSeguro = JSON.stringify(limparCodigoShopee(codigo));
-  const query = `query ProdutoShopeePorCodigo {
-    productOfferV2(keyword: ${codigoSeguro}, limit: 20) {
-      nodes { ${camposProdutoShopee()} }
-      pageInfo { page limit hasNextPage }
-    }
-  }`;
-
+  const query = `query ProdutoShopeePorCodigo { productOfferV2(keyword: ${codigoSeguro}, limit: 20) { nodes { ${camposProdutoShopee()} } pageInfo { page limit hasNextPage } } }`;
   const json = await executarConsultaShopee(query);
   const produtos = json?.data?.productOfferV2?.nodes || [];
   if (!produtos.length) return null;
@@ -187,7 +261,7 @@ async function consultarProdutoShopeePorCodigo(codigo) {
   }) || produtos[0];
 }
 
-function normalizarProdutoShopee(produto, linkOriginal, metodoResolucao, codigoInformado = '') {
+function normalizarProdutoShopee(produto, linkOriginal, linkCompleto, metodoResolucao, codigoInformado = '') {
   const minimo = Number(produto.priceMin || produto.price || 0);
   const maximo = Number(produto.priceMax || produto.price || minimo || 0);
   const descontoPercentual = Number(produto.priceDiscountRate || 0);
@@ -197,7 +271,7 @@ function normalizarProdutoShopee(produto, linkOriginal, metodoResolucao, codigoI
     : 0;
 
   const temFaixa = minimo > 0 && maximo > 0 && Math.abs(maximo - minimo) > 0.009;
-  const linkOferta = limparTexto(produto.offerLink || produto.productLink || linkOriginal);
+  const linkOferta = limparTexto(produto.offerLink || produto.productLink || linkOriginal || linkCompleto);
 
   return {
     ok: true,
@@ -209,9 +283,10 @@ function normalizarProdutoShopee(produto, linkOriginal, metodoResolucao, codigoI
     precoMax: formatarMoeda(maximo),
     desconto: descontoPercentual > 0 ? `${Math.round(descontoPercentual)}% OFF` : '',
     cupom: '',
-    link: linkOferta || linkOriginal,
+    link: linkOferta,
     linkOferta,
     linkOriginal,
+    linkCompleto,
     metodoResolucao,
     codigoInformado,
     imagem: limparTexto(produto.imageUrl || ''),
@@ -222,9 +297,7 @@ function normalizarProdutoShopee(produto, linkOriginal, metodoResolucao, codigoI
     comissao: limparTexto(produto.commission || ''),
     taxaComissao: limparTexto(produto.commissionRate || ''),
     origem: 'shopee-open-api',
-    aviso: temFaixa
-      ? `O anúncio possui variações entre ${formatarMoeda(minimo)} e ${formatarMoeda(maximo)}. O painel usou o menor preço.`
-      : ''
+    aviso: temFaixa ? `O anúncio possui variações entre ${formatarMoeda(minimo)} e ${formatarMoeda(maximo)}. O painel usou o menor preço.` : ''
   };
 }
 
@@ -256,8 +329,26 @@ app.get('/health', (req, res) => {
     service: 'Achou Levou API',
     status: 'online',
     shopeeConfigured: Boolean(process.env.SHOPEE_APP_ID && process.env.SHOPEE_SECRET),
-    shopeeIdLookup: true
+    shopeeIdLookup: true,
+    shopeeShortLinkConverter: true
   });
+});
+
+app.get('/shopee/converter-link', async (req, res) => {
+  const link = extrairLink(req.query.url || req.query.link || '');
+  if (!link) return res.status(400).json({ ok: false, error: 'Informe o link da Shopee.' });
+
+  const conversao = await converterLinkCurtoShopee(link);
+  if (!conversao.ok) {
+    return res.status(422).json({
+      ok: false,
+      error: 'Não foi possível converter o link curto da Shopee.',
+      linkOriginal: link,
+      ...conversao
+    });
+  }
+
+  return res.json({ ok: true, linkOriginal: link, ...conversao });
 });
 
 app.get('/shopee/produto', async (req, res) => {
@@ -271,19 +362,17 @@ app.get('/shopee/produto', async (req, res) => {
   try {
     let produto = null;
     let metodo = '';
+    let linkCompleto = '';
+    let ids = null;
 
     if (codigo) {
       const idsDoCodigo = extrairIdsShopee(codigo);
       if (idsDoCodigo) {
+        ids = idsDoCodigo;
         produto = await consultarProdutoShopeePorIds(idsDoCodigo);
         metodo = 'id-shop-item';
       } else if (/^\d+$/.test(codigo)) {
-        const query = `query ProdutoShopeePorItemId {
-          productOfferV2(itemId: ${Number(codigo)}, limit: 10) {
-            nodes { ${camposProdutoShopee()} }
-            pageInfo { page limit hasNextPage }
-          }
-        }`;
+        const query = `query ProdutoShopeePorItemId { productOfferV2(itemId: ${Number(codigo)}, limit: 10) { nodes { ${camposProdutoShopee()} } pageInfo { page limit hasNextPage } } }`;
         const json = await executarConsultaShopee(query);
         produto = json?.data?.productOfferV2?.nodes?.[0] || null;
         metodo = 'item-id';
@@ -294,10 +383,12 @@ app.get('/shopee/produto', async (req, res) => {
     }
 
     if (!produto && link) {
-      const idsLink = extrairIdsShopee(link);
-      if (idsLink) {
-        produto = await consultarProdutoShopeePorIds(idsLink);
-        metodo = 'ids-do-link';
+      const conversao = await converterLinkCurtoShopee(link);
+      if (conversao.ok) {
+        ids = conversao.ids;
+        linkCompleto = conversao.linkCompleto;
+        produto = await consultarProdutoShopeePorIds(ids);
+        metodo = `conversor-${conversao.metodo}`;
       }
     }
 
@@ -306,12 +397,17 @@ app.get('/shopee/produto', async (req, res) => {
         link,
         codigo
           ? 'A API oficial não encontrou um produto correspondente a esse ID copiado no aplicativo.'
-          : 'Não consegui identificar itemId e shopId no link informado.',
-        { codigoInformado: codigo, metodoResolucao: metodo || 'sem-correspondencia' }
+          : 'Não consegui converter o link curto nem identificar itemId e shopId.',
+        { codigoInformado: codigo, metodoResolucao: metodo || 'sem-correspondencia', linkCompleto }
       ));
     }
 
-    return res.json(normalizarProdutoShopee(produto, link, metodo, codigo));
+    if (!linkCompleto) {
+      const idsProduto = ids || { shopId: produto.shopId, itemId: produto.itemId };
+      linkCompleto = montarLinkCompleto(idsProduto);
+    }
+
+    return res.json(normalizarProdutoShopee(produto, link, linkCompleto, metodo, codigo));
   } catch (error) {
     console.error('Erro na API oficial da Shopee:', error);
     return res.json(respostaFallbackShopee(
