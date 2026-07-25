@@ -28,7 +28,8 @@ import {
   clearQueue,
   sendMessageToConfiguredGroups,
   getDiagnostics,
-  initializeBot
+  initializeBot,
+  shutdownBot
 } from './bot-engine.mjs';
 import { startQueueWatchdog } from './queue-watchdog.mjs';
 
@@ -43,7 +44,27 @@ if (installedSettings.schemaVersion !== 2) {
   console.log('[MIGRAÇÃO] Contadores antigos convertidos para o modelo de ofertas da v2.');
 }
 
-app.use(cors());
+const BOT_USER = String(process.env.BOT_USER || '').trim();
+const BOT_PASS = String(process.env.BOT_PASS || '').trim();
+const AUTH_ENABLED = Boolean(BOT_USER && BOT_PASS);
+if (!AUTH_ENABLED) console.warn('[SEGURANÇA] BOT_USER/BOT_PASS não definidos. Rotas administrativas estão sem autenticação.');
+
+function adminAuth(req, res, next) {
+  if (!AUTH_ENABLED) return next();
+  const header = String(req.headers.authorization || '');
+  const [scheme, encoded] = header.split(' ');
+  if (scheme === 'Basic' && encoded) {
+    const decoded = Buffer.from(encoded, 'base64').toString('utf8');
+    const separator = decoded.indexOf(':');
+    const user = separator >= 0 ? decoded.slice(0, separator) : decoded;
+    const pass = separator >= 0 ? decoded.slice(separator + 1) : '';
+    if (user === BOT_USER && pass === BOT_PASS) return next();
+  }
+  res.setHeader('WWW-Authenticate', 'Basic realm="Achou Levou"');
+  return res.status(401).send('Autenticação necessária.');
+}
+
+app.use(cors({ origin: false }));
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
@@ -64,7 +85,7 @@ app.get('/', (req, res) => {
   });
 });
 
-app.get('/painel', (req, res) => {
+app.get('/painel', adminAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'panel.html'));
 });
 
@@ -85,12 +106,14 @@ app.get('/status', (req, res) => {
   });
 });
 
+app.use(['/diagnostics', '/settings', '/groups', '/queue', '/send-controlado', '/panic', '/qr', '/qr-page', '/admin'], adminAuth);
+
 app.get('/diagnostics', async (req, res) => {
   let liveGroupsCount = 0;
   let groupsError = null;
   try {
     if (getConnectionState().status === 'conectado') {
-      liveGroupsCount = (await fetchLiveGroups({ force: true })).length;
+      liveGroupsCount = (await fetchLiveGroups({ force: false })).length;
     }
   } catch (error) {
     groupsError = String(error?.message || error);
@@ -184,6 +207,9 @@ app.post('/queue/stop', (req, res) => {
 });
 
 app.post('/queue/clear', (req, res) => {
+  if (getConnectionState().queueProcessing) {
+    return res.status(409).json({ ok: false, error: 'A fila está processando um lote. Pause e aguarde o ciclo terminar antes de limpar.' });
+  }
   res.json({ ok: true, message: 'Fila limpa.', queue: clearQueue() });
 });
 
@@ -205,6 +231,12 @@ app.post('/panic', (req, res) => {
   res.json({ ok: true, message: 'Bot desativado e fila pausada.', settings, queue: stopQueue() });
 });
 
+app.post('/admin/restart-whatsapp', (req, res) => {
+  console.warn('[ADMIN] Reinício controlado solicitado pelo painel.');
+  res.json({ ok: true, message: 'Reinício solicitado. O PM2 deverá reconectar o WhatsApp em alguns segundos.' });
+  setTimeout(() => requestShutdown(0), 750).unref();
+});
+
 app.get('/qr', (req, res) => {
   res.json({ ok: true, ...getQrState() });
 });
@@ -217,19 +249,45 @@ app.get('/qr-page', (req, res) => {
   res.send(`<html><body style="font-family:Arial;text-align:center;padding:30px;background:#0d1117;color:white"><h2>Escaneie o QR Code</h2><p>WhatsApp → Aparelhos conectados → Conectar aparelho</p><img src="${qr.qrDataUrl}" style="width:300px;max-width:90%;background:white;padding:12px;border-radius:12px"><p><a style="color:#58a6ff" href="/status">Ver status</a></p></body></html>`);
 });
 
+let httpServer = null;
+let shuttingDown = false;
+
+async function requestShutdown(exitCode = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log('[PROCESSO] Encerramento controlado iniciado.');
+  const forceTimer = setTimeout(() => process.exit(exitCode || 1), 15000);
+  forceTimer.unref?.();
+  try {
+    await shutdownBot();
+    await new Promise(resolve => {
+      if (!httpServer) return resolve();
+      httpServer.close(() => resolve());
+    });
+  } catch (error) {
+    console.error('[PROCESSO] Falha durante encerramento:', error?.stack || error);
+    exitCode = exitCode || 1;
+  } finally {
+    clearTimeout(forceTimer);
+    process.exit(exitCode);
+  }
+}
+
 process.on('unhandledRejection', error => {
   console.error('[PROCESSO] Promise rejeitada:', error?.stack || error);
 });
 
 process.on('uncaughtException', error => {
   console.error('[PROCESSO] Exceção não tratada:', error?.stack || error);
-  setTimeout(() => process.exit(1), 1000).unref();
+  setTimeout(() => requestShutdown(1), 250).unref();
 });
+process.on('SIGTERM', () => requestShutdown(0));
+process.on('SIGINT', () => requestShutdown(0));
 
 initializeBot();
 startQueueWatchdog();
 
-app.listen(PORT, '0.0.0.0', () => {
+httpServer = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[SERVIDOR] Bot v2.0.0 rodando em http://localhost:${PORT}`);
   console.log('[DADOS]', { settings: SETTINGS_FILE, queue: QUEUE_FILE, runtime: RUNTIME_FILE });
 });

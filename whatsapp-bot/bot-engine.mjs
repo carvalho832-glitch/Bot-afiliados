@@ -14,6 +14,7 @@ import {
   setQueueRunning,
   getQueue,
   saveQueue,
+  updateQueueItem,
   normalizeGroups,
   gruposAutorizados,
   escolherGruposPorCategoria,
@@ -25,6 +26,8 @@ import {
 const { Client, LocalAuth } = pkg;
 const SEND_DELAY_MS = Math.max(800, Number(process.env.SEND_DELAY_MS || 1500));
 const RETRY_DELAY_MS = Math.max(30000, Number(process.env.RETRY_DELAY_MS || 60000));
+const GROUP_CACHE_TTL_MS = Math.max(60000, Number(process.env.GROUP_CACHE_TTL_MS || 300000));
+const TRANSIENT_RETRY_DELAYS_MS = [1500, 3500, 7000];
 
 let status = 'iniciando';
 let qrDataUrl = null;
@@ -34,6 +37,8 @@ let lastError = null;
 let queueTimer = null;
 let queueProcessing = false;
 let liveGroupsCache = { at: 0, groups: [] };
+let liveGroupsPromise = null;
+let consecutiveCycleFailures = 0;
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -54,35 +59,47 @@ export function getQrState() {
 }
 
 export async function fetchLiveGroups({ force = false } = {}) {
-  if (status !== 'conectado' || !client?.pupPage) throw new Error('WhatsApp ainda não conectado.');
-  if (!force && liveGroupsCache.groups.length && Date.now() - liveGroupsCache.at < 15000) {
+  if (status !== 'conectado') throw new Error('WhatsApp ainda não conectado.');
+  if (!force && liveGroupsCache.groups.length && Date.now() - liveGroupsCache.at < GROUP_CACHE_TTL_MS) {
     return liveGroupsCache.groups;
   }
+  if (liveGroupsPromise) return liveGroupsPromise;
 
-  const groups = await client.pupPage.evaluate(() => {
-    let chatCollection = null;
-    try { chatCollection = window.require?.('WAWebCollections')?.Chat || null; } catch {}
-    chatCollection = chatCollection || window.Store?.Chat || null;
-    if (!chatCollection) throw new Error('Coleção de chats indisponível no WhatsApp Web.');
-    const chats = typeof chatCollection.getModelsArray === 'function'
-      ? chatCollection.getModelsArray()
-      : Array.from(chatCollection.models || []);
-    return chats.map(chat => {
-      const id = chat?.id?._serialized || chat?.id?.toString?.() || '';
-      const isGroup = chat?.id?.isGroup?.() || chat?.id?.server === 'g.us' || id.endsWith('@g.us');
-      if (!isGroup || !id) return null;
-      return {
-        id,
-        name: String(chat?.name || chat?.formattedTitle || chat?.groupMetadata?.subject || chat?.contact?.pushname || 'Grupo sem nome')
-      };
-    }).filter(Boolean);
-  });
+  liveGroupsPromise = (async () => {
+    let lastFailure = null;
+    for (let attempt = 0; attempt <= TRANSIENT_RETRY_DELAYS_MS.length; attempt += 1) {
+      try {
+        const chats = await client.getChats();
+        const groups = chats
+          .filter(chat => Boolean(chat?.isGroup || chat?.id?._serialized?.endsWith('@g.us')))
+          .map(chat => ({
+            id: String(chat?.id?._serialized || ''),
+            name: String(chat?.name || chat?.formattedTitle || 'Grupo sem nome')
+          }))
+          .filter(group => group.id);
+        const unique = Array.from(new Map(groups.map(group => [group.id, group])).values())
+          .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+        if (!unique.length) throw new Error('O WhatsApp não retornou nenhum grupo ativo.');
+        liveGroupsCache = { at: Date.now(), groups: unique };
+        return unique;
+      } catch (error) {
+        lastFailure = error;
+        if (attempt < TRANSIENT_RETRY_DELAYS_MS.length) {
+          const delay = TRANSIENT_RETRY_DELAYS_MS[attempt];
+          console.warn(`[GRUPOS] Falha temporária na leitura, tentativa ${attempt + 1}/${TRANSIENT_RETRY_DELAYS_MS.length + 1}. Nova tentativa em ${delay} ms:`, error?.message || error);
+          await sleep(delay);
+        }
+      }
+    }
+    if (liveGroupsCache.groups.length) {
+      console.warn('[GRUPOS] Usando a última lista válida em cache após falha na leitura ao vivo.');
+      return liveGroupsCache.groups;
+    }
+    throw lastFailure || new Error('Falha ao consultar grupos do WhatsApp.');
+  })();
 
-  const unique = Array.from(new Map(groups.map(group => [group.id, group])).values())
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-  if (!unique.length) throw new Error('O WhatsApp não retornou nenhum grupo ativo.');
-  liveGroupsCache = { at: Date.now(), groups: unique };
-  return unique;
+  try { return await liveGroupsPromise; }
+  finally { liveGroupsPromise = null; }
 }
 
 export async function sincronizarGruposAtivos({ force = true } = {}) {
@@ -175,9 +192,26 @@ function scheduleNextQueueRun(delayMs = 1000) {
   }, safeDelay);
 }
 
+function isTransientWhatsAppError(error) {
+  const text = String(error?.message || error || '').toLowerCase();
+  return ['detached frame', 'execution context was destroyed', 'target closed', 'session closed', 'protocol error', 'most likely because of a navigation'].some(token => text.includes(token));
+}
+
 async function sendDirect(message, target) {
-  await client.sendMessage(target.id, String(message).trim());
-  return { ok: true, groupId: target.id, groupName: target.name || target.id };
+  let lastFailure = null;
+  for (let attempt = 0; attempt <= TRANSIENT_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      await client.sendMessage(target.id, String(message).trim());
+      return { ok: true, groupId: target.id, groupName: target.name || target.id };
+    } catch (error) {
+      lastFailure = error;
+      if (!isTransientWhatsAppError(error) || attempt >= TRANSIENT_RETRY_DELAYS_MS.length) break;
+      const delay = TRANSIENT_RETRY_DELAYS_MS[attempt];
+      console.warn(`[ENVIO] Contexto temporariamente indisponível para ${target.name || target.id}. Tentativa ${attempt + 1}/${TRANSIENT_RETRY_DELAYS_MS.length + 1} em ${delay} ms.`);
+      await sleep(delay);
+    }
+  }
+  throw lastFailure || new Error('Falha desconhecida ao enviar mensagem.');
 }
 
 export async function processQueue() {
@@ -186,7 +220,13 @@ export async function processQueue() {
   saveRuntime({ lastCycleAt: new Date().toISOString(), nextRunAt: null });
 
   try {
-    const sync = await sincronizarGruposAtivos({ force: true });
+    let sync;
+    try { sync = await sincronizarGruposAtivos({ force: false }); }
+    catch (error) {
+      console.warn('[FILA] Sincronização ao vivo falhou; preservando seleção salva:', error?.message || error);
+      const settingsFallback = getSettings();
+      sync = { ok: settingsFallback.selectedGroups.length > 0, reason: settingsFallback.selectedGroups.length ? null : 'Nenhum grupo selecionado.' };
+    }
     if (!sync.ok) {
       console.log('[FILA] Aguardando:', sync.reason);
       saveRuntime({ lastCycleResult: sync.reason });
@@ -252,7 +292,11 @@ export async function processQueue() {
           item.retryAfter = Date.now() + 5 * 60000;
           console.error(`[FILA] Falha no grupo ${target.name} (${target.id}):`, error?.stack || error);
         }
-        saveQueue(queue);
+        const persisted = updateQueueItem(item.id, () => item);
+        if (!persisted.item) {
+          console.warn(`[FILA] Oferta ${item.id} foi removida durante o processamento; interrompendo este item.`);
+          break;
+        }
         await sleep(SEND_DELAY_MS);
       }
 
@@ -269,7 +313,7 @@ export async function processQueue() {
       } else {
         item.status = 'pending';
       }
-      saveQueue(queue);
+      updateQueueItem(item.id, () => item);
       if (getSettings().sentToday >= getSettings().dailyLimit) break;
     }
 
@@ -277,18 +321,23 @@ export async function processQueue() {
       settings = saveSettings({ lastBatchAt: Date.now(), lastSendAt: Date.now() });
       const result = `Lote concluído: ${completedOffers} oferta(s), ${successfulDeliveries} entrega(s).`;
       console.log('[FILA]', result);
-      saveRuntime({ lastCycleResult: result });
+      consecutiveCycleFailures = 0;
+      saveRuntime({ lastCycleResult: result, consecutiveCycleFailures: 0 });
       scheduleNextQueueRun(settings.intervalMinutes * 60000);
     } else {
       const result = 'Nenhuma entrega concluída neste ciclo; nova tentativa agendada.';
       console.log('[FILA]', result);
-      saveRuntime({ lastCycleResult: result });
-      scheduleNextQueueRun(RETRY_DELAY_MS);
+      consecutiveCycleFailures += 1;
+      const backoff = Math.min(RETRY_DELAY_MS * Math.max(1, consecutiveCycleFailures), 15 * 60000);
+      saveRuntime({ lastCycleResult: result, consecutiveCycleFailures });
+      scheduleNextQueueRun(backoff);
     }
   } catch (error) {
     console.error('[FILA] Falha no ciclo:', error?.stack || error);
-    saveRuntime({ lastCycleResult: String(error?.message || error) });
-    scheduleNextQueueRun(RETRY_DELAY_MS);
+    consecutiveCycleFailures += 1;
+    const backoff = Math.min(RETRY_DELAY_MS * Math.max(1, consecutiveCycleFailures), 15 * 60000);
+    saveRuntime({ lastCycleResult: String(error?.message || error), consecutiveCycleFailures });
+    scheduleNextQueueRun(backoff);
   } finally {
     queueProcessing = false;
   }
@@ -298,7 +347,13 @@ export async function startQueue() {
   const settings = getSettings();
   if (!settings.enabled) throw new Error('Ative o envio controlado antes de iniciar.');
   if (status !== 'conectado') throw new Error('WhatsApp ainda não conectado.');
-  const sync = await sincronizarGruposAtivos({ force: true });
+  let sync;
+  try { sync = await sincronizarGruposAtivos({ force: false }); }
+  catch (error) {
+    const current = getSettings();
+    if (!current.selectedGroups.length) throw error;
+    sync = { ok: true, activeSelected: current.selectedGroups, warning: String(error?.message || error) };
+  }
   if (!sync.ok) throw new Error(sync.reason);
   if (!getQueue().some(item => item.status === 'pending')) throw new Error('Não há ofertas pendentes na fila.');
   setQueueRunning(true);
@@ -319,7 +374,16 @@ export function clearQueue() {
 }
 
 export async function sendMessageToConfiguredGroups(message, category = null) {
-  const sync = await sincronizarGruposAtivos({ force: true });
+  if (queueProcessing) {
+    return { ok: false, error: 'A fila automática está processando um lote. Aguarde o ciclo terminar.', results: [] };
+  }
+  let sync;
+  try { sync = await sincronizarGruposAtivos({ force: false }); }
+  catch (error) {
+    const current = getSettings();
+    if (!current.selectedGroups.length) return { ok: false, error: String(error?.message || error), results: [] };
+    sync = { ok: true, warning: String(error?.message || error) };
+  }
   if (!sync.ok) return { ok: false, error: sync.reason, results: [] };
   const settings = getSettings();
   const block = getBlockReason(status, settings);
@@ -394,7 +458,7 @@ client.on('ready', async () => {
   qrDataUrl = null;
   lastError = null;
   console.log('[WHATSAPP] Conectado e pronto.');
-  try { await sincronizarGruposAtivos({ force: true }); }
+  try { await sincronizarGruposAtivos({ force: false }); }
   catch (error) { console.error('[GRUPOS] Sincronização inicial falhou:', error?.message || error); }
   if (getRuntime().queueRunning && getSettings().enabled && getQueue().some(item => item.status === 'pending')) {
     console.log('[FILA] Retomando automaticamente após reconexão.');
@@ -416,6 +480,15 @@ client.on('disconnected', reason => {
   console.error('[WHATSAPP] Desconectado:', lastError);
   setTimeout(() => process.exit(1), 5000).unref();
 });
+
+export async function shutdownBot() {
+  clearQueueTimer();
+  try {
+    await client.destroy();
+  } catch (error) {
+    console.warn('[WHATSAPP] Falha ao encerrar cliente de forma limpa:', error?.message || error);
+  }
+}
 
 export function initializeBot() {
   return client.initialize().catch(error => {

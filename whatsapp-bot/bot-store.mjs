@@ -162,8 +162,8 @@ const defaultSettings = {
   enabled: false,
   selectedGroups: [],
   groupCategories: {},
-  windowStart: '09:00',
-  windowEnd: '21:00',
+  windowStart: '07:00',
+  windowEnd: '13:00',
   intervalMinutes: 60,
   offersPerBatch: 2,
   dailyLimit: 16,
@@ -304,6 +304,18 @@ export function saveQueue(queue) {
   const normalized = Array.isArray(queue) ? queue.map(normalizeQueueItem).filter(item => item.message) : [];
   writeJson(QUEUE_FILE, normalized);
   return normalized;
+}
+
+export function updateQueueItem(itemId, updater) {
+  const queue = getQueue();
+  const index = queue.findIndex(item => item.id === String(itemId));
+  if (index < 0) return { queue, item: null };
+  const current = queue[index];
+  const proposed = typeof updater === 'function' ? updater({ ...current }) : updater;
+  if (!proposed) return { queue, item: current };
+  queue[index] = normalizeQueueItem({ ...current, ...proposed, id: current.id });
+  saveQueue(queue);
+  return { queue, item: queue[index] };
 }
 
 export function createQueueItem(message, category = null) {

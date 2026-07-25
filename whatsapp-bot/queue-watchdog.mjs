@@ -16,12 +16,14 @@ const WATCHDOG_INTERVAL_MS = Math.max(
 
 let watchdogTimer = null;
 let watchdogChecking = false;
+let nextWatchdogAttemptAt = 0;
+let watchdogFailures = 0;
 
 export function startQueueWatchdog() {
   if (watchdogTimer) return watchdogTimer;
 
   watchdogTimer = setInterval(async () => {
-    if (watchdogChecking) return;
+    if (watchdogChecking || Date.now() < nextWatchdogAttemptAt) return;
     watchdogChecking = true;
 
     try {
@@ -43,8 +45,13 @@ export function startQueueWatchdog() {
       // real neste momento, a fila já está liberada e deve ser processada agora.
       console.log('[WATCHDOG] Fila liberada e pendente. Acionando novo ciclo.');
       await processQueue();
+      watchdogFailures = 0;
+      nextWatchdogAttemptAt = 0;
     } catch (error) {
-      console.error('[WATCHDOG] Falha ao verificar fila:', error?.stack || error);
+      watchdogFailures += 1;
+      const cooldown = Math.min(60000 * watchdogFailures, 15 * 60000);
+      nextWatchdogAttemptAt = Date.now() + cooldown;
+      console.error(`[WATCHDOG] Falha ao verificar fila. Nova tentativa em ${Math.round(cooldown / 1000)}s:`, error?.stack || error);
     } finally {
       watchdogChecking = false;
     }
