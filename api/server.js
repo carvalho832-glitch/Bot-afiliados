@@ -5,7 +5,6 @@ import crypto from 'crypto';
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SHOPEE_API_URL = 'https://open-api.affiliate.shopee.com.br/graphql';
-const MICROLINK_API_URL = 'https://api.microlink.io';
 
 app.use(cors({
   origin: '*',
@@ -49,13 +48,10 @@ function montarMensagem(dados = {}) {
   const linhas = [];
   linhas.push(`🔥 *${produto}!*`);
   linhas.push('');
-
   if (temValor(precoDe)) linhas.push(`❌ De: ~${precoDe}~`);
   linhas.push(`💰 *POR APENAS: ${precoPor}*`);
-
   if (temValor(desconto)) linhas.push(`🔥 *${desconto}*`);
   if (temValor(cupom)) linhas.push(cupomEhFrete ? `🚚 *Frete grátis:* ${cupom}` : `🎫 *Cupom:* ${cupom}`);
-
   linhas.push('');
   linhas.push('🔒 *Compre com segurança no site oficial:*');
   linhas.push(`🛒 *Link ${loja}:* ${link}`);
@@ -65,7 +61,6 @@ function montarMensagem(dados = {}) {
 function formatarMoeda(valor) {
   const numero = Number(valor);
   if (!Number.isFinite(numero) || numero <= 0) return '';
-
   return numero.toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
@@ -73,195 +68,37 @@ function formatarMoeda(valor) {
   });
 }
 
-function decodificarVariasVezes(valor = '') {
-  let atual = String(valor || '');
-
-  for (let i = 0; i < 4; i += 1) {
-    try {
-      const decodificado = decodeURIComponent(atual);
-      if (decodificado === atual) break;
-      atual = decodificado;
-    } catch {
-      break;
-    }
-  }
-
-  return atual.replace(/\\u002F/gi, '/').replace(/\\\//g, '/').replace(/&amp;/gi, '&');
-}
-
-function extrairUrlsDoTexto(texto = '') {
-  const conteudo = decodificarVariasVezes(texto);
-  const urls = conteudo.match(/https?:\/\/[^\s"'<>\\]+/gi) || [];
-  return [...new Set(urls.map(url => url.replace(/[),.;]+$/, '')))];
-}
-
-function extrairDestinoDeParametros(link = '') {
-  try {
-    const url = new URL(link);
-    const chaves = ['url', 'target', 'target_url', 'redirect', 'redirect_url', 'destination', 'deep_link', 'deeplink', 'original_url'];
-
-    for (const chave of chaves) {
-      const valor = url.searchParams.get(chave);
-      if (valor) {
-        const candidato = decodificarVariasVezes(valor);
-        if (/^https?:\/\//i.test(candidato)) return candidato;
-      }
-    }
-  } catch {
-    return '';
-  }
-
-  return '';
-}
-
-function extrairIdsShopee(link) {
-  const url = decodificarVariasVezes(String(link || ''));
-
+function extrairIdsShopee(valor = '') {
+  const texto = String(valor || '');
   const padroes = [
     /\/product\/(\d+)\/(\d+)/i,
     /-i\.(\d+)\.(\d+)/i,
     /[?&]shopid=(\d+).*?[?&]itemid=(\d+)/i,
     /[?&]shop_id=(\d+).*?[?&]item_id=(\d+)/i,
-    /[?&]shopId=(\d+).*?[?&]itemId=(\d+)/i
+    /[?&]shopId=(\d+).*?[?&]itemId=(\d+)/i,
+    /^(\d+)\s*[:.,|/-]\s*(\d+)$/
   ];
 
   for (const padrao of padroes) {
-    const match = url.match(padrao);
+    const match = texto.match(padrao);
     if (match) return { shopId: match[1], itemId: match[2] };
   }
 
-  const itemPrimeiro = url.match(/[?&]itemid=(\d+).*?[?&]shopid=(\d+)/i) ||
-    url.match(/[?&]item_id=(\d+).*?[?&]shop_id=(\d+)/i) ||
-    url.match(/[?&]itemId=(\d+).*?[?&]shopId=(\d+)/i);
+  const itemPrimeiro = texto.match(/[?&]itemid=(\d+).*?[?&]shopid=(\d+)/i) ||
+    texto.match(/[?&]item_id=(\d+).*?[?&]shop_id=(\d+)/i) ||
+    texto.match(/[?&]itemId=(\d+).*?[?&]shopId=(\d+)/i);
 
   if (itemPrimeiro) return { shopId: itemPrimeiro[2], itemId: itemPrimeiro[1] };
   return null;
 }
 
-async function resolverLinkShopee(link) {
-  const visitados = new Set();
-  const candidatos = [link];
-  let ultimoLink = link;
-
-  while (candidatos.length && visitados.size < 10) {
-    const atual = candidatos.shift();
-    if (!atual || visitados.has(atual)) continue;
-
-    visitados.add(atual);
-    ultimoLink = atual;
-
-    const idsDiretos = extrairIdsShopee(atual);
-    if (idsDiretos) return { linkExpandido: atual, ids: idsDiretos, metodo: 'redirect-http' };
-
-    const destinoParametro = extrairDestinoDeParametros(atual);
-    if (destinoParametro && !visitados.has(destinoParametro)) candidatos.unshift(destinoParametro);
-
-    try {
-      const resposta = await fetch(atual, {
-        method: 'GET',
-        redirect: 'manual',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8'
-        }
-      });
-
-      const location = resposta.headers.get('location');
-      if (location) {
-        const proximo = new URL(location, atual).toString();
-        if (!visitados.has(proximo)) candidatos.unshift(proximo);
-      }
-
-      if (resposta.url && resposta.url !== atual && !visitados.has(resposta.url)) {
-        candidatos.unshift(resposta.url);
-      }
-
-      const tipo = resposta.headers.get('content-type') || '';
-      if (/text|html|json|javascript/i.test(tipo)) {
-        const corpo = await resposta.text();
-        const urls = extrairUrlsDoTexto(corpo)
-          .filter(url => /shopee\.com\.br|shp\.ee|s\.shopee\.com\.br/i.test(url));
-
-        const metaRefresh = corpo.match(/http-equiv=["']?refresh["']?[^>]*content=["'][^;]+;\s*url=([^"']+)/i)?.[1];
-        if (metaRefresh) urls.unshift(new URL(decodificarVariasVezes(metaRefresh), atual).toString());
-
-        const canonical = corpo.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)/i)?.[1] ||
-          corpo.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)/i)?.[1];
-        if (canonical) urls.unshift(new URL(decodificarVariasVezes(canonical), atual).toString());
-
-        for (const url of urls) {
-          const ids = extrairIdsShopee(url);
-          if (ids) return { linkExpandido: url, ids, metodo: 'html-http' };
-          if (!visitados.has(url)) candidatos.push(url);
-        }
-      }
-    } catch (erro) {
-      console.warn('Falha ao resolver etapa do link Shopee:', atual, erro.message);
-    }
-  }
-
-  return { linkExpandido: ultimoLink, ids: extrairIdsShopee(ultimoLink), metodo: 'http-sem-ids' };
-}
-
-async function resolverLinkViaNavegador(link) {
-  try {
-    const url = new URL(MICROLINK_API_URL);
-    url.searchParams.set('url', link);
-    url.searchParams.set('prerender', 'true');
-    url.searchParams.set('ttl', '0');
-
-    const resposta = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-
-    const json = await resposta.json().catch(() => null);
-    if (!resposta.ok || json?.status !== 'success') {
-      throw new Error(json?.message || `Navegador remoto respondeu HTTP ${resposta.status}.`);
-    }
-
-    const candidatos = [
-      json?.data?.url,
-      json?.data?.canonical?.url,
-      json?.data?.author?.url,
-      ...extrairUrlsDoTexto(JSON.stringify(json || {}))
-    ].filter(Boolean);
-
-    for (const candidato of candidatos) {
-      const limpo = decodificarVariasVezes(candidato);
-      const ids = extrairIdsShopee(limpo);
-      if (ids) {
-        return {
-          linkExpandido: limpo,
-          ids,
-          metodo: 'navegador-remoto',
-          tituloDetectado: limparTexto(json?.data?.title || '')
-        };
-      }
-    }
-
-    return {
-      linkExpandido: limparTexto(json?.data?.url || link),
-      ids: null,
-      metodo: 'navegador-remoto-sem-ids',
-      tituloDetectado: limparTexto(json?.data?.title || '')
-    };
-  } catch (erro) {
-    console.warn('Falha no navegador remoto para link Shopee:', erro.message);
-    return {
-      linkExpandido: link,
-      ids: null,
-      metodo: 'navegador-remoto-erro',
-      erro: erro.message
-    };
-  }
+function limparCodigoShopee(valor = '') {
+  return limparTexto(valor).toUpperCase().replace(/\s+/g, '');
 }
 
 function criarAutorizacaoShopee(payload) {
   const appId = limparTexto(process.env.SHOPEE_APP_ID);
   const secret = limparTexto(process.env.SHOPEE_SECRET);
-
   if (!appId || !secret) throw new Error('Credenciais da Shopee não configuradas no servidor.');
 
   const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -273,30 +110,7 @@ function criarAutorizacaoShopee(payload) {
   return `SHA256 Credential=${appId}, Timestamp=${timestamp}, Signature=${assinatura}`;
 }
 
-async function consultarProdutoShopee({ shopId, itemId }) {
-  const query = `query ProdutoShopee {
-    productOfferV2(shopId: ${shopId}, itemId: ${itemId}, limit: 1) {
-      nodes {
-        itemId
-        shopId
-        productName
-        productLink
-        offerLink
-        imageUrl
-        shopName
-        price
-        priceMin
-        priceMax
-        priceDiscountRate
-        sales
-        ratingStar
-        commission
-        commissionRate
-      }
-      pageInfo { page limit hasNextPage }
-    }
-  }`;
-
+async function executarConsultaShopee(query) {
   const payload = JSON.stringify({ query });
   const authorization = criarAutorizacaoShopee(payload);
 
@@ -312,18 +126,68 @@ async function consultarProdutoShopee({ shopId, itemId }) {
 
   const json = await resposta.json().catch(() => null);
   if (!resposta.ok) throw new Error(`Shopee respondeu com HTTP ${resposta.status}.`);
-
   if (json?.errors?.length) {
     const mensagem = json.errors.map(erro => erro.message).filter(Boolean).join(' | ');
     throw new Error(mensagem || 'A Shopee recusou a consulta.');
   }
-
-  const produto = json?.data?.productOfferV2?.nodes?.[0];
-  if (!produto) throw new Error('Produto não encontrado na lista de ofertas da API da Shopee.');
-  return produto;
+  return json;
 }
 
-function normalizarProdutoShopee(produto, linkOriginal, linkExpandido, metodoResolucao) {
+function camposProdutoShopee() {
+  return `
+    itemId
+    shopId
+    productName
+    productLink
+    offerLink
+    imageUrl
+    shopName
+    price
+    priceMin
+    priceMax
+    priceDiscountRate
+    sales
+    ratingStar
+    commission
+    commissionRate
+  `;
+}
+
+async function consultarProdutoShopeePorIds({ shopId, itemId }) {
+  const query = `query ProdutoShopee {
+    productOfferV2(shopId: ${Number(shopId)}, itemId: ${Number(itemId)}, limit: 1) {
+      nodes { ${camposProdutoShopee()} }
+      pageInfo { page limit hasNextPage }
+    }
+  }`;
+
+  const json = await executarConsultaShopee(query);
+  return json?.data?.productOfferV2?.nodes?.[0] || null;
+}
+
+async function consultarProdutoShopeePorCodigo(codigo) {
+  const codigoSeguro = JSON.stringify(limparCodigoShopee(codigo));
+  const query = `query ProdutoShopeePorCodigo {
+    productOfferV2(keyword: ${codigoSeguro}, limit: 20) {
+      nodes { ${camposProdutoShopee()} }
+      pageInfo { page limit hasNextPage }
+    }
+  }`;
+
+  const json = await executarConsultaShopee(query);
+  const produtos = json?.data?.productOfferV2?.nodes || [];
+  if (!produtos.length) return null;
+
+  const codigoNormalizado = limparCodigoShopee(codigo);
+  return produtos.find(produto => {
+    const itemId = limparCodigoShopee(produto?.itemId);
+    const nome = limparCodigoShopee(produto?.productName);
+    const link = limparCodigoShopee(produto?.productLink || produto?.offerLink);
+    return itemId === codigoNormalizado || nome.includes(codigoNormalizado) || link.includes(codigoNormalizado);
+  }) || produtos[0];
+}
+
+function normalizarProdutoShopee(produto, linkOriginal, metodoResolucao, codigoInformado = '') {
   const minimo = Number(produto.priceMin || produto.price || 0);
   const maximo = Number(produto.priceMax || produto.price || minimo || 0);
   const descontoPercentual = Number(produto.priceDiscountRate || 0);
@@ -345,11 +209,11 @@ function normalizarProdutoShopee(produto, linkOriginal, linkExpandido, metodoRes
     precoMax: formatarMoeda(maximo),
     desconto: descontoPercentual > 0 ? `${Math.round(descontoPercentual)}% OFF` : '',
     cupom: '',
-    link: linkOferta,
+    link: linkOferta || linkOriginal,
     linkOferta,
     linkOriginal,
-    linkExpandido,
     metodoResolucao,
+    codigoInformado,
     imagem: limparTexto(produto.imageUrl || ''),
     itemId: String(produto.itemId || ''),
     shopId: String(produto.shopId || ''),
@@ -391,52 +255,69 @@ app.get('/health', (req, res) => {
     ok: true,
     service: 'Achou Levou API',
     status: 'online',
-    shopeeConfigured: Boolean(process.env.SHOPEE_APP_ID && process.env.SHOPEE_SECRET)
+    shopeeConfigured: Boolean(process.env.SHOPEE_APP_ID && process.env.SHOPEE_SECRET),
+    shopeeIdLookup: true
   });
 });
 
 app.get('/shopee/produto', async (req, res) => {
   const link = extrairLink(req.query.url || req.query.link || '');
+  const codigo = limparCodigoShopee(req.query.id || req.query.codigo || '');
 
-  if (!link) {
-    return res.status(400).json({ ok: false, error: 'Informe o link da Shopee.' });
+  if (!link && !codigo) {
+    return res.status(400).json({ ok: false, error: 'Informe o link ou o ID do produto Shopee.' });
   }
 
   try {
-    let resolucao = await resolverLinkShopee(link);
+    let produto = null;
+    let metodo = '';
 
-    if (!resolucao.ids) {
-      const resolucaoNavegador = await resolverLinkViaNavegador(link);
-      if (resolucaoNavegador.ids || resolucaoNavegador.linkExpandido !== link) {
-        resolucao = resolucaoNavegador;
+    if (codigo) {
+      const idsDoCodigo = extrairIdsShopee(codigo);
+      if (idsDoCodigo) {
+        produto = await consultarProdutoShopeePorIds(idsDoCodigo);
+        metodo = 'id-shop-item';
+      } else if (/^\d+$/.test(codigo)) {
+        const query = `query ProdutoShopeePorItemId {
+          productOfferV2(itemId: ${Number(codigo)}, limit: 10) {
+            nodes { ${camposProdutoShopee()} }
+            pageInfo { page limit hasNextPage }
+          }
+        }`;
+        const json = await executarConsultaShopee(query);
+        produto = json?.data?.productOfferV2?.nodes?.[0] || null;
+        metodo = 'item-id';
+      } else {
+        produto = await consultarProdutoShopeePorCodigo(codigo);
+        metodo = 'codigo-copiado-keyword';
       }
     }
 
-    if (!resolucao.ids) {
+    if (!produto && link) {
+      const idsLink = extrairIdsShopee(link);
+      if (idsLink) {
+        produto = await consultarProdutoShopeePorIds(idsLink);
+        metodo = 'ids-do-link';
+      }
+    }
+
+    if (!produto) {
       return res.json(respostaFallbackShopee(
         link,
-        'Não consegui identificar itemId e shopId mesmo usando o navegador remoto para abrir o link curto.',
-        {
-          linkExpandido: resolucao.linkExpandido,
-          metodoResolucao: resolucao.metodo,
-          tituloDetectado: resolucao.tituloDetectado || '',
-          detalheResolucao: resolucao.erro || ''
-        }
+        codigo
+          ? 'A API oficial não encontrou um produto correspondente a esse ID copiado no aplicativo.'
+          : 'Não consegui identificar itemId e shopId no link informado.',
+        { codigoInformado: codigo, metodoResolucao: metodo || 'sem-correspondencia' }
       ));
     }
 
-    const produto = await consultarProdutoShopee(resolucao.ids);
-    return res.json(normalizarProdutoShopee(
-      produto,
-      link,
-      resolucao.linkExpandido,
-      resolucao.metodo
-    ));
+    return res.json(normalizarProdutoShopee(produto, link, metodo, codigo));
   } catch (error) {
     console.error('Erro na API oficial da Shopee:', error);
     return res.json(respostaFallbackShopee(
       link,
-      `A API oficial da Shopee não retornou os dados: ${error.message}`
+      `A API oficial da Shopee não retornou os dados: ${error.message}`,
+      { codigoInformado: codigo }
     ));
   }
 });
