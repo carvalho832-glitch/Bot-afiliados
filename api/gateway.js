@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import { spawn } from 'node:child_process';
-import { chromium } from 'playwright';
+
+process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
+const { chromium } = await import('playwright');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -77,8 +79,12 @@ async function converterComPlaywright(linkOriginal) {
 
   let browser;
   try {
+    const executablePath = chromium.executablePath();
+    console.log(`Chromium local: ${executablePath}`);
+
     browser = await chromium.launch({
       headless: true,
+      executablePath,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
 
@@ -226,6 +232,7 @@ app.use(async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Gateway Playwright do Achou Levou rodando na porta ${PORT}`);
+  console.log(`PLAYWRIGHT_BROWSERS_PATH=${process.env.PLAYWRIGHT_BROWSERS_PATH}`);
 });
 
 function encerrar() {
