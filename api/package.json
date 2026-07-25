@@ -1,11 +1,11 @@
 {
   "name": "achou-levou-api",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Backend do Achou Levou com conversor de links curtos da Shopee",
   "type": "module",
   "main": "gateway.js",
   "scripts": {
-    "postinstall": "playwright install chromium",
+    "postinstall": "PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium",
     "start": "node gateway.js"
   },
   "dependencies": {
