@@ -20,9 +20,9 @@
     campoId.id = 'shopee-id-field';
     campoId.style.cssText = 'margin-top:12px;';
     campoId.innerHTML = `
-        <label for="input-shopee-id">ID do produto Shopee</label>
-        <input type="text" id="input-shopee-id" placeholder="Ex: BKL-WUD-YCW" autocomplete="off" autocapitalize="characters">
-        <small style="display:block;margin-top:6px;color:var(--muted);font-weight:700;line-height:1.4;">Para Shopee, cole o link acima e o ID copiado no aplicativo. Para Amazon e Mercado Livre, use somente o link.</small>`;
+        <label for="input-shopee-id">ID do produto Shopee <small style="font-weight:700;color:var(--muted);">(opcional)</small></label>
+        <input type="text" id="input-shopee-id" placeholder="Use somente se tiver shopId e itemId" autocomplete="off" autocapitalize="characters">
+        <small style="display:block;margin-top:6px;color:var(--muted);font-weight:700;line-height:1.4;">Normalmente basta colar o link curto da Shopee acima. O Render tentará convertê-lo automaticamente.</small>`;
     inputLink.insertAdjacentElement('afterend', campoId);
 
     const inputShopeeId = document.getElementById('input-shopee-id');
@@ -32,14 +32,15 @@
     helper.style.cssText = 'display:none;margin:10px 0 0;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--input-bg);font-size:13px;line-height:1.45;color:var(--text);';
     helper.innerHTML = `
         <strong>🛒 Produto Shopee detectado</strong><br>
-        O bot usará primeiro o ID informado para consultar a API oficial. O link continuará sendo usado na mensagem de venda.
+        O bot converterá o link curto em link completo, localizará os IDs e consultará a API oficial.
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
             <button id="btn-open-shopee-link" type="button" class="btn-secondary" style="margin:0;min-height:42px;padding:10px;font-size:12px;">Abrir produto</button>
             <button id="btn-fast-shopee-msg" type="button" class="btn-main soft" style="margin:0;min-height:42px;padding:10px;font-size:12px;">Mensagem rápida</button>
         </div>
-        <small style="display:block;margin-top:8px;color:var(--muted);font-weight:700;">O código com letras e hífens será testado na busca oficial da Shopee.</small>`;
+        <small id="shopee-converter-status" style="display:block;margin-top:8px;color:var(--muted);font-weight:700;">Aguardando link para conversão automática.</small>`;
 
     btnPuxar.insertAdjacentElement('afterend', helper);
+    const converterStatus = document.getElementById('shopee-converter-status');
 
     function extrairLink(texto) {
         return String(texto || '').match(/https?:\/\/[^\s]+/)?.[0] || String(texto || '').trim();
@@ -65,20 +66,11 @@
     function setCarregando(ativo) {
         if (loader) loader.style.display = ativo ? 'flex' : 'none';
         btnPuxar.disabled = ativo;
-        btnPuxar.innerText = ativo ? '🔎 Puxando Shopee...' : '🔎 Puxar produto';
-    }
-
-    function nomePareceCodigoCurtoShopee(dados) {
-        const nome = String(dados?.produto || '').trim();
-        const semPreco = !dados?.precoPor && !dados?.precoDe;
-        const origemFallback = String(dados?.origem || '').includes('fallback');
-        const umaPalavraCurta = /^[a-z0-9-]{4,20}$/i.test(nome);
-        const pareceTextoReal = /[áéíóúâêôãõç\s]/i.test(nome) || nome.length > 20;
-        return origemFallback && semPreco && umaPalavraCurta && !pareceTextoReal;
+        btnPuxar.innerText = ativo ? '🔄 Convertendo e puxando...' : '🔎 Puxar produto';
+        if (converterStatus && ativo) converterStatus.textContent = 'Convertendo o link curto e consultando a Shopee...';
     }
 
     function normalizarProdutoShopee(dados) {
-        if (nomePareceCodigoCurtoShopee(dados)) return 'Oferta Shopee com desconto';
         const produto = String(dados?.produto || '').trim();
         if (!produto || produto === 'Buscando na Shopee...') return 'Oferta Shopee com desconto';
         return produto;
@@ -89,6 +81,20 @@
         if (displayDe) displayDe.value = dados.precoDe || '';
         if (displayPor) displayPor.value = dados.precoPor || '';
         if (displayCupom) displayCupom.value = dados.cupom || dados.desconto || displayCupom.value || '';
+
+        if (dados?.linkCompleto) {
+            inputLink.value = dados.linkCompleto;
+        }
+
+        if (inputShopeeId && dados?.shopId && dados?.itemId) {
+            inputShopeeId.value = `${dados.shopId}/${dados.itemId}`;
+        }
+
+        if (converterStatus) {
+            converterStatus.textContent = dados?.linkCompleto
+                ? '✅ Link convertido e produto localizado.'
+                : 'Produto localizado pela API oficial da Shopee.';
+        }
     }
 
     async function puxarShopeePelaApi(link, idProduto) {
@@ -125,8 +131,7 @@
         const link = extrairLink(inputLink.value);
         const idProduto = limparId(inputShopeeId?.value);
 
-        if (!idProduto && !link) return alert('Cole o link ou o ID do produto Shopee.');
-        if (!idProduto && isShopee(link)) return alert('Cole também o ID do produto Shopee no novo campo abaixo do link.');
+        if (!idProduto && !link) return alert('Cole o link da Shopee.');
 
         helper.style.display = 'block';
         setCarregando(true);
@@ -139,14 +144,16 @@
             preencherCampos(dados);
 
             if (dados?.origem === 'shopee-fallback') {
-                alert(`A Shopee não encontrou o produto por esse ID.\n\nMotivo: ${dados.aviso || 'motivo não informado'}\n\nConfira se o ID foi copiado exatamente como aparece no aplicativo.`);
+                if (converterStatus) converterStatus.textContent = '⚠️ O link não pôde ser convertido automaticamente.';
+                alert(`Não consegui converter esse link curto da Shopee.\n\nMotivo: ${dados.aviso || 'motivo não informado'}\n\nVocê ainda pode abrir o produto no navegador e copiar o link completo.`);
             } else {
-                alert('Dados da Shopee puxados pelo ID! ✅');
+                alert('Link convertido e dados da Shopee puxados! ✅');
             }
         } catch (erro) {
             console.error('Erro Shopee API:', erro);
             displayProduto.value = displayProduto.value === 'Buscando na Shopee...' ? 'Oferta Shopee com desconto' : displayProduto.value;
-            alert(`Não consegui puxar esse ID da Shopee. Detalhe: ${erro.message}`);
+            if (converterStatus) converterStatus.textContent = '⚠️ Falha ao converter o link.';
+            alert(`Não consegui converter e puxar esse produto. Detalhe: ${erro.message}`);
         } finally {
             setCarregando(false);
         }
@@ -154,6 +161,7 @@
 
     btnLimparCampos?.addEventListener('click', () => {
         if (inputShopeeId) inputShopeeId.value = '';
+        if (converterStatus) converterStatus.textContent = 'Aguardando link para conversão automática.';
         setTimeout(atualizarHelper, 0);
     });
 
@@ -167,7 +175,7 @@
         }
 
         if (id === 'btn-fast-shopee-msg') {
-            if (!displayProduto.value || displayProduto.value === 'Buscando...' || displayProduto.value === 'Buscando na Shopee...' || /^[a-z0-9-]{4,20}$/i.test(displayProduto.value.trim())) {
+            if (!displayProduto.value || displayProduto.value === 'Buscando...' || displayProduto.value === 'Buscando na Shopee...') {
                 displayProduto.value = 'Oferta Shopee com desconto';
             }
             if (!displayPor?.value || displayPor.value === 'R$ 0,00') displayPor.value = '';
