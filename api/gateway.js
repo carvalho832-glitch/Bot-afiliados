@@ -9,6 +9,9 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const INTERNAL_PORT = Number(process.env.INTERNAL_API_PORT || 3001);
 const INTERNAL_URL = `http://127.0.0.1:${INTERNAL_PORT}`;
+const BOT_PANEL_URL = String(process.env.BOT_PANEL_URL || 'https://bot.achoulevoubot.uk').replace(/\/+$/, '');
+const BOT_PANEL_USER = process.env.BOT_PANEL_USER || 'julio';
+const BOT_PANEL_PASSWORD = process.env.BOT_PANEL_PASSWORD || 'AchouLevou2026';
 
 app.use(cors({
   origin: '*',
@@ -69,6 +72,108 @@ function montarLinkCompleto(ids) {
 
 function ehLinkCurtoShopee(link = '') {
   return /s\.shopee\.com\.br|shp\.ee|collshp\.com/i.test(link);
+}
+
+function textoNormalizado(valor = '') {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function normalizarStatusBot(dados = {}) {
+  const aninhado = dados.whatsapp || dados.session || dados.client || dados.data || {};
+  const fonte = { ...dados, ...aninhado };
+  const flags = ['connected', 'isConnected', 'ready', 'isReady', 'authenticated', 'isAuthenticated', 'loggedIn', 'hasSession'];
+
+  if (flags.some(chave => fonte[chave] === true)) return { status: 'conectado', connected: true };
+
+  const bruto = fonte.status ?? fonte.state ?? fonte.connection ?? fonte.connectionState ?? fonte.sessionStatus ?? fonte.whatsappStatus ?? '';
+  const status = textoNormalizado(bruto);
+  const online = ['conectado', 'connected', 'online', 'ready', 'authenticated', 'autenticado', 'open', 'opened', 'logado', 'active', 'ativo'];
+  const conectando = ['conectando', 'connecting', 'initializing', 'iniciando', 'loading', 'aguardando qr', 'qr', 'qr code'];
+
+  if (online.includes(status)) return { status: 'conectado', connected: true };
+  if (conectando.includes(status)) return { status: 'conectando', connected: false };
+  return { status: status || 'offline', connected: false };
+}
+
+function statusPeloHtml(html = '') {
+  const texto = String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ');
+
+  const match = texto.match(/Status\s*:\s*([\p{L}\s._-]{2,30})/iu);
+  const encontrado = textoNormalizado(match?.[1] || '');
+  if (encontrado.includes('conectado')) return { status: 'conectado', connected: true };
+  if (encontrado.includes('conectando')) return { status: 'conectando', connected: false };
+  if (encontrado.includes('offline') || encontrado.includes('desconectado')) return { status: 'offline', connected: false };
+  return null;
+}
+
+async function fetchBotComTimeout(caminho, aceitaJson = true) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const authorization = `Basic ${Buffer.from(`${BOT_PANEL_USER}:${BOT_PANEL_PASSWORD}`).toString('base64')}`;
+
+  try {
+    return await fetch(`${BOT_PANEL_URL}${caminho}`, {
+      headers: {
+        Authorization: authorization,
+        Accept: aceitaJson ? 'application/json,text/plain,*/*' : 'text/html,application/xhtml+xml,*/*'
+      },
+      cache: 'no-store',
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function consultarStatusRealBot() {
+  const rotasJson = ['/status', '/api/status', '/painel/status'];
+  const tentativas = [];
+
+  for (const rota of rotasJson) {
+    try {
+      const resposta = await fetchBotComTimeout(`${rota}?t=${Date.now()}`, true);
+      const tipo = resposta.headers.get('content-type') || '';
+      const corpo = await resposta.text();
+      tentativas.push(`${rota}:${resposta.status}`);
+
+      if (resposta.ok && /json/i.test(tipo)) {
+        const json = JSON.parse(corpo);
+        const normalizado = normalizarStatusBot(json);
+        if (normalizado.status !== 'offline' || normalizado.connected) {
+          return { ok: true, origem: rota, ...normalizado, dados: json };
+        }
+      }
+
+      if (resposta.ok) {
+        const peloHtml = statusPeloHtml(corpo);
+        if (peloHtml) return { ok: true, origem: rota, ...peloHtml };
+      }
+    } catch (error) {
+      tentativas.push(`${rota}:${error.name === 'AbortError' ? 'timeout' : error.message}`);
+    }
+  }
+
+  try {
+    const respostaPainel = await fetchBotComTimeout(`/painel?t=${Date.now()}`, false);
+    const html = await respostaPainel.text();
+    tentativas.push(`/painel:${respostaPainel.status}`);
+    const peloHtml = statusPeloHtml(html);
+    if (respostaPainel.ok && peloHtml) return { ok: true, origem: '/painel', ...peloHtml };
+  } catch (error) {
+    tentativas.push(`/painel:${error.name === 'AbortError' ? 'timeout' : error.message}`);
+  }
+
+  return { ok: false, status: 'offline', connected: false, detalhe: tentativas.join(' | ') };
 }
 
 async function converterComPlaywright(linkOriginal) {
@@ -163,6 +268,12 @@ async function esperarApiInterna(tentativas = 30) {
 }
 
 const apiPronta = esperarApiInterna();
+
+app.get('/bot/status', async (_req, res) => {
+  const status = await consultarStatusRealBot();
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  return res.status(status.ok ? 200 : 503).json(status);
+});
 
 app.get('/shopee/converter-link', async (req, res) => {
   const link = extrairLink(req.query.url || req.query.link || '');
