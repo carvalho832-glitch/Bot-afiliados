@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Achou Levou Bot</title>
 
     <script>
         (function () {
             try {
+                const UI_VERSION = '69';
                 localStorage.removeItem('achou_levou_group_options');
                 localStorage.removeItem('achou_levou_selected_groups');
                 localStorage.removeItem('achou_levou_recovery_20260530');
@@ -24,6 +28,18 @@
                         .catch(() => {});
                 }
 
+                if ('serviceWorker' in navigator) {
+                    let refreshing = false;
+                    navigator.serviceWorker.addEventListener('controllerchange', () => {
+                        if (refreshing) return;
+                        const key = 'achou_levou_reloaded_' + UI_VERSION;
+                        if (sessionStorage.getItem(key)) return;
+                        refreshing = true;
+                        sessionStorage.setItem(key, '1');
+                        location.reload();
+                    });
+                }
+
                 window.addEventListener('DOMContentLoaded', () => {
                     const loader = document.getElementById('loader-global');
                     if (loader) loader.style.display = 'none';
@@ -34,15 +50,15 @@
         })();
     </script>
 
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json?v=69">
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png?v=69">
 
-    <link rel="stylesheet" href="style.css?v=64">
-    <link rel="stylesheet" href="progress-style.css?v=64">
-    <link rel="stylesheet" href="robot-realistic.css?v=64">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=64">
-    <link rel="stylesheet" href="achou-levou-v2.css?v=64">
+    <link rel="stylesheet" href="style.css?v=69">
+    <link rel="stylesheet" href="progress-style.css?v=69">
+    <link rel="stylesheet" href="robot-realistic.css?v=69">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=69">
+    <link rel="stylesheet" href="achou-levou-v2.css?v=69">
 </head>
 <body>
     <div class="app-shell">
@@ -188,22 +204,22 @@
         </div>
     </div>
 
-    <script src="script.js?v=64"></script>
-    <script src="progress-loader.js?v=64"></script>
-    <script src="app-dialog.js?v=64"></script>
-    <script src="shopee-helper.js?v=64"></script>
-    <script src="gemini-client.js?v=64"></script>
-    <script src="product-message-patch.js?v=64"></script>
-    <script src="bot-queue-integration.js?v=64"></script>
-    <script src="bot-queue-proxy.js?v=64"></script>
-    <script src="achou-levou-v2.js?v=64"></script>
+    <script src="script.js?v=69"></script>
+    <script src="progress-loader.js?v=69"></script>
+    <script src="app-dialog.js?v=69"></script>
+    <script src="shopee-helper.js?v=69"></script>
+    <script src="gemini-client.js?v=69"></script>
+    <script src="product-message-patch.js?v=69"></script>
+    <script src="bot-queue-integration.js?v=69"></script>
+    <script src="bot-queue-proxy.js?v=69"></script>
+    <script src="achou-levou-v2.js?v=69"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=64')
+                navigator.serviceWorker.register('./sw.js?v=69', { updateViaCache: 'none' })
                     .then(reg => {
-                        console.log('PWA ativado!', reg);
+                        console.log('PWA v69 ativado!', reg);
                         reg.update();
                     })
                     .catch(err => console.log('Falha no PWA:', err));
