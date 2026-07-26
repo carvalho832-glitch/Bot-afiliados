@@ -8,11 +8,12 @@
     password: "AchouLevou2026"
   };
 
+  let statusRequest = null;
+  let statusTimer = null;
+
   function normalizeBotUrl(url) {
     let cleanUrl = String(url || "").trim().replace(/\/+$/, "");
 
-    // Migração automática: versões antigas usavam IP/HTTP.
-    // Página HTTPS não consegue enviar fetch para HTTP por bloqueio de mixed content.
     if (
       !cleanUrl ||
       cleanUrl.includes("35.253.196.37") ||
@@ -35,7 +36,6 @@
         botUrl: normalizeBotUrl(saved.botUrl || DEFAULT_CONFIG.botUrl)
       };
 
-      // Salva a URL corrigida para limpar configurações antigas do navegador.
       if (saved.botUrl !== config.botUrl) {
         localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
       }
@@ -73,6 +73,7 @@
     if (pill) {
       pill.textContent = message;
       pill.dataset.state = state;
+      pill.title = `Última verificação: ${new Date().toLocaleTimeString("pt-BR")}`;
     }
 
     if (text) {
@@ -80,10 +81,101 @@
     }
   }
 
-  function getCleanMessages(messages) {
-    if (!Array.isArray(messages)) {
-      return [];
+  function normalizeStatusValue(value) {
+    return String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function readBooleanStatus(json, keys) {
+    for (const key of keys) {
+      if (json?.[key] === true) return true;
+      if (json?.[key] === false) return false;
     }
+    return null;
+  }
+
+  function interpretBotStatus(json) {
+    const nested = json?.whatsapp || json?.session || json?.client || json?.data || {};
+    const source = { ...json, ...nested };
+
+    const connectedFlag = readBooleanStatus(source, [
+      "connected",
+      "isConnected",
+      "ready",
+      "isReady",
+      "authenticated",
+      "isAuthenticated",
+      "loggedIn",
+      "hasSession"
+    ]);
+
+    if (connectedFlag === true) {
+      return { label: "Conectado", state: "ok" };
+    }
+
+    const rawStatus = source.status ?? source.state ?? source.connection ?? source.connectionState ?? source.sessionStatus ?? source.whatsappStatus;
+    const status = normalizeStatusValue(rawStatus);
+
+    const onlineStates = [
+      "conectado",
+      "connected",
+      "online",
+      "ready",
+      "authenticated",
+      "autenticado",
+      "open",
+      "opened",
+      "logado",
+      "active",
+      "ativo"
+    ];
+
+    const connectingStates = [
+      "conectando",
+      "connecting",
+      "initializing",
+      "iniciando",
+      "loading",
+      "aguardando qr",
+      "qr",
+      "qr code"
+    ];
+
+    const offlineStates = [
+      "offline",
+      "disconnected",
+      "desconectado",
+      "closed",
+      "close",
+      "logout",
+      "logged out",
+      "sem sessao",
+      "no session"
+    ];
+
+    if (onlineStates.includes(status)) return { label: "Conectado", state: "ok" };
+    if (connectingStates.includes(status)) return { label: "Conectando...", state: "loading" };
+    if (offlineStates.includes(status) || connectedFlag === false) return { label: "Offline", state: "error" };
+
+    if (json?.ok === true && !status) {
+      return { label: "Online", state: "ok" };
+    }
+
+    if (status) {
+      return {
+        label: String(rawStatus).replace(/^./, letra => letra.toUpperCase()),
+        state: "idle"
+      };
+    }
+
+    return { label: "Verificando...", state: "loading" };
+  }
+
+  function getCleanMessages(messages) {
+    if (!Array.isArray(messages)) return [];
 
     return messages
       .map(message => String(message || "").trim())
@@ -104,20 +196,11 @@
     const config = loadConfig();
     const cleanMessages = getCleanMessages(messages);
 
-    if (!config.botUrl) {
-      throw new Error("URL do bot não configurada.");
-    }
-
-    if (!config.username || !config.password) {
-      throw new Error("Usuário e senha do bot não configurados.");
-    }
-
-    if (!cleanMessages.length) {
-      throw new Error("Nenhuma mensagem para enviar.");
-    }
+    if (!config.botUrl) throw new Error("URL do bot não configurada.");
+    if (!config.username || !config.password) throw new Error("Usuário e senha do bot não configurados.");
+    if (!cleanMessages.length) throw new Error("Nenhuma mensagem para enviar.");
 
     setStatus("Enviando", "loading");
-
     const text = cleanMessages.join("\n---\n");
 
     let response;
@@ -136,22 +219,15 @@
       throw new Error(formatFetchError(error, config));
     }
 
-    let json = null;
+    const json = await response.json().catch(() => null);
 
-    try {
-      json = await response.json();
-    } catch {
-      throw new Error("Resposta inválida do bot.");
-    }
-
-    if (!response.ok || !json.ok) {
+    if (!response.ok || !json?.ok) {
       setStatus("Erro", "error");
-      throw new Error(json.error || "Erro ao enviar mensagens para a fila.");
+      throw new Error(json?.error || "Erro ao enviar mensagens para a fila.");
     }
 
     setStatus("Fila atualizada", "ok");
     setTimeout(checkBotStatus, 1200);
-
     return json;
   }
 
@@ -174,25 +250,42 @@
       return;
     }
 
+    statusRequest?.abort();
+    statusRequest = new AbortController();
+    const timeout = setTimeout(() => statusRequest.abort(), 8000);
+
     try {
-      const response = await fetch(`${config.botUrl}/status`, {
+      const response = await fetch(`${config.botUrl}/status?t=${Date.now()}`, {
         headers: {
-          "Authorization": basicAuthHeader(config.username, config.password)
+          "Authorization": basicAuthHeader(config.username, config.password),
+          "Accept": "application/json"
         },
-        cache: "no-store"
+        cache: "no-store",
+        signal: statusRequest.signal
       });
 
-      const json = await response.json();
-      const status = json.status || "Online";
+      const json = await response.json().catch(() => null);
 
-      if (status === "conectado") {
-        setStatus("Conectado", "ok");
-      } else {
-        setStatus(status, "idle");
+      if (!response.ok || !json) {
+        throw new Error(`Status HTTP ${response.status}`);
       }
-    } catch {
+
+      const interpreted = interpretBotStatus(json);
+      setStatus(interpreted.label, interpreted.state);
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.warn("Falha ao consultar status do robô:", error);
+      }
       setStatus("Offline", "error");
+    } finally {
+      clearTimeout(timeout);
     }
+  }
+
+  function startStatusPolling() {
+    clearInterval(statusTimer);
+    checkBotStatus();
+    statusTimer = setInterval(checkBotStatus, 10000);
   }
 
   window.AchouLevouBotQueue = {
@@ -203,8 +296,9 @@
     checkBotStatus
   };
 
-  document.addEventListener("DOMContentLoaded", () => {
-    checkBotStatus();
-    setInterval(checkBotStatus, 45000);
+  document.addEventListener("DOMContentLoaded", startStatusPolling);
+  window.addEventListener("focus", checkBotStatus);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkBotStatus();
   });
 })();
