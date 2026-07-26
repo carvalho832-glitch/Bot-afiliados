@@ -11,6 +11,12 @@
     const btnGerar = document.getElementById('btn-gerar');
     const btnLimparCampos = document.getElementById('btn-limpar-campos');
     const loader = document.getElementById('loader-global');
+    const progressTrack = document.getElementById('loader-progress-track');
+    const progressBar = document.getElementById('loader-progress-bar');
+    const progressText = document.getElementById('loader-progress-text');
+    const progressPhase = document.getElementById('loader-progress-phase');
+    const loaderTitle = document.getElementById('loader-title');
+    const loaderSubtitle = document.getElementById('loader-subtitle');
 
     if (!inputLink || !btnPuxar || !displayProduto) return;
 
@@ -47,6 +53,7 @@
     let ultimaEntrada = '';
     let numeroConsulta = 0;
     let controleConsulta = null;
+    let timersEtapas = [];
 
     window.__achouLevouOriginalShortUrl = '';
     window.__achouLevouResolvedUrl = '';
@@ -77,11 +84,45 @@
         helper.style.display = deveUsarShopee() ? 'block' : 'none';
     }
 
+    function limparTimersEtapas() {
+        timersEtapas.forEach(clearTimeout);
+        timersEtapas = [];
+    }
+
+    function atualizarProgresso(valor, fase, titulo, subtitulo) {
+        const percentual = Math.max(0, Math.min(100, Math.round(valor)));
+        if (progressBar) progressBar.style.width = `${percentual}%`;
+        if (progressText) progressText.textContent = `${percentual}%`;
+        if (progressPhase) progressPhase.textContent = fase;
+        if (loaderTitle) loaderTitle.textContent = titulo;
+        if (loaderSubtitle) loaderSubtitle.textContent = subtitulo;
+        progressTrack?.setAttribute('aria-valuenow', String(percentual));
+        loader?.setAttribute('data-progress-stage', String(Math.ceil(percentual / 25)));
+    }
+
+    function iniciarEtapasVisuais() {
+        limparTimersEtapas();
+        atualizarProgresso(25, 'ETAPA 1 DE 4', 'Convertendo link curto...', 'o robô está abrindo e decifrando o endereço');
+        timersEtapas.push(setTimeout(() => {
+            atualizarProgresso(50, 'ETAPA 2 DE 4', 'Localizando produto...', 'procurando shopId, itemId e página oficial');
+        }, 10000));
+        timersEtapas.push(setTimeout(() => {
+            atualizarProgresso(75, 'ETAPA 3 DE 4', 'Consultando a Shopee...', 'buscando nome, preços e desconto na API oficial');
+        }, 35000));
+    }
+
+    function concluirEtapasVisuais() {
+        limparTimersEtapas();
+        atualizarProgresso(100, 'ETAPA 4 DE 4', 'Oferta encontrada!', 'dados prontos para gerar a mensagem');
+    }
+
     function setCarregando(ativo) {
         if (loader) loader.style.display = ativo ? 'flex' : 'none';
         btnPuxar.disabled = ativo;
         btnPuxar.innerText = ativo ? '🔄 Convertendo e puxando...' : '🔎 Puxar produto';
-        if (converterStatus && ativo) converterStatus.textContent = 'Convertendo o link curto e consultando a Shopee. A busca pode levar até 2 minutos...';
+        if (converterStatus && ativo) converterStatus.textContent = 'Convertendo o link curto e consultando a Shopee...';
+        if (ativo) iniciarEtapasVisuais();
+        else limparTimersEtapas();
     }
 
     function limparDadosProduto(status = '🔄 Buscando novo produto...') {
@@ -194,6 +235,9 @@
             const dados = await puxarShopeePelaApi(link, idProduto, controleConsulta.signal);
             if (!preencherCampos(dados, idConsulta)) return;
 
+            concluirEtapasVisuais();
+            await new Promise(resolve => setTimeout(resolve, 650));
+
             if (dados?.origem === 'shopee-fallback') {
                 if (converterStatus) converterStatus.textContent = '⚠️ O link não pôde ser convertido automaticamente.';
                 alert(`Não consegui converter esse link curto da Shopee.\n\nMotivo: ${dados.aviso || 'motivo não informado'}`);
@@ -202,15 +246,19 @@
             }
         } catch (erro) {
             if (idConsulta !== numeroConsulta) return;
+            limparTimersEtapas();
             if (erro?.name === 'AbortError') {
+                atualizarProgresso(100, 'TEMPO LIMITE', 'Consulta interrompida', 'a Shopee demorou mais de 120 segundos para responder');
                 if (converterStatus) converterStatus.textContent = '⚠️ Consulta cancelada ou tempo limite atingido.';
                 alert('A consulta foi cancelada ou demorou mais de 120 segundos. Tente novamente.');
             } else {
                 console.error('Erro Shopee API:', erro);
+                atualizarProgresso(100, 'ERRO', 'Falha na consulta', 'não foi possível concluir a captura dos dados');
                 if (converterStatus) converterStatus.textContent = '⚠️ Falha ao converter o link.';
                 alert(`Não consegui converter e puxar esse produto. Detalhe: ${erro.message}`);
             }
             displayProduto.value = '';
+            await new Promise(resolve => setTimeout(resolve, 500));
         } finally {
             clearTimeout(timeout);
             if (idConsulta === numeroConsulta) setCarregando(false);
@@ -224,6 +272,7 @@
         window.__achouLevouRequestId = numeroConsulta;
         window.__achouLevouOriginalShortUrl = '';
         limparDadosProduto('Aguardando link para conversão automática.');
+        atualizarProgresso(0, 'INICIANDO', 'Analisando produto...', 'preparando captura de dados');
         setTimeout(atualizarHelper, 0);
     });
 
