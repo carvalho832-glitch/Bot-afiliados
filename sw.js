@@ -1,14 +1,14 @@
-const CACHE_VERSION = 'achou-levou-v56-conversor-shopee';
+const CACHE_VERSION = 'achou-levou-v57-link-curto-seguro';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
 self.addEventListener('install', (event) => {
-    console.log('Achou Levou interface v56 instalada.');
+    console.log('Achou Levou interface v57 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v56 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v57 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
