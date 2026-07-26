@@ -1,6 +1,6 @@
 .tech-progress {
     background: rgba(15, 23, 42, 0.92);
-    border: 1px solid rgba(34, 211, 238, 0.38);
+    border: 1px solid rgba(59, 130, 246, 0.5);
     border-radius: 999px;
     height: 12px;
     margin-top: 0;
@@ -10,24 +10,24 @@
 }
 
 .tech-progress::after {
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent);
     content: '';
     height: 100%;
     left: -30%;
     position: absolute;
     top: 0;
     width: 30%;
-    animation: progressGlow 1.8s linear infinite;
+    animation: progressGlow 1.5s linear infinite;
 }
 
 #loader-progress-bar.progress-bar-animated {
-    animation: none;
-    background: linear-gradient(90deg, #22d3ee, #f97316, #ef4444);
+    animation: progressPulse 1.3s ease-in-out infinite;
+    background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa);
     border-radius: 999px;
-    box-shadow: 0 0 18px rgba(34, 211, 238, 0.8);
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.78);
     height: 100%;
     margin-left: 0;
-    transition: width 0.28s ease;
+    transition: width 0.5s cubic-bezier(.2,.8,.2,1);
     width: 0%;
 }
 
@@ -56,6 +56,147 @@
     text-align: right;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.tech-robot-stage {
+    min-height: 116px;
+    position: relative;
+    display: grid;
+    place-items: center;
+    perspective: 600px;
+}
+
+.tech-robot {
+    animation: robotFloat 2.2s ease-in-out infinite;
+    filter: drop-shadow(0 12px 18px rgba(37, 99, 235, 0.28));
+    position: relative;
+    transform-origin: center bottom;
+    z-index: 4;
+}
+
+.tech-robot::before,
+.tech-robot::after {
+    background: linear-gradient(180deg, #93c5fd, #2563eb);
+    border: 2px solid rgba(219, 234, 254, 0.8);
+    border-radius: 999px;
+    content: '';
+    height: 38px;
+    position: absolute;
+    top: 48px;
+    width: 11px;
+}
+
+.tech-robot::before {
+    animation: robotArmLeft 1.25s ease-in-out infinite;
+    left: -13px;
+    transform-origin: top center;
+}
+
+.tech-robot::after {
+    animation: robotArmRight 1.25s ease-in-out infinite reverse;
+    right: -13px;
+    transform-origin: top center;
+}
+
+.robot-head {
+    animation: robotHeadScan 2.8s ease-in-out infinite;
+    background: linear-gradient(180deg, #dbeafe, #93c5fd);
+    border: 2px solid rgba(255, 255, 255, 0.82);
+    border-radius: 16px;
+    box-shadow: inset 0 -7px 14px rgba(37, 99, 235, 0.22), 0 0 18px rgba(96, 165, 250, 0.35);
+    height: 46px;
+    position: relative;
+    width: 66px;
+}
+
+.robot-visor {
+    align-items: center;
+    background: #07111f;
+    border: 1px solid rgba(96, 165, 250, 0.65);
+    border-radius: 10px;
+    display: flex;
+    gap: 15px;
+    height: 21px;
+    justify-content: center;
+    left: 8px;
+    position: absolute;
+    top: 11px;
+    width: 46px;
+}
+
+.robot-visor span {
+    animation: robotBlink 3s infinite;
+    background: #60a5fa;
+    border-radius: 999px;
+    box-shadow: 0 0 9px #3b82f6;
+    height: 6px;
+    width: 6px;
+}
+
+.robot-neck {
+    background: #60a5fa;
+    height: 7px;
+    margin: 0 auto;
+    width: 16px;
+}
+
+.robot-body {
+    background: linear-gradient(180deg, #93c5fd, #2563eb);
+    border: 2px solid rgba(219, 234, 254, 0.9);
+    border-radius: 14px 14px 18px 18px;
+    box-shadow: inset 0 -10px 18px rgba(30, 64, 175, 0.28);
+    height: 52px;
+    margin: 0 auto;
+    position: relative;
+    width: 54px;
+}
+
+.robot-core {
+    animation: robotCore 1.4s ease-in-out infinite;
+    background: #dbeafe;
+    border: 3px solid #1d4ed8;
+    border-radius: 8px;
+    box-shadow: 0 0 14px rgba(96, 165, 250, 0.9);
+    height: 22px;
+    left: 13px;
+    position: absolute;
+    top: 12px;
+    width: 22px;
+}
+
+.tech-robot-stage::after {
+    animation: dataPanel 1.8s ease-in-out infinite;
+    background:
+        repeating-linear-gradient(180deg, rgba(147, 197, 253, 0.9) 0 2px, transparent 2px 7px),
+        rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(96, 165, 250, 0.6);
+    border-radius: 8px;
+    box-shadow: 0 0 18px rgba(59, 130, 246, 0.32);
+    content: '';
+    height: 43px;
+    position: absolute;
+    right: 12%;
+    top: 34px;
+    transform: rotateY(-18deg) rotateZ(3deg);
+    width: 58px;
+    z-index: 2;
+}
+
+.tech-robot-stage::before {
+    animation: dataDots 1.6s linear infinite;
+    background-image:
+        radial-gradient(circle, #60a5fa 0 2px, transparent 3px),
+        radial-gradient(circle, #93c5fd 0 2px, transparent 3px),
+        radial-gradient(circle, #2563eb 0 2px, transparent 3px);
+    background-position: 0 0, 18px 13px, 35px 2px;
+    background-repeat: no-repeat;
+    content: '';
+    height: 45px;
+    left: 12%;
+    opacity: .9;
+    position: absolute;
+    top: 30px;
+    width: 48px;
 }
 
 .saved-card > img,
@@ -87,9 +228,73 @@
         height: 135px !important;
         max-height: 135px !important;
     }
+
+    .tech-robot-stage::after { right: 5%; }
+    .tech-robot-stage::before { left: 6%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tech-robot,
+    .tech-robot::before,
+    .tech-robot::after,
+    .robot-head,
+    .robot-visor span,
+    .robot-core,
+    .tech-robot-stage::before,
+    .tech-robot-stage::after,
+    #loader-progress-bar.progress-bar-animated {
+        animation: none !important;
+    }
 }
 
 @keyframes progressGlow {
     from { left: -30%; }
     to { left: 100%; }
+}
+
+@keyframes progressPulse {
+    0%, 100% { filter: brightness(.95); }
+    50% { filter: brightness(1.18); }
+}
+
+@keyframes robotFloat {
+    0%, 100% { transform: translateY(4px) rotate(-1deg); }
+    50% { transform: translateY(-8px) rotate(1deg); }
+}
+
+@keyframes robotArmLeft {
+    0%, 100% { transform: rotate(16deg); }
+    50% { transform: rotate(-30deg); }
+}
+
+@keyframes robotArmRight {
+    0%, 100% { transform: rotate(-16deg); }
+    50% { transform: rotate(30deg); }
+}
+
+@keyframes robotHeadScan {
+    0%, 100% { transform: rotate(-2deg); }
+    40% { transform: rotate(4deg); }
+    70% { transform: rotate(-5deg); }
+}
+
+@keyframes robotBlink {
+    0%, 43%, 47%, 100% { transform: scaleY(1); }
+    45% { transform: scaleY(.15); }
+}
+
+@keyframes robotCore {
+    0%, 100% { opacity: .72; transform: scale(.92); }
+    50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes dataPanel {
+    0%, 100% { opacity: .65; transform: rotateY(-18deg) rotateZ(3deg) translateY(3px); }
+    50% { opacity: 1; transform: rotateY(-8deg) rotateZ(-1deg) translateY(-3px); }
+}
+
+@keyframes dataDots {
+    from { transform: translateY(8px); opacity: .35; }
+    50% { opacity: 1; }
+    to { transform: translateY(-12px); opacity: .25; }
 }
