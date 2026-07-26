@@ -41,6 +41,7 @@
 
     btnPuxar.insertAdjacentElement('afterend', helper);
     const converterStatus = document.getElementById('shopee-converter-status');
+    let linkPreenchidoAutomaticamente = '';
 
     function extrairLink(texto) {
         return String(texto || '').match(/https?:\/\/[^\s]+/)?.[0] || String(texto || '').trim();
@@ -80,9 +81,10 @@
         displayProduto.value = normalizarProdutoShopee(dados);
         if (displayDe) displayDe.value = dados.precoDe || '';
         if (displayPor) displayPor.value = dados.precoPor || '';
-        if (displayCupom) displayCupom.value = dados.cupom || dados.desconto || displayCupom.value || '';
+        if (displayCupom) displayCupom.value = dados.cupom || dados.desconto || '';
 
         if (dados?.linkCompleto) {
+            linkPreenchidoAutomaticamente = dados.linkCompleto;
             inputLink.value = dados.linkCompleto;
         }
 
@@ -99,8 +101,11 @@
 
     async function puxarShopeePelaApi(link, idProduto) {
         const params = new URLSearchParams();
-        if (link) params.set('url', link);
-        if (idProduto) params.set('id', idProduto);
+        if (link) {
+            params.set('url', link);
+        } else if (idProduto) {
+            params.set('id', idProduto);
+        }
 
         const resposta = await fetch(`${API_URL}/shopee/produto?${params.toString()}`, {
             method: 'GET',
@@ -116,7 +121,16 @@
         return json;
     }
 
-    inputLink.addEventListener('input', atualizarHelper);
+    inputLink.addEventListener('input', () => {
+        const linkAtual = extrairLink(inputLink.value);
+        if (inputShopeeId && linkAtual && linkAtual !== linkPreenchidoAutomaticamente) {
+            inputShopeeId.value = '';
+            linkPreenchidoAutomaticamente = '';
+            if (converterStatus) converterStatus.textContent = 'Novo link detectado. O ID anterior foi limpo.';
+        }
+        atualizarHelper();
+    });
+
     inputShopeeId?.addEventListener('input', () => {
         inputShopeeId.value = limparId(inputShopeeId.value);
         atualizarHelper();
@@ -129,7 +143,7 @@
         event.stopImmediatePropagation();
 
         const link = extrairLink(inputLink.value);
-        const idProduto = limparId(inputShopeeId?.value);
+        const idProduto = link ? '' : limparId(inputShopeeId?.value);
 
         if (!idProduto && !link) return alert('Cole o link da Shopee.');
 
@@ -138,6 +152,7 @@
         displayProduto.value = 'Buscando na Shopee...';
         if (displayDe) displayDe.value = '';
         if (displayPor) displayPor.value = '';
+        if (displayCupom) displayCupom.value = '';
 
         try {
             const dados = await puxarShopeePelaApi(link, idProduto);
@@ -161,6 +176,7 @@
 
     btnLimparCampos?.addEventListener('click', () => {
         if (inputShopeeId) inputShopeeId.value = '';
+        linkPreenchidoAutomaticamente = '';
         if (converterStatus) converterStatus.textContent = 'Aguardando link para conversão automática.';
         setTimeout(atualizarHelper, 0);
     });
