@@ -113,82 +113,56 @@
     ]);
 
     if (connectedFlag === true) {
-      return { label: "Conectado", state: "ok" };
+      return { label: "Conectado", state: "ok", connected: true };
     }
 
     const rawStatus = source.status ?? source.state ?? source.connection ?? source.connectionState ?? source.sessionStatus ?? source.whatsappStatus;
     const status = normalizeStatusValue(rawStatus);
 
     const onlineStates = [
-      "conectado",
-      "connected",
-      "online",
-      "ready",
-      "authenticated",
-      "autenticado",
-      "open",
-      "opened",
-      "logado",
-      "active",
-      "ativo"
+      "conectado", "connected", "online", "ready", "authenticated", "autenticado",
+      "open", "opened", "logado", "active", "ativo"
     ];
 
     const connectingStates = [
-      "conectando",
-      "connecting",
-      "initializing",
-      "iniciando",
-      "loading",
-      "aguardando qr",
-      "qr",
-      "qr code"
+      "conectando", "connecting", "initializing", "iniciando", "loading",
+      "aguardando qr", "qr", "qr code"
     ];
 
     const offlineStates = [
-      "offline",
-      "disconnected",
-      "desconectado",
-      "closed",
-      "close",
-      "logout",
-      "logged out",
-      "sem sessao",
-      "no session"
+      "offline", "disconnected", "desconectado", "closed", "close", "logout",
+      "logged out", "sem sessao", "no session"
     ];
 
-    if (onlineStates.includes(status)) return { label: "Conectado", state: "ok" };
-    if (connectingStates.includes(status)) return { label: "Conectando...", state: "loading" };
-    if (offlineStates.includes(status) || connectedFlag === false) return { label: "Offline", state: "error" };
+    if (onlineStates.includes(status)) return { label: "Conectado", state: "ok", connected: true };
+    if (connectingStates.includes(status)) return { label: "Conectando...", state: "loading", connected: false, connecting: true };
+    if (offlineStates.includes(status) || connectedFlag === false) return { label: "Offline", state: "error", connected: false };
 
     if (json?.ok === true && !status) {
-      return { label: "Online", state: "ok" };
+      return { label: "Online", state: "ok", connected: true };
     }
 
     if (status) {
       return {
         label: String(rawStatus).replace(/^./, letra => letra.toUpperCase()),
-        state: "idle"
+        state: "idle",
+        connected: null
       };
     }
 
-    return { label: "Verificando...", state: "loading" };
+    return { label: "Verificando...", state: "loading", connected: null };
   }
 
   function getCleanMessages(messages) {
     if (!Array.isArray(messages)) return [];
-
-    return messages
-      .map(message => String(message || "").trim())
-      .filter(Boolean);
+    return messages.map(message => String(message || "").trim()).filter(Boolean);
   }
 
   function formatFetchError(error, config) {
     const msg = String(error?.message || error || "");
-
     if (msg.includes("Failed to fetch") || error instanceof TypeError) {
       return `Falha de conexão com o robô. Confirme se o painel abre em ${config.botUrl}/painel e se o robô está online.`;
     }
-
     return msg || "Erro desconhecido ao conectar com o robô.";
   }
 
@@ -220,7 +194,6 @@
     }
 
     const json = await response.json().catch(() => null);
-
     if (!response.ok || !json?.ok) {
       setStatus("Erro", "error");
       throw new Error(json?.error || "Erro ao enviar mensagens para a fila.");
@@ -233,18 +206,15 @@
 
   function openPanel() {
     const config = loadConfig();
-
     if (!config.botUrl) {
       alert("URL do bot não configurada.");
       return;
     }
-
     window.open(`${config.botUrl}/painel`, "_blank");
   }
 
   async function checkBotStatus() {
     const config = loadConfig();
-
     if (!config.botUrl || !config.username || !config.password) {
       setStatus("Configurar", "warning");
       return;
@@ -265,18 +235,18 @@
       });
 
       const json = await response.json().catch(() => null);
-
-      if (!response.ok || !json) {
-        throw new Error(`Status HTTP ${response.status}`);
-      }
+      if (!response.ok || !json) throw new Error(`Status HTTP ${response.status}`);
 
       const interpreted = interpretBotStatus(json);
       setStatus(interpreted.label, interpreted.state);
+      window.dispatchEvent(new CustomEvent("achoulevou:bot-status", { detail: { ...interpreted, raw: json } }));
+      return interpreted;
     } catch (error) {
-      if (error?.name !== "AbortError") {
-        console.warn("Falha ao consultar status do robô:", error);
-      }
+      if (error?.name !== "AbortError") console.warn("Falha ao consultar status do robô:", error);
       setStatus("Offline", "error");
+      const interpreted = { label: "Offline", state: "error", connected: false, error: true };
+      window.dispatchEvent(new CustomEvent("achoulevou:bot-status", { detail: interpreted }));
+      return interpreted;
     } finally {
       clearTimeout(timeout);
     }
@@ -293,7 +263,9 @@
     saveConfig,
     sendMessages,
     openPanel,
-    checkBotStatus
+    checkBotStatus,
+    interpretBotStatus,
+    basicAuthHeader
   };
 
   document.addEventListener("DOMContentLoaded", startStatusPolling);
