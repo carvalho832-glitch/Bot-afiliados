@@ -38,10 +38,11 @@
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=63">
-    <link rel="stylesheet" href="progress-style.css?v=63">
-    <link rel="stylesheet" href="robot-realistic.css?v=63">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=63">
+    <link rel="stylesheet" href="style.css?v=64">
+    <link rel="stylesheet" href="progress-style.css?v=64">
+    <link rel="stylesheet" href="robot-realistic.css?v=64">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=64">
+    <link rel="stylesheet" href="achou-levou-v2.css?v=64">
 </head>
 <body>
     <div class="app-shell">
@@ -187,19 +188,20 @@
         </div>
     </div>
 
-    <script src="script.js?v=63"></script>
-    <script src="progress-loader.js?v=63"></script>
-    <script src="app-dialog.js?v=63"></script>
-    <script src="shopee-helper.js?v=63"></script>
-    <script src="gemini-client.js?v=63"></script>
-    <script src="product-message-patch.js?v=63"></script>
-    <script src="bot-queue-integration.js?v=63"></script>
-    <script src="bot-queue-proxy.js?v=63"></script>
+    <script src="script.js?v=64"></script>
+    <script src="progress-loader.js?v=64"></script>
+    <script src="app-dialog.js?v=64"></script>
+    <script src="shopee-helper.js?v=64"></script>
+    <script src="gemini-client.js?v=64"></script>
+    <script src="product-message-patch.js?v=64"></script>
+    <script src="bot-queue-integration.js?v=64"></script>
+    <script src="bot-queue-proxy.js?v=64"></script>
+    <script src="achou-levou-v2.js?v=64"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=63')
+                navigator.serviceWorker.register('./sw.js?v=64')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
