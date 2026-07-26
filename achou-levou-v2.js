@@ -3,39 +3,70 @@
   const el=(tag,cls,html)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(html!==undefined)n.innerHTML=html;return n};
   function auth(config){return 'Basic '+btoa(`${config.username}:${config.password}`)}
   function config(){return window.AchouLevouBotQueue?.loadConfig?.()||{botUrl:'https://bot.achoulevoubot.uk',username:'julio',password:'AchouLevou2026'}}
-  const robotSvg=`<svg class="v2-robot-svg" viewBox="0 0 320 300" role="img" aria-label="Robô 3D do Achou Levou em execução">
-    <defs>
-      <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4fbff"/><stop offset=".18" stop-color="#99b7c8"/><stop offset=".48" stop-color="#263f50"/><stop offset=".72" stop-color="#0b1b28"/><stop offset="1" stop-color="#aac3d0"/></linearGradient>
-      <linearGradient id="metalDark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#809eae"/><stop offset=".38" stop-color="#203746"/><stop offset="1" stop-color="#07131d"/></linearGradient>
-      <radialGradient id="visor" cx="45%" cy="28%" r="80%"><stop offset="0" stop-color="#23465d"/><stop offset=".32" stop-color="#0b1d2a"/><stop offset="1" stop-color="#010509"/></radialGradient>
-      <radialGradient id="core" cx="42%" cy="35%"><stop offset="0" stop-color="#eaffff"/><stop offset=".18" stop-color="#65fff0"/><stop offset=".48" stop-color="#10cbb9"/><stop offset="1" stop-color="#07515d"/></radialGradient>
-      <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".35" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-      <filter id="shadow"><feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#000" flood-opacity=".62"/></filter>
-      <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      <filter id="glowRed"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      <clipPath id="visorClip"><rect x="82" y="62" width="156" height="82" rx="40"/></clipPath>
-    </defs>
-    <ellipse cx="160" cy="274" rx="92" ry="15" fill="#000" opacity=".34"/>
-    <g class="arm-left" filter="url(#shadow)"><ellipse cx="78" cy="202" rx="28" ry="56" transform="rotate(18 78 202)" fill="url(#metalDark)" stroke="#8eb2c2" stroke-opacity=".35" stroke-width="2"/><ellipse cx="67" cy="236" rx="22" ry="16" transform="rotate(18 67 236)" fill="url(#metal)"/><path d="M57 181c12-12 27-18 39-14" fill="none" stroke="#dff7ff" stroke-opacity=".28" stroke-width="5" stroke-linecap="round"/></g>
-    <g class="arm-right" filter="url(#shadow)"><ellipse cx="242" cy="202" rx="28" ry="56" transform="rotate(-18 242 202)" fill="url(#metalDark)" stroke="#8eb2c2" stroke-opacity=".35" stroke-width="2"/><ellipse cx="253" cy="236" rx="22" ry="16" transform="rotate(-18 253 236)" fill="url(#metal)"/><path d="M224 169c14-6 28 0 38 12" fill="none" stroke="#dff7ff" stroke-opacity=".24" stroke-width="5" stroke-linecap="round"/></g>
-    <g class="body" filter="url(#shadow)"><path d="M106 160c15-20 93-20 108 0 9 13 15 70 4 91-12 22-104 22-116 0-11-21-5-78 4-91z" fill="url(#metal)" stroke="#b5d0dc" stroke-opacity=".4" stroke-width="3"/><path d="M119 169c20-12 62-15 83 0" fill="none" stroke="#fff" stroke-opacity=".32" stroke-width="5" stroke-linecap="round"/><path d="M121 184c18-10 61-10 78 0v56c-20 11-59 11-78 0z" fill="#07131e" opacity=".76" stroke="#4f7487" stroke-opacity=".5"/><circle class="core-light" cx="160" cy="211" r="28" fill="url(#core)" filter="url(#glow)"/><circle cx="160" cy="211" r="13" fill="#dffffb" opacity=".68"/><path d="M135 250h50" stroke="#a3c3d1" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/></g>
-    <g class="head" filter="url(#shadow)"><rect x="66" y="43" width="188" height="121" rx="58" fill="url(#metal)" stroke="#d7edf5" stroke-opacity=".45" stroke-width="3"/><rect x="82" y="62" width="156" height="82" rx="40" fill="url(#visor)" stroke="#5d8397" stroke-width="3"/><g clip-path="url(#visorClip)"><path d="M84 65h150L120 144H84z" fill="url(#shine)" opacity=".45"/><rect class="scan" x="82" y="72" width="156" height="16" fill="#36f7e7" opacity=".2"/></g><ellipse class="eye" cx="125" cy="103" rx="14" ry="18" fill="#35f6e4" filter="url(#glow)"/><ellipse class="eye" cx="195" cy="103" rx="14" ry="18" fill="#35f6e4" filter="url(#glow)"/><path d="M145 127c10 7 20 7 30 0" fill="none" stroke="#39eadc" stroke-width="4" stroke-linecap="round" opacity=".75"/><rect x="52" y="78" width="22" height="54" rx="11" fill="url(#metalDark)" stroke="#3adbd4" stroke-width="2"/><rect x="246" y="78" width="22" height="54" rx="11" fill="url(#metalDark)" stroke="#3adbd4" stroke-width="2"/><path d="M91 55c28-18 102-19 137 1" fill="none" stroke="#fff" stroke-opacity=".42" stroke-width="7" stroke-linecap="round"/></g>
-    <path d="M160 154v12" stroke="#86a8b8" stroke-width="10" stroke-linecap="round"/><circle cx="160" cy="159" r="7" fill="#1de0cc" opacity=".65"/>
-  </svg>`;
+
+  const ALVA={
+    idle:'assets/alva/alva-standby.mp4',
+    analyzing:'assets/alva/alva-analisando.mp4',
+    preparing:'assets/alva/alva-preparando.mp4',
+    generating:'assets/alva/alva-gerando-ia.mp4',
+    sending:'assets/alva/alva-enviando.mp4',
+    success:'assets/alva/alva-sucesso.mp4',
+    offline:'assets/alva/alva-offline.mp4'
+  };
+  const LABELS={
+    idle:['ALVA em stand-by','Aguardando para iniciar uma nova tarefa'],
+    analyzing:['ALVA analisando produto','Lendo e conferindo os dados da oferta'],
+    preparing:['ALVA preparando a oferta','Organizando as informações encontradas'],
+    generating:['ALVA gerando mensagem','Criando a mensagem com inteligência artificial'],
+    sending:['ALVA enviando ofertas','Distribuindo as mensagens para os grupos'],
+    success:['Missão concluída','A tarefa foi finalizada com sucesso'],
+    offline:['ALVA desconectada','Reconecte a sessão pelo QR Code']
+  };
+  let robotMode='idle',temporaryTimer=null,nextRun=null;
+
   function mount(){
     const shell=q('.app-shell'),header=q('.app-header'),main=q('.main-flow'),saved=q('.saved-section');
     if(!shell||!header||!main||q('.v2-metrics'))return;
     const qr=el('button','v2-qr-btn','▦ Visualizar QR Code');qr.type='button';qr.onclick=()=>window.open(config().botUrl+'/qr-page','_blank');q('.header-actions')?.prepend(qr);
     const nav=el('div','v2-nav','<button class="active">⌂ Painel</button><button>▤ Fila de ofertas</button><button>◉ Histórico</button><button>⚙ Configurações</button><button>⌁ Estatísticas</button>');header.after(nav);
-    const metrics=el('section','v2-metrics',`<article class="v2-metric"><small>Status do robô</small><strong id="v2-status">Verificando</strong><p>WhatsApp Web</p><i>⌁</i></article><article class="v2-metric"><small>Fila de ofertas</small><strong id="v2-fila">0 / 0</strong><p id="v2-fila-txt">Aguardando envio</p><i>▤</i></article><article class="v2-metric"><small>Enviadas hoje</small><strong id="v2-hoje">0</strong><p>Mensagens enviadas</p><i>➤</i></article><article class="v2-metric"><small>Próximo envio</small><strong id="v2-proximo">—</strong><p id="v2-proximo-txt">Aguardando fila</p><i>◷</i></article>`);
+    const metrics=el('section','v2-metrics','<article class="v2-metric"><small>Status do robô</small><strong id="v2-status">Verificando</strong><p>WhatsApp Web</p><i>⌁</i></article><article class="v2-metric"><small>Fila de ofertas</small><strong id="v2-fila">0 / 0</strong><p id="v2-fila-txt">Aguardando envio</p><i>▤</i></article><article class="v2-metric"><small>Enviadas hoje</small><strong id="v2-hoje">0</strong><p>Mensagens enviadas</p><i>➤</i></article><article class="v2-metric"><small>Próximo envio</small><strong id="v2-proximo">—</strong><p id="v2-proximo-txt">Aguardando fila</p><i>◷</i></article>');
     nav.after(metrics);
-    const progress=el('section','v2-progress',`<div class="v2-progress-top"><span>Progresso geral das ofertas</span><strong id="v2-progress-label">0%</strong></div><div class="v2-progress-track"><div id="v2-progress-bar" class="v2-progress-bar"></div></div><small id="v2-progress-copy">0 de 0 ofertas enviadas</small>`);metrics.after(progress);
+    const progress=el('section','v2-progress','<div class="v2-progress-top"><span>Progresso geral das ofertas</span><strong id="v2-progress-label">0%</strong></div><div class="v2-progress-track"><div id="v2-progress-bar" class="v2-progress-bar"></div></div><small id="v2-progress-copy">0 de 0 ofertas enviadas</small>');metrics.after(progress);
     const workspace=el('section','v2-workspace'),left=el('div','v2-left'),right=el('aside','v2-right');main.parentNode.insertBefore(workspace,main);left.appendChild(main);workspace.append(left,right);
-    right.innerHTML=`<section class="v2-robot-card"><div class="v2-card-title">Execução do robô</div><div class="v2-robot-stage" data-mode="idle">${robotSvg}</div><div class="v2-status-copy"><strong id="v2-robot-title">Robô em stand-by</strong><span id="v2-robot-subtitle">Aguardando para iniciar o envio das ofertas</span></div><div id="v2-system" class="v2-system-ok">● Sistema funcionando normalmente</div></section><section class="v2-current-card"><div class="v2-card-title">Progresso atual</div><div class="v2-current-empty"><div class="v2-pulse">☷</div><strong id="v2-current-title">Nenhuma oferta em processamento</strong><p id="v2-current-copy">As ofertas aparecerão aqui quando o envio iniciar.</p></div></section>`;
-    if(saved)workspace.after(saved);poll();setInterval(poll,10000);setInterval(tick,1000)
+    right.innerHTML='<section class="v2-robot-card"><div class="v2-card-title">Execução do robô</div><div class="v2-robot-stage" data-mode="idle"><div class="v2-video-glow"></div><video id="v2-alva-video" class="v2-alva-video" muted playsinline loop autoplay preload="auto" poster=""><source src="'+ALVA.idle+'" type="video/mp4"></video><div class="v2-video-loading"><span></span><small>Carregando ALVA...</small></div></div><div class="v2-status-copy"><strong id="v2-robot-title">ALVA em stand-by</strong><span id="v2-robot-subtitle">Aguardando para iniciar uma nova tarefa</span></div><div id="v2-system" class="v2-system-ok">● Sistema funcionando normalmente</div></section><section class="v2-current-card"><div class="v2-card-title">Progresso atual</div><div class="v2-current-empty"><div class="v2-pulse">☷</div><strong id="v2-current-title">Nenhuma oferta em processamento</strong><p id="v2-current-copy">As ofertas aparecerão aqui quando o envio iniciar.</p></div></section>';
+    if(saved)workspace.after(saved);
+    preloadVideos();bindVisualStates();setRobot('idle');poll();setInterval(poll,10000);setInterval(tick,1000);
   }
-  let nextRun=null;
-  function setRobot(mode,text){const title=q('#v2-robot-title'),sub=q('#v2-robot-subtitle'),stage=q('.v2-robot-stage');if(!title||!sub||!stage)return;stage.dataset.mode=mode;title.textContent=mode==='working'?'Robô trabalhando':mode==='offline'?'Robô desconectado':'Robô em stand-by';sub.textContent=text||''}
+
+  function preloadVideos(){Object.values(ALVA).forEach(src=>{const v=document.createElement('video');v.preload='auto';v.muted=true;v.src=src})}
+
+  function setRobot(mode,text,force=false){
+    const video=q('#v2-alva-video'),stage=q('.v2-robot-stage'),title=q('#v2-robot-title'),sub=q('#v2-robot-subtitle');
+    if(!video||!stage||!title||!sub)return;
+    const selected=ALVA[mode]?mode:'idle';
+    if(selected!==robotMode||force){
+      robotMode=selected;stage.dataset.mode=selected;stage.classList.add('is-switching');
+      const swap=()=>{video.src=ALVA[selected];video.load();const p=video.play();if(p?.catch)p.catch(()=>{});requestAnimationFrame(()=>stage.classList.remove('is-switching'))};
+      setTimeout(swap,150);
+    }
+    const copy=LABELS[selected]||LABELS.idle;title.textContent=copy[0];sub.textContent=text||copy[1];
+  }
+
+  function temporaryState(mode,duration=6500,next='idle'){
+    clearTimeout(temporaryTimer);setRobot(mode);temporaryTimer=setTimeout(()=>{if(robotMode===mode)setRobot(next)},duration);
+  }
+
+  function bindVisualStates(){
+    q('#btn-puxar')?.addEventListener('click',()=>{temporaryState('analyzing',4200,'preparing');setTimeout(()=>{if(robotMode==='preparing')temporaryState('preparing',3500,'idle')},4300)});
+    q('#btn-gerar')?.addEventListener('click',()=>temporaryState('generating',8000,'success'));
+    q('#btn-salvar')?.addEventListener('click',()=>temporaryState('success',3500,'idle'));
+    q('#btn-enviar-atual-robo')?.addEventListener('click',()=>temporaryState('sending',9000,'success'));
+    q('#btn-enviar-todas-robo')?.addEventListener('click',()=>temporaryState('sending',9000,'success'));
+    const video=q('#v2-alva-video');
+    video?.addEventListener('canplay',()=>q('.v2-video-loading')?.classList.add('is-hidden'));
+    video?.addEventListener('error',()=>{q('.v2-video-loading small').textContent='Vídeo do ALVA não encontrado';q('.v2-video-loading')?.classList.remove('is-hidden')});
+  }
+
   async function poll(){
     const c=config();
     try{
@@ -46,10 +77,13 @@
       q('#v2-status').textContent=connected?'Conectado':(s.status||'Offline');q('#v2-status').style.color=connected?'var(--v2-green)':'var(--v2-red)';
       const total=Number(qu.total)||0,sent=Number(qu.sent)||0,pending=Number(qu.pending)||0,pct=total?Math.round(sent/total*100):0;
       q('#v2-fila').textContent=`${pending} / ${total}`;q('#v2-fila-txt').textContent=qu.running?'Fila em execução':'Aguardando envio';q('#v2-hoje').textContent=qu.sentToday||0;q('#v2-progress-label').textContent=pct+'%';q('#v2-progress-bar').style.width=pct+'%';q('#v2-progress-copy').textContent=`${sent} de ${total} ofertas enviadas`;nextRun=qu.nextRunAt||s.nextRunAt||null;
-      if(qu.processing||qu.running&&pending>0){setRobot('working',`Processando a fila com ${pending} oferta${pending===1?'':'s'} pendente${pending===1?'':'s'}`);q('#v2-current-title').textContent='Envio em andamento';q('#v2-current-copy').textContent=`${sent} de ${total} ofertas concluídas.`}else{setRobot(connected?'idle':'offline',connected?'Aguardando para iniciar o envio das ofertas':'Conecte novamente pelo QR Code');q('#v2-current-title').textContent='Nenhuma oferta em processamento';q('#v2-current-copy').textContent='As ofertas aparecerão aqui quando o envio iniciar.'}
+      if(!connected){clearTimeout(temporaryTimer);setRobot('offline');q('#v2-current-title').textContent='WhatsApp desconectado';q('#v2-current-copy').textContent='Use o botão Visualizar QR Code para reconectar.'}
+      else if(qu.processing||qu.running&&pending>0){clearTimeout(temporaryTimer);setRobot('sending',`Processando a fila com ${pending} oferta${pending===1?'':'s'} pendente${pending===1?'':'s'}`);q('#v2-current-title').textContent='Envio em andamento';q('#v2-current-copy').textContent=`${sent} de ${total} ofertas concluídas.`}
+      else if(robotMode==='offline'||robotMode==='sending'){setRobot(total>0&&sent===total?'success':'idle');q('#v2-current-title').textContent='Nenhuma oferta em processamento';q('#v2-current-copy').textContent='As ofertas aparecerão aqui quando o envio iniciar.'}
       q('#v2-system').textContent=connected?'● Sistema funcionando normalmente':'● WhatsApp desconectado';q('#v2-system').style.color=connected?'#65efb0':'#ff8b99';tick();
-    }catch(e){q('#v2-status').textContent='Offline';q('#v2-status').style.color='var(--v2-red)';setRobot('offline','Não foi possível consultar o robô');q('#v2-system').textContent='● Falha de comunicação com o robô';q('#v2-system').style.color='#ff8b99'}
+    }catch(e){q('#v2-status').textContent='Offline';q('#v2-status').style.color='var(--v2-red)';clearTimeout(temporaryTimer);setRobot('offline','Não foi possível consultar o robô');q('#v2-system').textContent='● Falha de comunicação com o robô';q('#v2-system').style.color='#ff8b99'}
   }
+
   function tick(){const out=q('#v2-proximo'),txt=q('#v2-proximo-txt');if(!out)return;if(!nextRun){out.textContent='—';txt.textContent='Aguardando fila';return}const d=new Date(nextRun).getTime()-Date.now();if(d<=0){out.textContent='Agora';txt.textContent='Verificando fila';return}const t=Math.floor(d/1000),h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;out.textContent=(h?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');txt.textContent='Até a próxima verificação'}
   document.addEventListener('DOMContentLoaded',mount);
 })();
