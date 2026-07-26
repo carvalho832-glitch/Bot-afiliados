@@ -14,6 +14,7 @@ import {
   saveQueue,
   createQueueItem,
   normalizarCategoria,
+  escolherGruposPorCategoria,
   horaServidor,
   setQueueRunning
 } from './bot-store.mjs';
@@ -43,6 +44,48 @@ if (installedSettings.schemaVersion !== 2) {
   console.log('[MIGRAÇÃO] Contadores antigos convertidos para o modelo de ofertas da v2.');
 }
 
+function preencherGruposNasOfertasPendentes() {
+  const settings = getSettings();
+  const queue = getQueue();
+  let changed = false;
+
+  for (const item of queue) {
+    if (item.status === 'sent') continue;
+
+    const targets = escolherGruposPorCategoria(settings, item.category);
+    const targetIds = new Set(targets.map(group => group.id));
+    const previous = JSON.stringify({
+      targets: item.targets,
+      sentTargets: item.sentTargets,
+      targetErrors: item.targetErrors,
+      error: item.error
+    });
+
+    item.targets = targets;
+    item.sentTargets = item.sentTargets.filter(id => targetIds.has(id));
+    item.targetErrors = Object.fromEntries(
+      Object.entries(item.targetErrors || {}).filter(([id]) => targetIds.has(id))
+    );
+    item.error = targets.length ? null : 'Nenhum grupo ativo compatível com esta oferta.';
+
+    const current = JSON.stringify({
+      targets: item.targets,
+      sentTargets: item.sentTargets,
+      targetErrors: item.targetErrors,
+      error: item.error
+    });
+
+    if (previous !== current) changed = true;
+  }
+
+  if (changed) {
+    saveQueue(queue);
+    console.log(`[FILA] Grupos atualizados em ${queue.filter(item => item.status === 'pending').length} oferta(s) pendente(s).`);
+  }
+
+  return queue;
+}
+
 app.use(cors());
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -69,6 +112,7 @@ app.get('/painel', (req, res) => {
 });
 
 app.get('/status', (req, res) => {
+  preencherGruposNasOfertasPendentes();
   const connection = getConnectionState();
   const queue = getQueueSummary();
   res.json({
@@ -110,6 +154,7 @@ app.post('/settings', async (req, res) => {
   }
 
   const settings = saveSettings(partial);
+  preencherGruposNasOfertasPendentes();
   let queue = getQueueSummary();
 
   if (!settings.enabled) {
@@ -149,6 +194,7 @@ app.get('/groups', async (req, res) => {
 app.post('/groups/sync', async (req, res) => {
   try {
     const sync = await sincronizarGruposAtivos({ force: true });
+    preencherGruposNasOfertasPendentes();
     res.json({ ok: sync.ok, sync, settings: getSettings(), queue: getQueueSummary() });
   } catch (error) {
     res.status(500).json({ ok: false, error: String(error?.message || error) });
@@ -156,6 +202,7 @@ app.post('/groups/sync', async (req, res) => {
 });
 
 app.get('/queue', (req, res) => {
+  preencherGruposNasOfertasPendentes();
   res.json({ ok: true, queue: getQueueSummary() });
 });
 
@@ -165,13 +212,21 @@ app.post('/queue/add', (req, res) => {
   const messages = text.split(/\r?\n---\r?\n/g).map(message => message.trim()).filter(Boolean);
   if (!messages.length) return res.status(400).json({ ok: false, error: 'Nenhuma oferta válida encontrada.' });
   const forcedCategory = normalizarCategoria(req.body?.category || req.body?.categoria);
-  const newItems = messages.map(message => createQueueItem(message, forcedCategory));
+  const settings = getSettings();
+  const newItems = messages.map(message => {
+    const item = createQueueItem(message, forcedCategory);
+    item.targets = escolherGruposPorCategoria(settings, item.category);
+    item.error = item.targets.length ? null : 'Nenhum grupo ativo compatível com esta oferta.';
+    return item;
+  });
   saveQueue([...getQueue(), ...newItems]);
+  preencherGruposNasOfertasPendentes();
   res.json({ ok: true, added: newItems.length, queue: getQueueSummary() });
 });
 
 app.post('/queue/start', async (req, res) => {
   try {
+    preencherGruposNasOfertasPendentes();
     const result = await startQueue();
     res.json({ ok: true, message: 'Fila iniciada.', ...result });
   } catch (error) {
