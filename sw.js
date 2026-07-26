@@ -1,16 +1,14 @@
-const CACHE_VERSION = 'achou-levou-v65-alva-videos';
+const CACHE_VERSION = 'achou-levou-v66-status-independente';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
-const BOT_STATUS_DIRETO = 'https://bot.achoulevoubot.uk/status';
-const BOT_STATUS_PROXY = `${API_CORRETA}/bot/status`;
 
 self.addEventListener('install', (event) => {
-    console.log('Achou Levou interface v65 com ALVA instalada.');
+    console.log('Achou Levou interface v66 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v65 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v66 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
@@ -31,17 +29,6 @@ self.addEventListener('fetch', (event) => {
                 }
             }
         ));
-        return;
-    }
-
-    if (url.startsWith(BOT_STATUS_DIRETO)) {
-        event.respondWith(fetch(`${BOT_STATUS_PROXY}?t=${Date.now()}`, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            mode: 'cors',
-            credentials: 'omit',
-            cache: 'no-store'
-        }));
         return;
     }
 
