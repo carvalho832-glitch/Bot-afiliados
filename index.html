@@ -47,9 +47,10 @@
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
     <link rel="apple-touch-icon" href="icon.png">
 
-    <link rel="stylesheet" href="style.css?v=59">
-    <link rel="stylesheet" href="progress-style.css?v=59">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=59">
+    <link rel="stylesheet" href="style.css?v=60">
+    <link rel="stylesheet" href="progress-style.css?v=60">
+    <link rel="stylesheet" href="robot-realistic.css?v=60">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=60">
 </head>
 <body>
     <div class="app-shell">
@@ -195,18 +196,18 @@
         </div>
     </div>
 
-    <script src="script.js?v=59"></script>
-    <script src="progress-loader.js?v=59"></script>
-    <script src="app-dialog.js?v=59"></script>
-    <script src="shopee-helper.js?v=59"></script>
-    <script src="gemini-client.js?v=59"></script>
-    <script src="product-message-patch.js?v=59"></script>
-    <script src="bot-queue-integration.js?v=59"></script>
+    <script src="script.js?v=60"></script>
+    <script src="progress-loader.js?v=60"></script>
+    <script src="app-dialog.js?v=60"></script>
+    <script src="shopee-helper.js?v=60"></script>
+    <script src="gemini-client.js?v=60"></script>
+    <script src="product-message-patch.js?v=60"></script>
+    <script src="bot-queue-integration.js?v=60"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=59')
+                navigator.serviceWorker.register('./sw.js?v=60')
                     .then(reg => {
                         console.log('PWA ativado!', reg);
                         reg.update();
