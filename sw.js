@@ -1,14 +1,14 @@
-const CACHE_VERSION = 'achou-levou-v59-robo-loader-animado';
+const CACHE_VERSION = 'achou-levou-v60-robo-holografico-realista';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
 self.addEventListener('install', (event) => {
-    console.log('Achou Levou interface v59 instalada.');
+    console.log('Achou Levou interface v60 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v59 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v60 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
