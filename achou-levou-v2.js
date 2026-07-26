@@ -4,7 +4,7 @@
   function auth(config){return 'Basic '+btoa(`${config.username}:${config.password}`)}
   function config(){return window.AchouLevouBotQueue?.loadConfig?.()||{botUrl:'https://bot.achoulevoubot.uk',username:'julio',password:'AchouLevou2026'}}
 
-  const VERSION='66';
+  const VERSION='67';
   const ALVA={
     idle:`assets/alva/alva-standby.mp4?v=${VERSION}`,
     analyzing:`assets/alva/alva-analisando.mp4?v=${VERSION}`,
@@ -26,6 +26,8 @@
 
   let robotMode='idle',temporaryTimer=null,nextRun=null;
   let whatsappConnected=null,apiOnline=null,queueOnline=null;
+  let statusFailureCount=0,lastConfirmedConnectedAt=0;
+  const MAX_TRANSIENT_FAILURES=3;
 
   function mount(){
     const shell=q('.app-shell'),header=q('.app-header'),main=q('.main-flow'),saved=q('.saved-section');
@@ -79,31 +81,54 @@
   }
 
   function applyWhatsappStatus(status){
-    apiOnline=status.error!==true;
-    whatsappConnected=status.connected;
     const out=q('#v2-status');if(!out)return;
-    out.textContent=status.label||'Verificando';
-    out.style.color=status.connected===true?'var(--v2-green)':status.connecting?'var(--v2-cyan)':'var(--v2-red)';
-    if(status.connected===false&&!status.connecting){
+
+    if(status.connected===true){
+      statusFailureCount=0;apiOnline=true;whatsappConnected=true;lastConfirmedConnectedAt=Date.now();
+      out.textContent=status.label||'Conectado';out.style.color='var(--v2-green)';
+      if(robotMode==='offline'){
+        setRobot('idle');
+        q('#v2-current-title').textContent='Nenhuma oferta em processamento';
+        q('#v2-current-copy').textContent='As ofertas aparecerão aqui quando o envio iniciar.';
+      }
+      updateDiagnostic();return;
+    }
+
+    if(status.connecting){
+      apiOnline=true;out.textContent=status.label||'Conectando...';out.style.color='var(--v2-cyan)';updateDiagnostic();return;
+    }
+
+    if(status.error===true){
+      statusFailureCount+=1;apiOnline=false;
+      const recentlyConnected=whatsappConnected===true&&Date.now()-lastConfirmedConnectedAt<120000;
+      if(recentlyConnected&&statusFailureCount<MAX_TRANSIENT_FAILURES){
+        out.textContent='Conectado · verificando';out.style.color='#ffd27a';
+        updateDiagnostic();return;
+      }
+    }else{
+      statusFailureCount=MAX_TRANSIENT_FAILURES;
+    }
+
+    if(status.connected===false&&statusFailureCount>=MAX_TRANSIENT_FAILURES){
+      whatsappConnected=false;
+      out.textContent=status.label||'Offline';out.style.color='var(--v2-red)';
       clearTimeout(temporaryTimer);setRobot('offline');
       q('#v2-current-title').textContent='WhatsApp desconectado';
       q('#v2-current-copy').textContent='Use o botão Visualizar QR Code para reconectar.';
-    }else if(status.connected===true&&robotMode==='offline'){
-      setRobot('idle');
-      q('#v2-current-title').textContent='Nenhuma oferta em processamento';
-      q('#v2-current-copy').textContent='As ofertas aparecerão aqui quando o envio iniciar.';
+    }else if(status.connected==null){
+      out.textContent=status.label||'Verificando';out.style.color='#ffd27a';
     }
     updateDiagnostic();
   }
 
   function updateDiagnostic(){
     const box=q('#v2-system');if(!box)return;
-    const api=apiOnline===true?'API ✓':apiOnline===false?'API ✕':'API …';
+    const api=apiOnline===true?'API ✓':apiOnline===false?'API instável':'API …';
     const wa=whatsappConnected===true?'WhatsApp ✓':whatsappConnected===false?'WhatsApp ✕':'WhatsApp …';
-    const fila=queueOnline===true?'Fila ✓':queueOnline===false?'Fila ✕':'Fila …';
+    const fila=queueOnline===true?'Fila ✓':queueOnline===false?'Fila instável':'Fila …';
     box.textContent=`${api}  •  ${wa}  •  ${fila}`;
-    const ok=apiOnline===true&&whatsappConnected===true&&queueOnline!==false;
-    box.style.color=ok?'#65efb0':(whatsappConnected===false||apiOnline===false?'#ff8b99':'#ffd27a');
+    const ok=whatsappConnected===true&&queueOnline!==false;
+    box.style.color=ok?'#65efb0':(whatsappConnected===false?'#ff8b99':'#ffd27a');
   }
 
   async function pollQueue(){
@@ -120,7 +145,7 @@
       }else if(whatsappConnected===true&&robotMode==='sending'){
         setRobot(total>0&&sent===total?'success':'idle');q('#v2-current-title').textContent='Nenhuma oferta em processamento';q('#v2-current-copy').textContent='As ofertas aparecerão aqui quando o envio iniciar.';
       }
-    }catch(error){queueOnline=false;console.warn('Falha ao consultar fila:',error);q('#v2-fila-txt').textContent='Fila indisponível';}
+    }catch(error){queueOnline=false;console.warn('Falha ao consultar fila:',error);q('#v2-fila-txt').textContent='Fila instável';}
     updateDiagnostic();tick();
   }
 
