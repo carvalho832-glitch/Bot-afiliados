@@ -4,14 +4,15 @@
   function auth(config){return 'Basic '+btoa(`${config.username}:${config.password}`)}
   function config(){return window.AchouLevouBotQueue?.loadConfig?.()||{botUrl:'https://bot.achoulevoubot.uk',username:'julio',password:'AchouLevou2026'}}
 
+  const ASSET_VERSION='alva-20260726-1';
   const ALVA={
-    idle:'assets/alva/alva-standby.mp4',
-    analyzing:'assets/alva/alva-analisando.mp4',
-    preparing:'assets/alva/alva-preparando.mp4',
-    generating:'assets/alva/alva-gerando-ia.mp4',
-    sending:'assets/alva/alva-enviando.mp4',
-    success:'assets/alva/alva-sucesso.mp4',
-    offline:'assets/alva/alva-offline.mp4'
+    idle:'./assets/alva/alva-standby.mp4',
+    analyzing:'./assets/alva/alva-analisando.mp4',
+    preparing:'./assets/alva/alva-preparando.mp4',
+    generating:'./assets/alva/alva-gerando-ia.mp4',
+    sending:'./assets/alva/alva-enviando.mp4',
+    success:'./assets/alva/alva-sucesso.mp4',
+    offline:'./assets/alva/alva-offline.mp4'
   };
   const LABELS={
     idle:['ALVA em stand-by','Aguardando para iniciar uma nova tarefa'],
@@ -22,7 +23,8 @@
     success:['Missão concluída','A tarefa foi finalizada com sucesso'],
     offline:['ALVA desconectada','Reconecte a sessão pelo QR Code']
   };
-  let robotMode='idle',temporaryTimer=null,nextRun=null;
+  const srcFor=mode=>`${ALVA[mode]||ALVA.idle}?v=${ASSET_VERSION}`;
+  let robotMode='idle',temporaryTimer=null,nextRun=null,swapToken=0;
 
   function mount(){
     const shell=q('.app-shell'),header=q('.app-header'),main=q('.main-flow'),saved=q('.saved-section');
@@ -33,23 +35,31 @@
     nav.after(metrics);
     const progress=el('section','v2-progress','<div class="v2-progress-top"><span>Progresso geral das ofertas</span><strong id="v2-progress-label">0%</strong></div><div class="v2-progress-track"><div id="v2-progress-bar" class="v2-progress-bar"></div></div><small id="v2-progress-copy">0 de 0 ofertas enviadas</small>');metrics.after(progress);
     const workspace=el('section','v2-workspace'),left=el('div','v2-left'),right=el('aside','v2-right');main.parentNode.insertBefore(workspace,main);left.appendChild(main);workspace.append(left,right);
-    right.innerHTML='<section class="v2-robot-card"><div class="v2-card-title">Execução do robô</div><div class="v2-robot-stage" data-mode="idle"><div class="v2-video-glow"></div><video id="v2-alva-video" class="v2-alva-video" muted playsinline loop autoplay preload="auto" poster=""><source src="'+ALVA.idle+'" type="video/mp4"></video><div class="v2-video-loading"><span></span><small>Carregando ALVA...</small></div></div><div class="v2-status-copy"><strong id="v2-robot-title">ALVA em stand-by</strong><span id="v2-robot-subtitle">Aguardando para iniciar uma nova tarefa</span></div><div id="v2-system" class="v2-system-ok">● Sistema funcionando normalmente</div></section><section class="v2-current-card"><div class="v2-card-title">Progresso atual</div><div class="v2-current-empty"><div class="v2-pulse">☷</div><strong id="v2-current-title">Nenhuma oferta em processamento</strong><p id="v2-current-copy">As ofertas aparecerão aqui quando o envio iniciar.</p></div></section>';
+    right.innerHTML='<section class="v2-robot-card"><div class="v2-card-title">Execução do robô</div><div class="v2-robot-stage" data-mode="idle"><div class="v2-video-glow"></div><video id="v2-alva-video" class="v2-alva-video" muted playsinline loop autoplay preload="auto" disablepictureinpicture aria-label="ALVA, operadora virtual do Achou Levou"><source src="'+srcFor('idle')+'" type="video/mp4"></video><div class="v2-video-loading"><span></span><small>Carregando ALVA...</small></div></div><div class="v2-status-copy"><strong id="v2-robot-title">ALVA em stand-by</strong><span id="v2-robot-subtitle">Aguardando para iniciar uma nova tarefa</span></div><div id="v2-system" class="v2-system-ok">● Sistema funcionando normalmente</div></section><section class="v2-current-card"><div class="v2-card-title">Progresso atual</div><div class="v2-current-empty"><div class="v2-pulse">☷</div><strong id="v2-current-title">Nenhuma oferta em processamento</strong><p id="v2-current-copy">As ofertas aparecerão aqui quando o envio iniciar.</p></div></section>';
     if(saved)workspace.after(saved);
-    preloadVideos();bindVisualStates();setRobot('idle');poll();setInterval(poll,10000);setInterval(tick,1000);
+    preloadVideos();bindVisualStates();ensurePlayback();poll();setInterval(poll,10000);setInterval(tick,1000);
   }
 
-  function preloadVideos(){Object.values(ALVA).forEach(src=>{const v=document.createElement('video');v.preload='auto';v.muted=true;v.src=src})}
+  function preloadVideos(){Object.keys(ALVA).forEach(mode=>{const v=document.createElement('video');v.preload='auto';v.muted=true;v.playsInline=true;v.src=srcFor(mode)})}
+
+  function ensurePlayback(){
+    const video=q('#v2-alva-video');if(!video)return;
+    video.muted=true;video.defaultMuted=true;video.playsInline=true;
+    const play=()=>{const p=video.play();if(p?.catch)p.catch(()=>{})};
+    play();document.addEventListener('visibilitychange',()=>{if(!document.hidden)play()});
+    document.addEventListener('touchstart',play,{once:true,passive:true});
+  }
 
   function setRobot(mode,text,force=false){
-    const video=q('#v2-alva-video'),stage=q('.v2-robot-stage'),title=q('#v2-robot-title'),sub=q('#v2-robot-subtitle');
+    const video=q('#v2-alva-video'),stage=q('.v2-robot-stage'),title=q('#v2-robot-title'),sub=q('#v2-robot-subtitle'),loading=q('.v2-video-loading');
     if(!video||!stage||!title||!sub)return;
-    const selected=ALVA[mode]?mode:'idle';
-    if(selected!==robotMode||force){
-      robotMode=selected;stage.dataset.mode=selected;stage.classList.add('is-switching');
-      const swap=()=>{video.src=ALVA[selected];video.load();const p=video.play();if(p?.catch)p.catch(()=>{});requestAnimationFrame(()=>stage.classList.remove('is-switching'))};
-      setTimeout(swap,150);
-    }
-    const copy=LABELS[selected]||LABELS.idle;title.textContent=copy[0];sub.textContent=text||copy[1];
+    const selected=ALVA[mode]?mode:'idle',copy=LABELS[selected]||LABELS.idle;
+    title.textContent=copy[0];sub.textContent=text||copy[1];stage.dataset.mode=selected;
+    if(selected===robotMode&&!force)return;
+    robotMode=selected;const token=++swapToken;stage.classList.add('is-switching');loading?.classList.remove('is-hidden');
+    const reveal=()=>{if(token!==swapToken)return;stage.classList.remove('is-switching');loading?.classList.add('is-hidden');video.removeEventListener('canplay',reveal);video.removeEventListener('loadeddata',reveal)};
+    video.addEventListener('canplay',reveal,{once:true});video.addEventListener('loadeddata',reveal,{once:true});
+    setTimeout(()=>{if(token!==swapToken)return;video.src=srcFor(selected);video.load();const p=video.play();if(p?.catch)p.catch(()=>{});setTimeout(reveal,1800)},180);
   }
 
   function temporaryState(mode,duration=6500,next='idle'){
@@ -57,14 +67,14 @@
   }
 
   function bindVisualStates(){
-    q('#btn-puxar')?.addEventListener('click',()=>{temporaryState('analyzing',4200,'preparing');setTimeout(()=>{if(robotMode==='preparing')temporaryState('preparing',3500,'idle')},4300)});
+    q('#btn-puxar')?.addEventListener('click',()=>{clearTimeout(temporaryTimer);setRobot('analyzing');temporaryTimer=setTimeout(()=>{if(robotMode==='analyzing')temporaryState('preparing',3800,'idle')},4300)});
     q('#btn-gerar')?.addEventListener('click',()=>temporaryState('generating',8000,'success'));
     q('#btn-salvar')?.addEventListener('click',()=>temporaryState('success',3500,'idle'));
     q('#btn-enviar-atual-robo')?.addEventListener('click',()=>temporaryState('sending',9000,'success'));
     q('#btn-enviar-todas-robo')?.addEventListener('click',()=>temporaryState('sending',9000,'success'));
     const video=q('#v2-alva-video');
     video?.addEventListener('canplay',()=>q('.v2-video-loading')?.classList.add('is-hidden'));
-    video?.addEventListener('error',()=>{q('.v2-video-loading small').textContent='Vídeo do ALVA não encontrado';q('.v2-video-loading')?.classList.remove('is-hidden')});
+    video?.addEventListener('error',()=>{const copy=q('.v2-video-loading small');if(copy)copy.textContent='Não foi possível carregar esta animação';q('.v2-video-loading')?.classList.remove('is-hidden')});
   }
 
   async function poll(){
