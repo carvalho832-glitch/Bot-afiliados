@@ -1,18 +1,20 @@
-const CACHE_VERSION = 'achou-levou-v66-status-independente';
+const CACHE_VERSION = 'achou-levou-v69-fila-real-status-estavel';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 
 self.addEventListener('install', (event) => {
-    console.log('Achou Levou interface v66 instalada.');
+    console.log('Achou Levou interface v69 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v66 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v69 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
+            .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+            .then(clients => clients.forEach(client => client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '69' })))
     );
 });
 
