@@ -81,7 +81,7 @@
         if (loader) loader.style.display = ativo ? 'flex' : 'none';
         btnPuxar.disabled = ativo;
         btnPuxar.innerText = ativo ? '🔄 Convertendo e puxando...' : '🔎 Puxar produto';
-        if (converterStatus && ativo) converterStatus.textContent = 'Convertendo o link curto e consultando a Shopee...';
+        if (converterStatus && ativo) converterStatus.textContent = 'Convertendo o link curto e consultando a Shopee. A busca pode levar até 2 minutos...';
     }
 
     function limparDadosProduto(status = '🔄 Buscando novo produto...') {
@@ -188,7 +188,7 @@
         displayProduto.value = 'Buscando na Shopee...';
         setCarregando(true);
 
-        const timeout = setTimeout(() => controleConsulta?.abort(), 45000);
+        const timeout = setTimeout(() => controleConsulta?.abort(), 120000);
 
         try {
             const dados = await puxarShopeePelaApi(link, idProduto, controleConsulta.signal);
@@ -204,7 +204,7 @@
             if (idConsulta !== numeroConsulta) return;
             if (erro?.name === 'AbortError') {
                 if (converterStatus) converterStatus.textContent = '⚠️ Consulta cancelada ou tempo limite atingido.';
-                alert('A consulta foi cancelada ou demorou mais de 45 segundos. Tente novamente.');
+                alert('A consulta foi cancelada ou demorou mais de 120 segundos. Tente novamente.');
             } else {
                 console.error('Erro Shopee API:', erro);
                 if (converterStatus) converterStatus.textContent = '⚠️ Falha ao converter o link.';
