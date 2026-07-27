@@ -45,9 +45,13 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (url.startsWith(`${BOT_DIRETO}/status`) || url.startsWith(`${BOT_DIRETO}/queue`)) {
-        const path = requestUrl.pathname.replace(/\/+$/, '');
-        const pontePath = path === '/status' ? '/bot/status' : '/bot/queue';
+    const directPath = requestUrl.pathname.replace(/\/+$/, '') || '/';
+    const isBotRead = event.request.method === 'GET' &&
+        requestUrl.origin === BOT_DIRETO &&
+        (directPath === '/status' || directPath === '/queue');
+
+    if (isBotRead) {
+        const pontePath = directPath === '/status' ? '/bot/status' : '/bot/queue';
         const ponteUrl = new URL(`${API_CORRETA}${pontePath}`);
         requestUrl.searchParams.forEach((value, key) => ponteUrl.searchParams.set(key, value));
         ponteUrl.searchParams.set('_sw', Date.now().toString());
