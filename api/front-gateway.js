@@ -44,6 +44,51 @@ async function fetchComTimeout(url, options = {}, timeoutMs = 20000) {
   }
 }
 
+async function lerJsonDoBot(caminho, res) {
+  try {
+    const separador = caminho.includes('?') ? '&' : '?';
+    const resposta = await fetchComTimeout(`${BOT_URL}${caminho}${separador}t=${Date.now()}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': authHeader()
+      },
+      cache: 'no-store'
+    }, 15000);
+
+    const corpo = await resposta.text();
+    let dados = null;
+    try { dados = JSON.parse(corpo); } catch {}
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
+    if (!resposta.ok) {
+      return res.status(resposta.status).json({
+        ok: false,
+        error: dados?.error || `O robô respondeu com HTTP ${resposta.status}.`,
+        detalhe: corpo.slice(0, 300)
+      });
+    }
+
+    if (!dados) {
+      return res.status(502).json({
+        ok: false,
+        error: 'O robô respondeu sem JSON válido.',
+        detalhe: corpo.slice(0, 300)
+      });
+    }
+
+    return res.json(dados);
+  } catch (error) {
+    const detalhe = error?.name === 'AbortError' ? 'Tempo limite ao consultar o robô.' : error.message;
+    return res.status(502).json({ ok: false, error: 'Não foi possível consultar o robô.', detalhe });
+  }
+}
+
+app.get('/bot/queue', (_req, res) => lerJsonDoBot('/queue', res));
+
 app.post('/bot/queue/add', async (req, res) => {
   const text = String(req.body?.text || '').trim();
   if (!text) return res.status(400).json({ ok: false, error: 'Nenhuma oferta foi recebida.' });
