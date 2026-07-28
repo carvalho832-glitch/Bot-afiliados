@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v72-shopee-retry';
+const CACHE_VERSION = 'achou-levou-v73-shopee-consulta-longa';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const BOT_DIRETO = 'https://bot.achoulevoubot.uk';
@@ -8,54 +8,35 @@ const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v72 instalada.');
+    console.log('Achou Levou interface v73 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v72 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v73 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '72' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '73' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
 });
 
-async function fetchComTimeout(url, originalSignal, timeoutMs = 35000) {
-    const controller = new AbortController();
-    let expirou = false;
-    const abortar = () => controller.abort();
-
+async function consultarShopee(url, originalSignal) {
     if (originalSignal?.aborted) throw new DOMException('Consulta cancelada.', 'AbortError');
-    originalSignal?.addEventListener('abort', abortar, { once: true });
 
-    const timer = setTimeout(() => {
-        expirou = true;
-        controller.abort();
-    }, timeoutMs);
-
-    try {
-        return await fetch(url, {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            mode: 'cors',
-            credentials: 'omit',
-            cache: 'no-store',
-            signal: controller.signal
-        });
-    } catch (error) {
-        if (originalSignal?.aborted) throw new DOMException('Consulta cancelada.', 'AbortError');
-        if (expirou) throw new Error('A ponte demorou para responder.');
-        throw error;
-    } finally {
-        clearTimeout(timer);
-        originalSignal?.removeEventListener('abort', abortar);
-    }
+    return fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'no-store',
+        signal: originalSignal
+    });
 }
 
 async function avisarTentativa(tentativa, total) {
@@ -67,8 +48,31 @@ async function avisarTentativa(tentativa, total) {
     }));
 }
 
+function respostaDeOscilacao(ultimoErro) {
+    const mensagemAmigavel = 'A conexão com a busca da Shopee falhou novamente. O link continua no campo. Aguarde alguns segundos e toque em Puxar produto novamente.';
+
+    return new Response(JSON.stringify({
+        ok: false,
+        error: mensagemAmigavel,
+        detalhe: mensagemAmigavel,
+        causaTecnica: String(ultimoErro?.message || 'Falha temporária de conexão com a ponte da Shopee.')
+    }), {
+        status: 503,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+        }
+    });
+}
+
 async function consultarShopeeComRecuperacao(request, originalUrl) {
-    const delays = [0, 3000, 12000];
+    // O formulário já possui limite geral de 120 segundos. Não encerramos a
+    // consulta aos 35 segundos, porque a conversão completa pode precisar abrir
+    // o navegador de recuperação e consultar a API oficial antes de responder.
+    // Uma segunda tentativa só ocorre quando a primeira falha rapidamente.
+    const delays = [0, 3000];
+    const MAX_ELAPSED_FOR_RETRY_MS = 20000;
     let ultimoErro = null;
 
     for (let index = 0; index < delays.length; index += 1) {
@@ -84,38 +88,37 @@ async function consultarShopeeComRecuperacao(request, originalUrl) {
         const tentativaUrl = new URL(originalUrl.toString());
         tentativaUrl.searchParams.set('_tentativa', String(tentativa));
         tentativaUrl.searchParams.set('_agora', String(Date.now()));
+        const startedAt = Date.now();
 
         try {
-            const response = await fetchComTimeout(tentativaUrl.toString(), request.signal);
+            const response = await consultarShopee(tentativaUrl.toString(), request.signal);
+            const elapsedMs = Date.now() - startedAt;
 
-            if (!RETRYABLE_STATUS.has(response.status)) {
+            if (!RETRYABLE_STATUS.has(response.status)) return response;
+
+            // Se o servidor trabalhou por bastante tempo e respondeu, devolvemos
+            // a resposta real. Repetir nesse ponto só criaria outra conversão
+            // pesada enquanto a anterior acabou de terminar.
+            if (tentativa === delays.length || elapsedMs > MAX_ELAPSED_FOR_RETRY_MS) {
                 return response;
             }
 
             ultimoErro = new Error(`A ponte respondeu com HTTP ${response.status}.`);
             await response.body?.cancel?.().catch(() => {});
         } catch (error) {
-            if (error?.name === 'AbortError' && request.signal?.aborted) throw error;
+            if (error?.name === 'AbortError' || request.signal?.aborted) throw error;
+
+            const elapsedMs = Date.now() - startedAt;
             ultimoErro = error;
-            console.warn(`[SHOPEE] Tentativa ${tentativa}/${delays.length} falhou:`, error?.message || error);
+            console.warn(`[SHOPEE] Tentativa ${tentativa}/${delays.length} falhou após ${elapsedMs}ms:`, error?.message || error);
+
+            if (tentativa === delays.length || elapsedMs > MAX_ELAPSED_FOR_RETRY_MS) {
+                return respostaDeOscilacao(ultimoErro);
+            }
         }
     }
 
-    const mensagemAmigavel = 'A conexão com a busca da Shopee oscilou e não voltou após 3 tentativas. O link continua no campo. Aguarde alguns segundos e toque em Puxar produto novamente.';
-
-    return new Response(JSON.stringify({
-        ok: false,
-        error: mensagemAmigavel,
-        detalhe: mensagemAmigavel,
-        causaTecnica: String(ultimoErro?.message || 'Falha temporária de conexão com a ponte da Shopee.')
-    }), {
-        status: 503,
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
-        }
-    });
+    return respostaDeOscilacao(ultimoErro);
 }
 
 self.addEventListener('fetch', (event) => {
@@ -136,7 +139,7 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (url.includes('bot-queue-proxy.js')) {
-        requestUrl.searchParams.set('v', '72');
+        requestUrl.searchParams.set('v', '73');
         event.respondWith(fetch(requestUrl.toString(), { cache: 'no-store' }));
         return;
     }
