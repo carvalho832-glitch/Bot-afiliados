@@ -88,7 +88,7 @@ async function consultarShopeeComRecuperacao(request, originalUrl) {
         try {
             const response = await fetchComTimeout(tentativaUrl.toString(), request.signal);
 
-            if (!RETRYABLE_STATUS.has(response.status) || tentativa === delays.length) {
+            if (!RETRYABLE_STATUS.has(response.status)) {
                 return response;
             }
 
@@ -101,10 +101,13 @@ async function consultarShopeeComRecuperacao(request, originalUrl) {
         }
     }
 
+    const mensagemAmigavel = 'A conexão com a busca da Shopee oscilou e não voltou após 3 tentativas. O link continua no campo. Aguarde alguns segundos e toque em Puxar produto novamente.';
+
     return new Response(JSON.stringify({
         ok: false,
-        error: 'A conexão com a busca da Shopee oscilou e não voltou após 3 tentativas. O link continua no campo. Aguarde alguns segundos e toque em Puxar produto novamente.',
-        detalhe: String(ultimoErro?.message || 'Falha temporária de conexão com a ponte da Shopee.')
+        error: mensagemAmigavel,
+        detalhe: mensagemAmigavel,
+        causaTecnica: String(ultimoErro?.message || 'Falha temporária de conexão com a ponte da Shopee.')
     }), {
         status: 503,
         headers: {
