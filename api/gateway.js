@@ -12,6 +12,7 @@ const INTERNAL_URL = `http://127.0.0.1:${INTERNAL_PORT}`;
 const BOT_PANEL_URL = String(process.env.BOT_PANEL_URL || 'https://bot.achoulevoubot.uk').replace(/\/+$/, '');
 const BOT_PANEL_USER = process.env.BOT_PANEL_USER || 'julio';
 const BOT_PANEL_PASSWORD = process.env.BOT_PANEL_PASSWORD || 'AchouLevou2026';
+const PLAYWRIGHT_IDLE_MS = Math.max(30000, Number(process.env.PLAYWRIGHT_IDLE_MS || 90000));
 
 app.use(cors({
   origin: '*',
@@ -32,6 +33,11 @@ apiProcess.on('exit', (code, signal) => {
   console.error(`API interna encerrou. code=${code} signal=${signal}`);
   process.exit(code || 1);
 });
+
+let sharedBrowser = null;
+let browserLaunchPromise = null;
+let browserIdleTimer = null;
+let playwrightQueue = Promise.resolve();
 
 function extrairLink(valor = '') {
   const texto = String(valor || '').trim();
@@ -176,84 +182,156 @@ async function consultarStatusRealBot() {
   return { ok: false, status: 'offline', connected: false, detalhe: tentativas.join(' | ') };
 }
 
+async function fecharBrowserCompartilhado() {
+  clearTimeout(browserIdleTimer);
+  browserIdleTimer = null;
+  const browser = sharedBrowser;
+  sharedBrowser = null;
+  browserLaunchPromise = null;
+  if (browser) await browser.close().catch(() => {});
+}
+
+function programarFechamentoBrowser() {
+  clearTimeout(browserIdleTimer);
+  browserIdleTimer = setTimeout(() => {
+    fecharBrowserCompartilhado().catch(() => {});
+  }, PLAYWRIGHT_IDLE_MS);
+  browserIdleTimer.unref?.();
+}
+
+async function obterBrowserCompartilhado() {
+  if (sharedBrowser?.isConnected?.()) return sharedBrowser;
+  if (browserLaunchPromise) return browserLaunchPromise;
+
+  browserLaunchPromise = chromium.launch({
+    headless: true,
+    executablePath: chromium.executablePath(),
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+  }).then(browser => {
+    sharedBrowser = browser;
+    browser.on('disconnected', () => {
+      if (sharedBrowser === browser) sharedBrowser = null;
+    });
+    return browser;
+  }).finally(() => {
+    browserLaunchPromise = null;
+  });
+
+  return browserLaunchPromise;
+}
+
+function executarPlaywrightEmFila(tarefa) {
+  const execucao = playwrightQueue.then(tarefa, tarefa);
+  playwrightQueue = execucao.catch(() => {});
+  return execucao;
+}
+
 async function converterComPlaywright(linkOriginal) {
   const idsDiretos = extrairIdsShopee(linkOriginal);
   if (idsDiretos) {
     return { ok: true, ids: idsDiretos, linkCompleto: montarLinkCompleto(idsDiretos), metodo: 'direto' };
   }
 
-  let browser;
-  try {
-    const executablePath = chromium.executablePath();
-    console.log(`Chromium local: ${executablePath}`);
+  return executarPlaywrightEmFila(async () => {
+    let context;
+    try {
+      const browser = await obterBrowserCompartilhado();
+      context = await browser.newContext({
+        locale: 'pt-BR',
+        timezoneId: 'America/Sao_Paulo',
+        userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+        viewport: { width: 412, height: 915 },
+        isMobile: true,
+        hasTouch: true,
+        extraHTTPHeaders: {
+          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8'
+        }
+      });
 
-    browser = await chromium.launch({
-      headless: true,
-      executablePath,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-    });
+      const page = await context.newPage();
+      await page.route('**/*', route => {
+        const type = route.request().resourceType();
+        if (['image', 'media', 'font'].includes(type)) return route.abort();
+        return route.continue();
+      });
 
-    const context = await browser.newContext({
-      locale: 'pt-BR',
-      timezoneId: 'America/Sao_Paulo',
-      userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
-      viewport: { width: 412, height: 915 },
-      isMobile: true,
-      hasTouch: true,
-      extraHTTPHeaders: {
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8'
+      const candidatos = new Set([linkOriginal]);
+      page.on('framenavigated', frame => {
+        const url = frame.url();
+        if (url) candidatos.add(url);
+      });
+      page.on('request', request => {
+        const url = request.url();
+        if (/shopee\.com\.br/i.test(url)) candidatos.add(url);
+      });
+
+      await page.goto(linkOriginal, { waitUntil: 'domcontentloaded', timeout: 25000 }).catch(() => null);
+      await page.waitForTimeout(2500);
+
+      candidatos.add(page.url());
+      const canonical = await page.locator('link[rel="canonical"]').getAttribute('href').catch(() => null);
+      const ogUrl = await page.locator('meta[property="og:url"]').getAttribute('content').catch(() => null);
+      if (canonical) candidatos.add(canonical);
+      if (ogUrl) candidatos.add(ogUrl);
+
+      const html = await page.content().catch(() => '');
+      const urlsHtml = html.match(/https?:\/\/[^\s"'<>\\]+/gi) || [];
+      for (const url of urlsHtml) candidatos.add(url);
+
+      for (const candidato of candidatos) {
+        const ids = extrairIdsShopee(candidato);
+        if (ids) {
+          return {
+            ok: true,
+            ids,
+            linkCompleto: montarLinkCompleto(ids),
+            metodo: 'playwright-reutilizado',
+            urlNavegador: page.url()
+          };
+        }
       }
-    });
 
-    const page = await context.newPage();
-    const candidatos = new Set([linkOriginal]);
-
-    page.on('framenavigated', frame => {
-      const url = frame.url();
-      if (url) candidatos.add(url);
-    });
-
-    page.on('request', request => {
-      const url = request.url();
-      if (/shopee\.com\.br/i.test(url)) candidatos.add(url);
-    });
-
-    await page.goto(linkOriginal, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => null);
-    await page.waitForTimeout(5000);
-
-    candidatos.add(page.url());
-    const canonical = await page.locator('link[rel="canonical"]').getAttribute('href').catch(() => null);
-    const ogUrl = await page.locator('meta[property="og:url"]').getAttribute('content').catch(() => null);
-    if (canonical) candidatos.add(canonical);
-    if (ogUrl) candidatos.add(ogUrl);
-
-    const html = await page.content().catch(() => '');
-    const urlsHtml = html.match(/https?:\/\/[^\s"'<>\\]+/gi) || [];
-    for (const url of urlsHtml) candidatos.add(url);
-
-    for (const candidato of candidatos) {
-      const ids = extrairIdsShopee(candidato);
-      if (ids) {
-        return {
-          ok: true,
-          ids,
-          linkCompleto: montarLinkCompleto(ids),
-          metodo: 'playwright',
-          urlNavegador: page.url()
-        };
+      return {
+        ok: false,
+        metodo: 'playwright-sem-ids',
+        detalhe: `Navegador terminou em ${page.url()}`
+      };
+    } catch (error) {
+      if (/browser.*closed|target page.*closed|connection closed|disconnected/i.test(String(error?.message || ''))) {
+        await fecharBrowserCompartilhado();
       }
+      return { ok: false, metodo: 'playwright-erro', detalhe: error.message };
+    } finally {
+      await context?.close().catch(() => {});
+      if (sharedBrowser?.isConnected?.()) programarFechamentoBrowser();
     }
+  });
+}
 
-    return {
-      ok: false,
-      metodo: 'playwright-sem-ids',
-      detalhe: `Navegador terminou em ${page.url()}`
-    };
-  } catch (error) {
-    return { ok: false, metodo: 'playwright-erro', detalhe: error.message };
+async function consultarApiInterna(params, timeoutMs = 35000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resposta = await fetch(`${INTERNAL_URL}/shopee/produto?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    const corpo = await resposta.text();
+    let dados = null;
+    try { dados = JSON.parse(corpo); } catch {}
+    if (!dados) throw new Error(`A API interna devolveu uma resposta inválida (HTTP ${resposta.status}).`);
+    return { resposta, dados };
   } finally {
-    await browser?.close().catch(() => {});
+    clearTimeout(timer);
   }
+}
+
+function deveUsarPlaywrightComoFallback(dados) {
+  if (dados?.origem !== 'shopee-fallback') return false;
+  const aviso = textoNormalizado(dados?.aviso || dados?.error || '');
+  if (aviso.includes('api oficial')) return false;
+  return aviso.includes('converter o link') || aviso.includes('identificar itemid') || aviso.includes('shopid');
 }
 
 async function esperarApiInterna(tentativas = 30) {
@@ -289,36 +367,47 @@ app.get('/shopee/produto', async (req, res) => {
   const params = new URLSearchParams();
 
   for (const [chave, valor] of Object.entries(req.query)) {
-    if (valor !== undefined && valor !== null) params.set(chave, String(valor));
-  }
-
-  let conversao = null;
-  if (linkOriginal && ehLinkCurtoShopee(linkOriginal)) {
-    conversao = await converterComPlaywright(linkOriginal);
-    if (conversao.ok) {
-      params.set('url', conversao.linkCompleto);
-      params.delete('link');
+    if (valor !== undefined && valor !== null && !String(chave).startsWith('_')) {
+      params.set(chave, String(valor));
     }
   }
 
   try {
-    const resposta = await fetch(`${INTERNAL_URL}/shopee/produto?${params.toString()}`, {
-      headers: { Accept: 'application/json' }
-    });
-    const dados = await resposta.json();
+    // Primeiro usa o conversor leve da API interna. O Chromium só entra como
+    // plano B quando o link curto realmente não revela shopId e itemId.
+    const primeira = await consultarApiInterna(params);
+    let dados = primeira.dados;
+    let statusResposta = primeira.resposta.status;
 
-    if (conversao?.ok) {
-      dados.linkOriginal = linkOriginal;
-      dados.linkCompleto = conversao.linkCompleto;
-      dados.metodoConversao = conversao.metodo;
-    } else if (conversao && !conversao.ok && dados?.origem === 'shopee-fallback') {
-      dados.aviso = `O navegador do Render não conseguiu converter o link curto: ${conversao.detalhe || 'sem detalhes'}`;
-      dados.metodoConversao = conversao.metodo;
+    if (linkOriginal && ehLinkCurtoShopee(linkOriginal) && deveUsarPlaywrightComoFallback(dados)) {
+      const conversao = await converterComPlaywright(linkOriginal);
+
+      if (conversao.ok) {
+        const paramsConvertidos = new URLSearchParams(params);
+        paramsConvertidos.set('url', conversao.linkCompleto);
+        paramsConvertidos.delete('link');
+        paramsConvertidos.delete('id');
+        paramsConvertidos.delete('codigo');
+
+        const segunda = await consultarApiInterna(paramsConvertidos);
+        dados = segunda.dados;
+        statusResposta = segunda.resposta.status;
+        dados.linkOriginal = linkOriginal;
+        dados.linkCompleto = conversao.linkCompleto;
+        dados.metodoConversao = conversao.metodo;
+      } else {
+        dados.aviso = `O navegador de recuperação não conseguiu converter o link curto: ${conversao.detalhe || 'sem detalhes'}`;
+        dados.metodoConversao = conversao.metodo;
+      }
     }
 
-    return res.status(resposta.status).json(dados);
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    return res.status(statusResposta).json(dados);
   } catch (error) {
-    return res.status(502).json({ ok: false, error: `Falha ao consultar a API interna: ${error.message}` });
+    const detalhe = error?.name === 'AbortError'
+      ? 'A consulta interna demorou além do limite.'
+      : error.message;
+    return res.status(502).json({ ok: false, error: `Falha ao consultar a API interna: ${detalhe}` });
   }
 });
 
@@ -346,7 +435,8 @@ app.listen(PORT, () => {
   console.log(`PLAYWRIGHT_BROWSERS_PATH=${process.env.PLAYWRIGHT_BROWSERS_PATH}`);
 });
 
-function encerrar() {
+async function encerrar() {
+  await fecharBrowserCompartilhado();
   if (!apiProcess.killed) apiProcess.kill('SIGTERM');
 }
 process.on('SIGTERM', encerrar);
