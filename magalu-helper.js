@@ -24,8 +24,8 @@
     campoConsulta.style.cssText = 'display:none;margin-top:12px;padding:12px;border:1px solid rgba(45,212,191,.35);border-radius:14px;background:rgba(45,212,191,.06);';
     campoConsulta.innerHTML = `
         <label for="input-magalu-consulta">Link completo do produto Magalu <small style="font-weight:700;color:var(--muted);">(somente para consulta)</small></label>
-        <input type="url" id="input-magalu-consulta" placeholder="Cole o link magazineluiza.com.br/.../p/..." autocomplete="off" autocapitalize="none" spellcheck="false">
-        <small style="display:block;margin-top:7px;color:var(--muted);font-weight:700;line-height:1.45;">Seu OneLink de afiliado continuará na mensagem. Este endereço completo será usado apenas para buscar nome e preços.</small>`;
+        <input type="url" id="input-magalu-consulta" placeholder="Cole o link da Magalu ou Magazine Você com /p/..." autocomplete="off" autocapitalize="none" spellcheck="false">
+        <small style="display:block;margin-top:7px;color:var(--muted);font-weight:700;line-height:1.45;">Seu OneLink de afiliado continuará na mensagem. Aceita páginas de magazineluiza.com.br, magalu.com.br e magazinevoce.com.br.</small>`;
     inputLink.insertAdjacentElement('afterend', campoConsulta);
 
     const inputConsulta = document.getElementById('input-magalu-consulta');
@@ -42,7 +42,8 @@
         const link = String(texto || '').toLowerCase();
         return link.includes('magazineluiza.onelink.me') ||
             link.includes('magazineluiza.com.br') ||
-            link.includes('magalu.com.br');
+            link.includes('magalu.com.br') ||
+            link.includes('magazinevoce.com.br');
     }
 
     function isOneLink(texto = '') {
@@ -52,7 +53,8 @@
     function isLinkCompletoMagalu(texto = '') {
         try {
             const url = new URL(extrairLink(texto));
-            return /(?:magazineluiza|magalu)\.com\.br$/i.test(url.hostname) && /\/p\//i.test(url.pathname);
+            const dominioValido = /(^|\.)(?:magazineluiza|magalu|magazinevoce)\.com\.br$/i.test(url.hostname);
+            return dominioValido && /\/p\//i.test(url.pathname);
         } catch {
             return false;
         }
@@ -61,8 +63,10 @@
     function limparTitulo(valor = '') {
         return String(valor || '')
             .replace(/\s+/g, ' ')
+            .replace(/\s*[|–-]\s*Magazine Você.*$/i, '')
             .replace(/\s*[|–-]\s*Magazine Luiza.*$/i, '')
             .replace(/\s*[|–-]\s*Magalu.*$/i, '')
+            .replace(/^Magazine Você\s*[|:–-]?\s*/i, '')
             .replace(/^Magazine Luiza\s*[|:–-]?\s*/i, '')
             .replace(/^Magalu\s*[|:–-]?\s*/i, '')
             .trim();
@@ -102,7 +106,7 @@
             usandoConsulta ? 'o link de afiliado será preservado na mensagem' : 'resolvendo o endereço de afiliado sem alterar seu link'
         );
         timers.push(setTimeout(() => {
-            atualizarProgresso(50, 'ETAPA 2 DE 4', 'Localizando o produto...', usandoConsulta ? 'validando a página pública da Magalu' : 'procurando a página oficial dentro do OneLink');
+            atualizarProgresso(50, 'ETAPA 2 DE 4', 'Localizando o produto...', usandoConsulta ? 'validando a página da Magalu ou Magazine Você' : 'procurando a página oficial dentro do OneLink');
         }, 5000));
         timers.push(setTimeout(() => {
             atualizarProgresso(75, 'ETAPA 3 DE 4', 'Consultando a Magalu...', 'buscando nome, preço atual e preço anterior');
@@ -143,7 +147,7 @@
         if (linkConsulta && !isLinkCompletoMagalu(linkConsulta)) {
             campoConsulta.style.display = 'block';
             inputConsulta?.focus();
-            alert('O link de consulta precisa ser a página completa do produto na Magalu e conter /p/ no endereço.');
+            alert('O link de consulta precisa ser uma página de produto da Magalu ou Magazine Você e conter /p/ no endereço.');
             return;
         }
 
@@ -194,7 +198,7 @@
             await new Promise(resolve => setTimeout(resolve, 650));
 
             if (!dados.precoPor) {
-                alert(`Produto localizado na Magalu, mas o preço não apareceu para o servidor. O nome foi preenchido e você pode informar o preço manualmente.\n\n${dados.aviso || ''}`.trim());
+                alert(`Produto localizado, mas o preço não apareceu para o servidor. O nome foi preenchido e você pode informar o preço manualmente.\n\n${dados.aviso || ''}`.trim());
             } else if (dados.consultaAssistida) {
                 alert('Dados puxados pelo link completo e OneLink de afiliado preservado! ✅');
             } else {
@@ -208,7 +212,7 @@
 
             if (error?.name === 'AbortError') {
                 atualizarProgresso(100, 'TEMPO LIMITE', 'Consulta interrompida', 'a Magalu demorou mais de 120 segundos para responder');
-                alert('A consulta da Magalu demorou mais de 120 segundos. Os links continuam nos campos para uma nova tentativa.');
+                alert('A consulta demorou mais de 120 segundos. Os links continuam nos campos para uma nova tentativa.');
             } else if (error?.precisaLinkConsulta) {
                 campoConsulta.style.display = 'block';
                 atualizarProgresso(100, 'AÇÃO NECESSÁRIA', 'Link completo necessário', 'o OneLink abre somente o aplicativo da Magalu');
