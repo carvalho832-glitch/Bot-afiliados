@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 
 process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
 const { buscarProdutoMagalu, fecharMagaluBrowser } = await import('./magalu-service.js');
+const { buscarProdutoMagazineVoce } = await import('./magazinevoce-service.js');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -40,7 +41,17 @@ function authHeader() {
 function ehLinkProdutoMagalu(valor = '') {
   try {
     const url = new URL(String(valor || '').trim());
-    return /(?:magazineluiza|magalu)\.com\.br$/i.test(url.hostname) && /\/p\//i.test(url.pathname);
+    const dominioValido = /(^|\.)(?:magazineluiza|magalu|magazinevoce)\.com\.br$/i.test(url.hostname);
+    return dominioValido && /\/p\//i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function ehLinkMagazineVoce(valor = '') {
+  try {
+    const url = new URL(String(valor || '').trim());
+    return /(^|\.)magazinevoce\.com\.br$/i.test(url.hostname) && /\/p\//i.test(url.pathname);
   } catch {
     return false;
   }
@@ -157,13 +168,15 @@ app.get('/magalu/produto', async (req, res) => {
     return res.status(400).json({
       ok: false,
       error: 'O link usado para consulta não parece ser uma página de produto da Magalu.',
-      detalhe: 'Cole um endereço completo de magazineluiza.com.br que contenha /p/.'
+      detalhe: 'Cole um endereço de magazineluiza.com.br, magalu.com.br ou magazinevoce.com.br que contenha /p/.'
     });
   }
 
   try {
     const alvoConsulta = linkConsulta || linkAfiliado;
-    const resultado = await buscarProdutoMagalu(alvoConsulta);
+    const resultado = linkConsulta && ehLinkMagazineVoce(linkConsulta)
+      ? await buscarProdutoMagazineVoce(linkConsulta)
+      : await buscarProdutoMagalu(alvoConsulta);
 
     if (linkConsulta) {
       resultado.linkOriginal = linkAfiliado;
