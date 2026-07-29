@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v74-magalu';
+const CACHE_VERSION = 'achou-levou-v75-magalu-consulta-assistida';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const BOT_DIRETO = 'https://bot.achoulevoubot.uk';
@@ -8,19 +8,19 @@ const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v74 instalada.');
+    console.log('Achou Levou interface v75 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v74 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v75 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '74' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '75' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
@@ -67,10 +67,6 @@ function respostaDeOscilacao(ultimoErro) {
 }
 
 async function consultarShopeeComRecuperacao(request, originalUrl) {
-    // O formulário já possui limite geral de 120 segundos. Não encerramos a
-    // consulta aos 35 segundos, porque a conversão completa pode precisar abrir
-    // o navegador de recuperação e consultar a API oficial antes de responder.
-    // Uma segunda tentativa só ocorre quando a primeira falha rapidamente.
     const delays = [0, 3000];
     const MAX_ELAPSED_FOR_RETRY_MS = 20000;
     let ultimoErro = null;
@@ -96,9 +92,6 @@ async function consultarShopeeComRecuperacao(request, originalUrl) {
 
             if (!RETRYABLE_STATUS.has(response.status)) return response;
 
-            // Se o servidor trabalhou por bastante tempo e respondeu, devolvemos
-            // a resposta real. Repetir nesse ponto só criaria outra conversão
-            // pesada enquanto a anterior acabou de terminar.
             if (tentativa === delays.length || elapsedMs > MAX_ELAPSED_FOR_RETRY_MS) {
                 return response;
             }
@@ -139,7 +132,7 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (url.includes('bot-queue-proxy.js')) {
-        requestUrl.searchParams.set('v', '74');
+        requestUrl.searchParams.set('v', '75');
         event.respondWith(fetch(requestUrl.toString(), { cache: 'no-store' }));
         return;
     }
