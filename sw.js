@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v75-magalu-consulta-assistida';
+const CACHE_VERSION = 'achou-levou-v76-magazinevoce';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const BOT_DIRETO = 'https://bot.achoulevoubot.uk';
@@ -8,19 +8,19 @@ const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v75 instalada.');
+    console.log('Achou Levou interface v76 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v75 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v76 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '75' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '76' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
@@ -132,7 +132,7 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (url.includes('bot-queue-proxy.js')) {
-        requestUrl.searchParams.set('v', '75');
+        requestUrl.searchParams.set('v', '76');
         event.respondWith(fetch(requestUrl.toString(), { cache: 'no-store' }));
         return;
     }
