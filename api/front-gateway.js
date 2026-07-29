@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
 const { buscarProdutoMagalu, fecharMagaluBrowser } = await import('./magalu-service.js');
 const { buscarProdutoMagazineVoce } = await import('./magazinevoce-service.js');
+const { resolverLinkShopee, fecharShopeeBrowser } = await import('./shopee-link-service.js');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -55,6 +56,10 @@ function ehLinkMagazineVoce(valor = '') {
   } catch {
     return false;
   }
+}
+
+function ehLinkCurtoShopee(valor = '') {
+  return /s\.shopee\.com\.br|shp\.ee|collshp\.com/i.test(String(valor || ''));
 }
 
 function precisaConsultaAssistida(resultado = {}) {
@@ -156,6 +161,74 @@ app.post('/bot/queue/add', async (req, res) => {
   }
 });
 
+app.get('/shopee/produto', async (req, res) => {
+  const linkOriginal = String(req.query.url || req.query.link || '').trim();
+  const params = new URLSearchParams();
+
+  for (const [chave, valor] of Object.entries(req.query)) {
+    if (valor !== undefined && valor !== null && !String(chave).startsWith('_')) {
+      params.set(chave, String(valor));
+    }
+  }
+
+  let conversao = null;
+
+  try {
+    if (linkOriginal && ehLinkCurtoShopee(linkOriginal)) {
+      conversao = await resolverLinkShopee(linkOriginal);
+      if (!conversao.ok) {
+        return res.status(422).json({
+          ok: false,
+          error: conversao.error || 'Não consegui converter esse link curto da Shopee.',
+          detalhe: conversao.detalhe || 'A página abriu, mas os códigos do produto não foram reconhecidos.'
+        });
+      }
+
+      params.set('url', conversao.linkCompleto);
+      params.delete('link');
+      params.delete('id');
+      params.delete('codigo');
+    }
+
+    const resposta = await fetchComTimeout(`${GATEWAY_URL}/shopee/produto?${params.toString()}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store'
+    }, 130000);
+
+    const corpo = await resposta.text();
+    let dados = null;
+    try { dados = JSON.parse(corpo); } catch {}
+
+    if (!dados) {
+      return res.status(502).json({
+        ok: false,
+        error: 'A consulta da Shopee devolveu uma resposta inválida.',
+        detalhe: corpo.slice(0, 300)
+      });
+    }
+
+    if (conversao?.ok) {
+      dados.linkOriginal = linkOriginal;
+      dados.linkCompleto = conversao.linkCompleto;
+      dados.link = linkOriginal;
+      dados.linkOferta = linkOriginal;
+      dados.metodoConversao = conversao.metodo;
+      dados.urlResolvida = conversao.urlFinal;
+    }
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    return res.status(resposta.status).json(dados);
+  } catch (error) {
+    const detalhe = error?.name === 'AbortError'
+      ? 'A consulta da Shopee ultrapassou o tempo limite.'
+      : String(error?.message || error);
+    return res.status(502).json({ ok: false, error: 'Não foi possível concluir a busca da Shopee.', detalhe });
+  }
+});
+
 app.get('/magalu/produto', async (req, res) => {
   const linkAfiliado = String(req.query.url || req.query.link || '').trim();
   const linkConsulta = String(req.query.consulta || req.query.linkConsulta || '').trim();
@@ -228,7 +301,10 @@ app.listen(PORT, () => {
 });
 
 async function encerrar() {
-  await fecharMagaluBrowser().catch(() => {});
+  await Promise.all([
+    fecharMagaluBrowser().catch(() => {}),
+    fecharShopeeBrowser().catch(() => {})
+  ]);
   if (!gatewayProcess.killed) gatewayProcess.kill('SIGTERM');
 }
 process.on('SIGTERM', encerrar);
