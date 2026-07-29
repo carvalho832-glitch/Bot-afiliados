@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { spawn } from 'node:child_process';
+import { buscarProdutoMagalu, fecharMagaluBrowser } from './magalu-service.js';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -123,6 +124,25 @@ app.post('/bot/queue/add', async (req, res) => {
   }
 });
 
+app.get('/magalu/produto', async (req, res) => {
+  const link = String(req.query.url || req.query.link || '').trim();
+  if (!link) return res.status(400).json({ ok: false, error: 'Informe o link da Magalu.' });
+
+  try {
+    const resultado = await buscarProdutoMagalu(link);
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    return res.status(resultado.ok ? 200 : 422).json(resultado);
+  } catch (error) {
+    return res.status(502).json({
+      ok: false,
+      error: 'A ponte da Magalu não conseguiu concluir a busca.',
+      detalhe: String(error?.message || error)
+    });
+  }
+});
+
 app.use(async (req, res) => {
   try {
     const destino = `${GATEWAY_URL}${req.originalUrl}`;
@@ -149,7 +169,8 @@ app.listen(PORT, () => {
   console.log(`Gateway principal interno: ${GATEWAY_URL}`);
 });
 
-function encerrar() {
+async function encerrar() {
+  await fecharMagaluBrowser().catch(() => {});
   if (!gatewayProcess.killed) gatewayProcess.kill('SIGTERM');
 }
 process.on('SIGTERM', encerrar);
