@@ -37,6 +37,25 @@ function authHeader() {
   return `Basic ${Buffer.from(`${BOT_USER}:${BOT_PASSWORD}`).toString('base64')}`;
 }
 
+function ehLinkProdutoMagalu(valor = '') {
+  try {
+    const url = new URL(String(valor || '').trim());
+    return /(?:magazineluiza|magalu)\.com\.br$/i.test(url.hostname) && /\/p\//i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function precisaConsultaAssistida(resultado = {}) {
+  const texto = `${resultado.error || ''} ${resultado.detalhe || ''}`.toLowerCase();
+  return texto.includes('url pública') ||
+    texto.includes('url publica') ||
+    texto.includes('apenas o aplicativo') ||
+    texto.includes('rota de aplicativo') ||
+    texto.includes('não revelou a página web') ||
+    texto.includes('nao revelou a pagina web');
+}
+
 async function fetchComTimeout(url, options = {}, timeoutMs = 20000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -127,11 +146,35 @@ app.post('/bot/queue/add', async (req, res) => {
 });
 
 app.get('/magalu/produto', async (req, res) => {
-  const link = String(req.query.url || req.query.link || '').trim();
-  if (!link) return res.status(400).json({ ok: false, error: 'Informe o link da Magalu.' });
+  const linkAfiliado = String(req.query.url || req.query.link || '').trim();
+  const linkConsulta = String(req.query.consulta || req.query.linkConsulta || '').trim();
+
+  if (!linkAfiliado) {
+    return res.status(400).json({ ok: false, error: 'Informe o link da Magalu.' });
+  }
+
+  if (linkConsulta && !ehLinkProdutoMagalu(linkConsulta)) {
+    return res.status(400).json({
+      ok: false,
+      error: 'O link usado para consulta não parece ser uma página de produto da Magalu.',
+      detalhe: 'Cole um endereço completo de magazineluiza.com.br que contenha /p/.'
+    });
+  }
 
   try {
-    const resultado = await buscarProdutoMagalu(link);
+    const alvoConsulta = linkConsulta || linkAfiliado;
+    const resultado = await buscarProdutoMagalu(alvoConsulta);
+
+    if (linkConsulta) {
+      resultado.linkOriginal = linkAfiliado;
+      resultado.linkCompleto = resultado.linkCompleto || linkConsulta;
+      resultado.linkConsulta = linkConsulta;
+      resultado.consultaAssistida = true;
+    } else if (!resultado.ok && precisaConsultaAssistida(resultado)) {
+      resultado.precisaLinkConsulta = true;
+      resultado.orientacao = 'Cole o link completo da página do produto no campo de consulta. O OneLink de afiliado continuará sendo usado na mensagem.';
+    }
+
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
