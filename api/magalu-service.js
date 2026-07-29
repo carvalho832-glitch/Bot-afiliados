@@ -2,6 +2,8 @@ import { chromium } from 'playwright';
 
 const BROWSER_IDLE_MS = Math.max(30000, Number(process.env.MAGALU_BROWSER_IDLE_MS || 90000));
 const NAVIGATION_TIMEOUT_MS = Math.max(20000, Number(process.env.MAGALU_NAVIGATION_TIMEOUT_MS || 40000));
+const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
+const DESKTOP_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 let browserCompartilhado = null;
 let browserPromise = null;
@@ -22,7 +24,7 @@ function decodificar(valor = '') {
     .replace(/\\\//g, '/')
     .replace(/&amp;/gi, '&');
 
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < 6; i += 1) {
     try {
       const proximo = decodeURIComponent(atual);
       if (proximo === atual) break;
@@ -34,6 +36,10 @@ function decodificar(valor = '') {
   return atual;
 }
 
+function ehLinkAfiliadoMagalu(valor = '') {
+  return /magazineluiza\.onelink\.me/i.test(String(valor));
+}
+
 function ehUrlMagalu(valor = '') {
   return /(?:magazineluiza|magalu)\.com\.br/i.test(String(valor));
 }
@@ -43,24 +49,75 @@ function ehUrlProdutoMagalu(valor = '') {
   return ehUrlMagalu(texto) && /\/p\//i.test(texto);
 }
 
-function coletarUrlsAninhadas(valor, saida = new Set()) {
+function ehHttp(valor = '') {
+  return /^https?:\/\//i.test(String(valor || ''));
+}
+
+function normalizarUrl(valor, base = '') {
+  const texto = decodificar(String(valor || '').replace(/^['"]|['"]$/g, '').trim());
+  if (!texto) return '';
+
+  try {
+    return new URL(texto, base || undefined).toString();
+  } catch {
+    return texto;
+  }
+}
+
+function adicionarCandidato(saida, valor, base = '') {
+  const normalizado = normalizarUrl(valor, base);
+  if (!normalizado || saida.has(normalizado)) return;
+  saida.add(normalizado);
+}
+
+function coletarIntent(valor, saida) {
+  const texto = decodificar(valor);
+  if (!texto) return;
+
+  const fallbackRegex = /(?:^|[;?&#])(?:S\.)?(?:browser_fallback_url|af_web_dp|af_android_url|af_ios_url|af_dp|deep_link_value|redirect|redirect_url|url)=([^;#&\s]+)/gi;
+  for (const match of texto.matchAll(fallbackRegex)) {
+    adicionarCandidato(saida, match[1]);
+  }
+
+  const intent = texto.match(/^intent:\/\/([^#]+)#Intent;([\s\S]+);end$/i);
+  if (intent) {
+    const corpo = intent[2];
+    const scheme = corpo.match(/(?:^|;)scheme=([^;]+)/i)?.[1] || '';
+    const fallback = corpo.match(/(?:^|;)S\.browser_fallback_url=([^;]+)/i)?.[1] || '';
+    if (fallback) adicionarCandidato(saida, fallback);
+    if (/^https?$/i.test(scheme)) adicionarCandidato(saida, `${scheme}://${intent[1]}`);
+  }
+}
+
+function coletarUrlsAninhadas(valor, saida = new Set(), profundidade = 0, base = '') {
+  if (profundidade > 5) return saida;
   const texto = decodificar(valor);
   if (!texto) return saida;
 
+  coletarIntent(texto, saida);
+
   const urls = texto.match(/https?:\/\/[^\s"'<>\\]+/gi) || [];
   for (const urlBruta of urls) {
-    const url = urlBruta.replace(/[),.;]+$/, '');
-    if (!saida.has(url)) {
+    const url = normalizarUrl(urlBruta.replace(/[),.;]+$/, ''), base);
+    if (!url || saida.has(url)) continue;
+    saida.add(url);
+    coletarUrlsAninhadas(url, saida, profundidade + 1, url);
+  }
+
+  const atribuicoes = /(?:location(?:\.href)?|window\.location|document\.location|url|redirect|redirect_url|af_web_dp|browser_fallback_url)\s*[:=]\s*["']([^"']+)["']/gi;
+  for (const match of texto.matchAll(atribuicoes)) {
+    const url = normalizarUrl(match[1], base);
+    if (url && !saida.has(url)) {
       saida.add(url);
-      coletarUrlsAninhadas(url, saida);
+      coletarUrlsAninhadas(url, saida, profundidade + 1, url);
     }
   }
 
   try {
-    const url = new URL(texto);
+    const url = new URL(texto, base || undefined);
     saida.add(url.toString());
     for (const valorParametro of url.searchParams.values()) {
-      coletarUrlsAninhadas(valorParametro, saida);
+      coletarUrlsAninhadas(valorParametro, saida, profundidade + 1, url.toString());
     }
   } catch {}
 
@@ -107,35 +164,19 @@ function limparTitulo(valor = '') {
     .trim();
 }
 
-function encontrarProdutoJsonLd(valor) {
-  if (!valor) return null;
-  if (Array.isArray(valor)) {
-    for (const item of valor) {
-      const encontrado = encontrarProdutoJsonLd(item);
-      if (encontrado) return encontrado;
-    }
-    return null;
-  }
-  if (typeof valor !== 'object') return null;
-
-  const tipo = valor['@type'];
-  if (tipo === 'Product' || (Array.isArray(tipo) && tipo.includes('Product'))) return valor;
-
-  for (const chave of ['@graph', 'mainEntity', 'itemListElement', 'item']) {
-    const encontrado = encontrarProdutoJsonLd(valor[chave]);
-    if (encontrado) return encontrado;
-  }
-  return null;
+function ehPaginaDeErro(url = '', titulo = '', corpo = '') {
+  const texto = `${url} ${titulo} ${corpo}`.toLowerCase();
+  return /chrome-error:\/\/|chromewebdata|about:blank|não é possível acessar a página|nao e possivel acessar a pagina|this site can.?t be reached|err_[a-z_]+|dns_probe_finished|não foi possível acessar|nao foi possivel acessar/.test(texto);
 }
 
-async function fetchComTimeout(url, timeoutMs = 15000) {
+async function fetchManual(url, userAgent, timeoutMs = 15000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, {
-      redirect: 'follow',
+      redirect: 'manual',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        'User-Agent': userAgent,
         'Accept': 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
         'Cache-Control': 'no-cache'
@@ -147,21 +188,73 @@ async function fetchComTimeout(url, timeoutMs = 15000) {
   }
 }
 
-async function resolverLeve(linkOriginal) {
-  const candidatos = coletarUrlsAninhadas(linkOriginal);
-  try {
-    const resposta = await fetchComTimeout(linkOriginal);
-    candidatos.add(resposta.url);
+async function resolverCadeia(linkOriginal, userAgent, candidatos) {
+  let atual = linkOriginal;
+
+  for (let etapa = 0; etapa < 8; etapa += 1) {
+    adicionarCandidato(candidatos, atual);
+    if (!ehHttp(atual)) break;
+
+    let resposta;
+    try {
+      resposta = await fetchManual(atual, userAgent);
+    } catch {
+      break;
+    }
+
+    adicionarCandidato(candidatos, resposta.url || atual, atual);
+    const localizacao = resposta.headers.get('location') || '';
+    if (localizacao) {
+      const proxima = normalizarUrl(localizacao, atual);
+      adicionarCandidato(candidatos, proxima, atual);
+      coletarUrlsAninhadas(localizacao, candidatos, 0, atual);
+
+      const produto = Array.from(candidatos).find(ehUrlProdutoMagalu);
+      if (produto) return produto;
+
+      if (ehHttp(proxima) && proxima !== atual) {
+        atual = proxima;
+        continue;
+      }
+    }
+
     const tipo = resposta.headers.get('content-type') || '';
     if (/text|html|json|javascript/i.test(tipo)) {
-      const corpo = await resposta.text();
-      coletarUrlsAninhadas(corpo, candidatos);
-    }
-  } catch {}
+      const corpo = await resposta.text().catch(() => '');
+      coletarUrlsAninhadas(corpo, candidatos, 0, resposta.url || atual);
 
-  return Array.from(candidatos).find(ehUrlProdutoMagalu) ||
-    Array.from(candidatos).find(ehUrlMagalu) ||
+      const refresh = corpo.match(/http-equiv=["']?refresh["']?[^>]*content=["'][^"']*url=([^"'>]+)/i)?.[1] || '';
+      if (refresh) adicionarCandidato(candidatos, refresh, resposta.url || atual);
+    }
+
+    const produto = Array.from(candidatos).find(ehUrlProdutoMagalu);
+    if (produto) return produto;
+
+    const paginaMagalu = Array.from(candidatos).find(url => ehUrlMagalu(url) && !ehLinkAfiliadoMagalu(url));
+    if (paginaMagalu && paginaMagalu !== atual) {
+      atual = paginaMagalu;
+      continue;
+    }
+
+    break;
+  }
+
+  return '';
+}
+
+async function resolverLeve(linkOriginal) {
+  const candidatos = coletarUrlsAninhadas(linkOriginal);
+
+  for (const userAgent of [MOBILE_UA, DESKTOP_UA]) {
+    const produto = await resolverCadeia(linkOriginal, userAgent, candidatos);
+    if (produto) return { linkResolvido: produto, candidatos };
+  }
+
+  const linkResolvido = Array.from(candidatos).find(ehUrlProdutoMagalu) ||
+    Array.from(candidatos).find(url => ehUrlMagalu(url) && !ehLinkAfiliadoMagalu(url)) ||
     linkOriginal;
+
+  return { linkResolvido, candidatos };
 }
 
 async function fecharBrowser() {
@@ -271,7 +364,9 @@ async function extrairDaPagina(page) {
       ]),
       canonical: document.querySelector('link[rel="canonical"]')?.href || '',
       ogUrl: document.querySelector('meta[property="og:url"]')?.content || '',
-      corpo: texto(document.body?.innerText || '').slice(0, 25000)
+      corpo: texto(document.body?.innerText || '').slice(0, 25000),
+      url: location.href,
+      tituloDocumento: document.title
     };
   });
 }
@@ -282,6 +377,14 @@ function normalizarDadosPagina(dados, linkOriginal, linkCompleto) {
   let precoAnterior = numeroDeMoeda(dados?.precoAnteriorTexto || '');
 
   const corpo = String(dados?.corpo || '');
+  if (ehPaginaDeErro(dados?.url || linkCompleto, dados?.tituloDocumento || produto, corpo)) {
+    return {
+      ok: false,
+      error: 'O OneLink da Magalu abriu uma rota de aplicativo sem página web acessível.',
+      detalhe: 'A ponte ainda não encontrou a URL pública do produto dentro do redirecionamento.'
+    };
+  }
+
   if (!precoAtual) {
     const por = corpo.match(/(?:por|à vista|no pix)\s*R\$\s*([\d.]+,\d{2})/i) ||
       corpo.match(/R\$\s*([\d.]+,\d{2})/i);
@@ -293,11 +396,11 @@ function normalizarDadosPagina(dados, linkOriginal, linkCompleto) {
   }
   if (precoAnterior && precoAtual && precoAnterior <= precoAtual) precoAnterior = 0;
 
-  const tituloInvalido = !produto || produto.length < 5 || /partner_id|promoter_id|onelink|^https?:/i.test(produto);
+  const tituloInvalido = !produto || produto.length < 5 || /partner_id|promoter_id|onelink|^https?:|não é possível acessar|nao e possivel acessar|this site can.?t be reached/i.test(produto);
   if (tituloInvalido) {
     return {
       ok: false,
-      error: 'A Magalu abriu o link, mas não entregou o nome do produto.',
+      error: 'A Magalu abriu o link, mas não entregou um nome de produto válido.',
       detalhe: `Página final: ${linkCompleto || linkOriginal}`
     };
   }
@@ -326,7 +429,7 @@ export async function buscarProdutoMagalu(valor) {
     return { ok: false, error: 'O endereço informado não parece ser um link da Magalu.' };
   }
 
-  const linkResolvidoLeve = await resolverLeve(linkOriginal);
+  const resolucao = await resolverLeve(linkOriginal);
 
   return executarEmFila(async () => {
     let context;
@@ -335,8 +438,10 @@ export async function buscarProdutoMagalu(valor) {
       context = await browser.newContext({
         locale: 'pt-BR',
         timezoneId: 'America/Sao_Paulo',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-        viewport: { width: 1365, height: 900 },
+        userAgent: MOBILE_UA,
+        viewport: { width: 412, height: 915 },
+        isMobile: true,
+        hasTouch: true,
         extraHTTPHeaders: { 'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8' }
       });
 
@@ -347,25 +452,51 @@ export async function buscarProdutoMagalu(valor) {
         return route.continue();
       });
 
-      const candidatos = coletarUrlsAninhadas(linkOriginal);
-      coletarUrlsAninhadas(linkResolvidoLeve, candidatos);
+      const candidatos = new Set(resolucao.candidatos);
+      coletarUrlsAninhadas(linkOriginal, candidatos);
+      coletarUrlsAninhadas(resolucao.linkResolvido, candidatos);
       page.on('framenavigated', frame => coletarUrlsAninhadas(frame.url(), candidatos));
       page.on('request', request => coletarUrlsAninhadas(request.url(), candidatos));
+      page.on('response', response => {
+        coletarUrlsAninhadas(response.url(), candidatos);
+        const location = response.headers()?.location || '';
+        if (location) coletarUrlsAninhadas(location, candidatos, 0, response.url());
+      });
 
-      await page.goto(linkResolvidoLeve, { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT_MS }).catch(() => null);
-      await page.waitForTimeout(4000);
-      coletarUrlsAninhadas(page.url(), candidatos);
-
-      const destinoProduto = Array.from(candidatos).find(ehUrlProdutoMagalu);
-      if (destinoProduto && page.url() !== destinoProduto) {
-        await page.goto(destinoProduto, { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT_MS }).catch(() => null);
+      const navegar = async destino => {
+        if (!ehHttp(destino)) return;
+        await page.goto(destino, { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT_MS }).catch(() => null);
         await page.waitForTimeout(3500);
+        coletarUrlsAninhadas(page.url(), candidatos);
+        const html = await page.content().catch(() => '');
+        coletarUrlsAninhadas(html, candidatos, 0, page.url());
+      };
+
+      await navegar(resolucao.linkResolvido);
+
+      let destinoProduto = Array.from(candidatos).find(ehUrlProdutoMagalu);
+      if (!destinoProduto && resolucao.linkResolvido !== linkOriginal) {
+        await navegar(linkOriginal);
+        destinoProduto = Array.from(candidatos).find(ehUrlProdutoMagalu);
+      }
+
+      if (destinoProduto && page.url() !== destinoProduto) {
+        await navegar(destinoProduto);
       }
 
       const dados = await extrairDaPagina(page);
-      const linkCompleto = [dados.canonical, dados.ogUrl, page.url(), destinoProduto, linkResolvidoLeve]
+      const paginaErro = ehPaginaDeErro(dados.url, dados.tituloDocumento, dados.corpo);
+      if (paginaErro && !destinoProduto) {
+        return {
+          ok: false,
+          error: 'O OneLink da Magalu abriu apenas o aplicativo e não revelou a página web do produto.',
+          detalhe: 'Tente gerar no Parceiro Magalu um link que também abra no navegador, ou copie o link completo da página do produto para a consulta.'
+        };
+      }
+
+      const linkCompleto = [dados.canonical, dados.ogUrl, page.url(), destinoProduto, resolucao.linkResolvido]
         .map(extrairLink)
-        .find(ehUrlMagalu) || linkResolvidoLeve;
+        .find(ehUrlMagalu) || resolucao.linkResolvido;
 
       return normalizarDadosPagina(dados, linkOriginal, linkCompleto);
     } catch (error) {
