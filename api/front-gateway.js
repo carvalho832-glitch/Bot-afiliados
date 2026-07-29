@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import { spawn } from 'node:child_process';
-import { buscarProdutoMagalu, fecharMagaluBrowser } from './magalu-service.js';
+
+process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
+const { buscarProdutoMagalu, fecharMagaluBrowser } = await import('./magalu-service.js');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
