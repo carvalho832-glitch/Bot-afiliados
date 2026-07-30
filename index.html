@@ -11,11 +11,35 @@
     <script>
         (function () {
             try {
-                const UI_VERSION = '76';
+                const UI_VERSION = '79';
+                const VERSION_KEY = 'achou_levou_ui_version';
+                const previousVersion = localStorage.getItem(VERSION_KEY);
+
                 localStorage.removeItem('achou_levou_group_options');
                 localStorage.removeItem('achou_levou_selected_groups');
                 localStorage.removeItem('achou_levou_recovery_20260530');
                 localStorage.removeItem('achou_levou_targets_atual');
+
+                if (previousVersion !== UI_VERSION) {
+                    localStorage.setItem(VERSION_KEY, UI_VERSION);
+
+                    const clearCaches = 'caches' in window
+                        ? caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key))))
+                        : Promise.resolve();
+
+                    const removeWorkers = 'serviceWorker' in navigator
+                        ? navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(reg => reg.unregister())))
+                        : Promise.resolve();
+
+                    Promise.all([clearCaches, removeWorkers])
+                        .then(() => {
+                            const nextUrl = new URL(location.href);
+                            nextUrl.searchParams.set('v', UI_VERSION);
+                            location.replace(nextUrl.toString());
+                        })
+                        .catch(() => location.reload());
+                    return;
+                }
 
                 if ('caches' in window) {
                     caches.keys().then(keys => keys.forEach(key => caches.delete(key))).catch(() => {});
@@ -50,15 +74,15 @@
         })();
     </script>
 
-    <link rel="manifest" href="manifest.json?v=76">
+    <link rel="manifest" href="manifest.json?v=79">
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
-    <link rel="apple-touch-icon" href="icon.png?v=76">
+    <link rel="apple-touch-icon" href="icon.png?v=79">
 
-    <link rel="stylesheet" href="style.css?v=76">
-    <link rel="stylesheet" href="progress-style.css?v=76">
-    <link rel="stylesheet" href="robot-realistic.css?v=76">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=76">
-    <link rel="stylesheet" href="achou-levou-v2.css?v=76">
+    <link rel="stylesheet" href="style.css?v=79">
+    <link rel="stylesheet" href="progress-style.css?v=79">
+    <link rel="stylesheet" href="robot-realistic.css?v=79">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=79">
+    <link rel="stylesheet" href="achou-levou-v2.css?v=79">
 </head>
 <body>
     <div class="app-shell">
@@ -205,23 +229,23 @@
         </div>
     </div>
 
-    <script src="script.js?v=76"></script>
-    <script src="progress-loader.js?v=76"></script>
-    <script src="app-dialog.js?v=76"></script>
-    <script src="shopee-helper.js?v=76"></script>
-    <script src="magalu-helper.js?v=76"></script>
-    <script src="gemini-client.js?v=76"></script>
-    <script src="product-message-patch.js?v=76"></script>
-    <script src="bot-queue-integration.js?v=76"></script>
-    <script src="bot-queue-proxy.js?v=76"></script>
-    <script src="achou-levou-v2.js?v=76"></script>
+    <script src="script.js?v=79"></script>
+    <script src="progress-loader.js?v=79"></script>
+    <script src="app-dialog.js?v=79"></script>
+    <script src="shopee-helper.js?v=79"></script>
+    <script src="magalu-helper.js?v=79"></script>
+    <script src="gemini-client.js?v=79"></script>
+    <script src="product-message-patch.js?v=79"></script>
+    <script src="bot-queue-integration.js?v=79"></script>
+    <script src="bot-queue-proxy.js?v=79"></script>
+    <script src="achou-levou-v2.js?v=79"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=76', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=79', { updateViaCache: 'none' })
                     .then(reg => {
-                        console.log('PWA v76 ativado!', reg);
+                        console.log('PWA v79 ativado!', reg);
                         reg.update();
                     })
                     .catch(err => console.log('Falha no PWA:', err));
