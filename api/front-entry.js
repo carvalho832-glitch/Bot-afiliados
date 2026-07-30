@@ -69,7 +69,8 @@ globalThis.fetch = async function resilientBotFetch(input, init = {}) {
     return nativeFetch(input, init);
   }
 
-  const candidates = [...new Set([url.toString(), officialCandidate(url)])];
+  // O domínio oficial entra primeiro. A variável do Render vira apenas reserva.
+  const candidates = [...new Set([officialCandidate(url), url.toString()])];
   let lastResponse = null;
   let lastError = null;
 
