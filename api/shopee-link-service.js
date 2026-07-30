@@ -1,6 +1,6 @@
-const GATEWAY_PORT = Number(process.env.GATEWAY_INTERNAL_PORT || 3099);
-const GATEWAY_URL = `http://127.0.0.1:${GATEWAY_PORT}`;
-const RESOLUTION_TIMEOUT_MS = Math.max(35000, Number(process.env.SHOPEE_RESOLUTION_TIMEOUT_MS || 70000));
+const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
+const REQUEST_TIMEOUT_MS = Math.max(8000, Number(process.env.SHOPEE_REDIRECT_TIMEOUT_MS || 15000));
+const MAX_VISITS = Math.max(4, Number(process.env.SHOPEE_REDIRECT_MAX_VISITS || 12));
 
 function limparTexto(valor = '') {
   return String(valor || '').replace(/\s+/g, ' ').trim();
@@ -17,7 +17,7 @@ function decodificar(valor = '') {
     .replace(/\\\//g, '/')
     .replace(/&amp;/gi, '&');
 
-  for (let i = 0; i < 5; i += 1) {
+  for (let i = 0; i < 6; i += 1) {
     try {
       const proximo = decodeURIComponent(atual);
       if (proximo === atual) break;
@@ -28,6 +28,10 @@ function decodificar(valor = '') {
   }
 
   return atual;
+}
+
+function ehDominioShopee(hostname = '') {
+  return /(^|\.)(?:shopee\.com\.br|s\.shopee\.com\.br|shp\.ee|collshp\.com)$/i.test(String(hostname || ''));
 }
 
 function extrairIdsShopee(valor = '') {
@@ -81,27 +85,145 @@ function montarLinkCompleto(ids) {
     : '';
 }
 
-async function consultarConversorExistente(linkOriginal) {
+function extrairUrlsDoCorpo(corpo = '', baseUrl = '') {
+  const texto = decodificar(corpo);
+  const candidatos = new Set();
+
+  const adicionar = valor => {
+    if (!valor) return;
+    try {
+      const resolvida = new URL(decodificar(valor), baseUrl || undefined).toString();
+      const host = new URL(resolvida).hostname;
+      if (ehDominioShopee(host)) candidatos.add(resolvida);
+    } catch {}
+  };
+
+  for (const url of texto.match(/https?:\/\/[^\s"'<>\\]+/gi) || []) adicionar(url);
+
+  const canonical = texto.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)/i)?.[1] ||
+    texto.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)/i)?.[1];
+  adicionar(canonical);
+
+  const refresh = texto.match(/http-equiv=["']?refresh["']?[^>]*content=["'][^;]+;\s*url=([^"']+)/i)?.[1];
+  adicionar(refresh);
+
+  const jsPatterns = [
+    /(?:window\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']/gi,
+    /location\.replace\(\s*["']([^"']+)["']\s*\)/gi,
+    /["'](?:url|target_url|redirect_url|universal_link|deep_link|deeplink)["']\s*:\s*["']([^"']+)["']/gi
+  ];
+
+  for (const padrao of jsPatterns) {
+    let match;
+    while ((match = padrao.exec(texto))) adicionar(match[1]);
+  }
+
+  return [...candidatos];
+}
+
+async function fetchComTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), RESOLUTION_TIMEOUT_MS);
-  const params = new URLSearchParams({ url: linkOriginal });
-
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const resposta = await fetch(`${GATEWAY_URL}/shopee/converter-link?${params.toString()}`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-      signal: controller.signal
-    });
-
-    const corpo = await resposta.text();
-    let dados = null;
-    try { dados = JSON.parse(corpo); } catch {}
-
-    return { resposta, dados, corpo };
+    return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
+}
+
+function headersShopee() {
+  return {
+    'User-Agent': MOBILE_UA,
+    'Accept': 'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache'
+  };
+}
+
+async function tentarRedirectFollow(linkOriginal) {
+  try {
+    const resposta = await fetchComTimeout(linkOriginal, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: headersShopee(),
+      cache: 'no-store'
+    });
+
+    const finalUrl = resposta.url || linkOriginal;
+    let ids = extrairIdsShopee(finalUrl);
+    if (ids) return { ok: true, ids, urlFinal: finalUrl, metodo: 'http-follow-url' };
+
+    const tipo = resposta.headers.get('content-type') || '';
+    if (/text|html|json|javascript/i.test(tipo)) {
+      const corpo = await resposta.text();
+      ids = extrairIdsShopee(corpo);
+      if (ids) return { ok: true, ids, urlFinal: finalUrl, metodo: 'http-follow-corpo' };
+
+      for (const candidato of extrairUrlsDoCorpo(corpo, finalUrl)) {
+        ids = extrairIdsShopee(candidato);
+        if (ids) return { ok: true, ids, urlFinal: candidato, metodo: 'http-follow-link-corpo' };
+      }
+    }
+  } catch {}
+
+  return null;
+}
+
+async function tentarRedirectManual(linkOriginal) {
+  const fila = [linkOriginal];
+  const visitados = new Set();
+  const erros = [];
+  let ultimoLink = linkOriginal;
+
+  while (fila.length && visitados.size < MAX_VISITS) {
+    const atual = fila.shift();
+    if (!atual || visitados.has(atual)) continue;
+
+    visitados.add(atual);
+    ultimoLink = atual;
+
+    const idsDiretos = extrairIdsShopee(atual);
+    if (idsDiretos) return { ok: true, ids: idsDiretos, urlFinal: atual, metodo: 'http-manual-direto' };
+
+    try {
+      const resposta = await fetchComTimeout(atual, {
+        method: 'GET',
+        redirect: 'manual',
+        headers: headersShopee(),
+        cache: 'no-store'
+      });
+
+      const location = resposta.headers.get('location');
+      if (location) {
+        const proximo = new URL(location, atual).toString();
+        const idsLocation = extrairIdsShopee(proximo);
+        if (idsLocation) return { ok: true, ids: idsLocation, urlFinal: proximo, metodo: 'http-location' };
+        if (!visitados.has(proximo)) fila.unshift(proximo);
+      }
+
+      const tipo = resposta.headers.get('content-type') || '';
+      if (/text|html|json|javascript/i.test(tipo)) {
+        const corpo = await resposta.text();
+        const idsCorpo = extrairIdsShopee(corpo);
+        if (idsCorpo) return { ok: true, ids: idsCorpo, urlFinal: atual, metodo: 'http-corpo' };
+
+        for (const candidato of extrairUrlsDoCorpo(corpo, atual)) {
+          const idsCandidato = extrairIdsShopee(candidato);
+          if (idsCandidato) return { ok: true, ids: idsCandidato, urlFinal: candidato, metodo: 'http-link-corpo' };
+          if (!visitados.has(candidato)) fila.push(candidato);
+        }
+      }
+    } catch (error) {
+      erros.push(error?.name === 'AbortError' ? 'tempo esgotado' : String(error?.message || error));
+    }
+  }
+
+  return {
+    ok: false,
+    ultimoLink,
+    detalhe: erros.filter(Boolean).slice(-3).join(' | ')
+  };
 }
 
 export async function resolverLinkShopee(valor) {
@@ -119,61 +241,29 @@ export async function resolverLinkShopee(valor) {
     };
   }
 
-  try {
-    const { dados, corpo } = await consultarConversorExistente(linkOriginal);
-
-    const idsInformados = dados?.ids?.shopId && dados?.ids?.itemId
-      ? { shopId: String(dados.ids.shopId), itemId: String(dados.ids.itemId) }
-      : null;
-
-    if (idsInformados) {
-      return {
-        ok: true,
-        ids: idsInformados,
-        linkCompleto: montarLinkCompleto(idsInformados),
-        metodo: dados?.metodo || 'conversor-existente',
-        urlFinal: dados?.urlNavegador || dados?.linkCompleto || linkOriginal
-      };
-    }
-
-    const pistas = [
-      dados?.linkCompleto,
-      dados?.urlNavegador,
-      dados?.urlResolvida,
-      dados?.detalhe,
-      dados?.aviso,
-      dados?.error,
-      corpo
-    ].filter(Boolean).join(' ');
-
-    const ids = extrairIdsShopee(pistas);
-    if (ids) {
-      const urlEncontrada = pistas.match(/https?:\/\/[^\s"'<>\\]+/i)?.[0] || linkOriginal;
-      return {
-        ok: true,
-        ids,
-        linkCompleto: montarLinkCompleto(ids),
-        metodo: 'url-final-do-conversor',
-        urlFinal: urlEncontrada
-      };
-    }
-
+  const seguido = await tentarRedirectFollow(linkOriginal);
+  if (seguido?.ok) {
     return {
-      ok: false,
-      error: 'Não consegui converter esse link curto da Shopee.',
-      detalhe: dados?.detalhe || dados?.aviso || dados?.error || 'O navegador abriu o link, mas não revelou os códigos do produto.'
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      error: 'Não consegui converter esse link curto da Shopee.',
-      detalhe: error?.name === 'AbortError'
-        ? 'A conversão do link ultrapassou o tempo limite.'
-        : String(error?.message || error)
+      ...seguido,
+      linkCompleto: montarLinkCompleto(seguido.ids)
     };
   }
+
+  const manual = await tentarRedirectManual(linkOriginal);
+  if (manual?.ok) {
+    return {
+      ...manual,
+      linkCompleto: montarLinkCompleto(manual.ids)
+    };
+  }
+
+  return {
+    ok: false,
+    error: 'Não consegui converter esse link curto da Shopee sem abrir o navegador.',
+    detalhe: manual?.detalhe || `O redirecionamento terminou sem revelar shopId e itemId. Último endereço: ${manual?.ultimoLink || linkOriginal}`
+  };
 }
 
 // Mantido para compatibilidade com o encerramento da ponte frontal.
-// Este módulo não abre navegador próprio.
+// A conversão da Shopee agora é feita sem Chromium.
 export async function fecharShopeeBrowser() {}
