@@ -1,63 +1,120 @@
 (function () {
   const CONFIG_KEY = 'achou_levou_bot_config';
-  const BOT_HTTPS_URL = 'https://bot.achoulevoubot.uk';
-  const BRIDGE_BASE = 'https://bot-afiliados-1fwi.onrender.com';
-  const OVERVIEW_URL = `${BRIDGE_BASE}/bot/overview`;
-  const SEND_URL = `${BRIDGE_BASE}/bot/queue/add`;
+  const PROFILE_KEY = 'achou_levou_bot_profile';
 
-  const DEFAULT_CONFIG = {
-    botUrl: BOT_HTTPS_URL,
-    username: 'julio',
-    password: 'AchouLevou2026'
-  };
+  const BOT_PROFILES = Object.freeze({
+    julio: Object.freeze({
+      id: 'julio',
+      label: 'Júlio',
+      botUrl: 'https://bot.achoulevoubot.uk'
+    }),
+    renata: Object.freeze({
+      id: 'renata',
+      label: 'Renata',
+      botUrl: 'https://usuario2.achoulevoubot.uk'
+    })
+  });
 
   let statusTimer = null;
   let overviewRequest = null;
   let lastOverview = null;
   let lastOverviewAt = 0;
 
-  function normalizeBotUrl(url) {
-    const cleanUrl = String(url || '').trim().replace(/\/+$/, '');
-    if (
-      !cleanUrl ||
-      cleanUrl.includes('35.253.196.37') ||
-      cleanUrl.includes('localhost') ||
-      cleanUrl.includes('127.0.0.1') ||
-      cleanUrl.startsWith('http://')
-    ) {
-      return BOT_HTTPS_URL;
+  function normalizeProfileId(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (['renata', 'usuario2', 'user2', '2'].includes(normalized)) return 'renata';
+    return 'julio';
+  }
+
+  function profileFromUrl(botUrl) {
+    const value = String(botUrl || '').toLowerCase();
+    return value.includes('usuario2.achoulevoubot.uk') ? 'renata' : 'julio';
+  }
+
+  function requestedProfile() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const value = params.get('perfil') || params.get('bot') || params.get('usuario');
+      return value ? normalizeProfileId(value) : null;
+    } catch {
+      return null;
     }
-    return cleanUrl;
+  }
+
+  function activeProfileId() {
+    const requested = requestedProfile();
+    if (requested) {
+      localStorage.setItem(PROFILE_KEY, requested);
+      return requested;
+    }
+
+    const savedProfile = localStorage.getItem(PROFILE_KEY);
+    if (savedProfile) return normalizeProfileId(savedProfile);
+
+    try {
+      const savedConfig = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+      return profileFromUrl(savedConfig.botUrl);
+    } catch {
+      return 'julio';
+    }
+  }
+
+  function activeProfile() {
+    return BOT_PROFILES[activeProfileId()] || BOT_PROFILES.julio;
   }
 
   function loadConfig() {
+    const profile = activeProfile();
+    let saved = {};
+
     try {
-      const saved = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
-      const config = {
-        ...DEFAULT_CONFIG,
-        ...saved,
-        botUrl: normalizeBotUrl(saved.botUrl || DEFAULT_CONFIG.botUrl)
-      };
-      if (saved.botUrl !== config.botUrl) {
-        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-      }
-      return config;
-    } catch {
-      const fallback = { ...DEFAULT_CONFIG, botUrl: BOT_HTTPS_URL };
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(fallback));
-      return fallback;
-    }
+      saved = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+    } catch {}
+
+    const config = {
+      ...saved,
+      profileId: profile.id,
+      profileLabel: profile.label,
+      botUrl: profile.botUrl
+    };
+
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+    localStorage.setItem(PROFILE_KEY, profile.id);
+    return config;
   }
 
-  function saveConfig(config) {
+  function saveConfig(config = {}) {
+    const requestedId = config.profileId || config.profile || profileFromUrl(config.botUrl);
+    const profileId = normalizeProfileId(requestedId);
+    localStorage.setItem(PROFILE_KEY, profileId);
+
     const current = loadConfig();
-    const clean = {
+    const profile = BOT_PROFILES[profileId];
+    const next = {
       ...current,
       ...config,
-      botUrl: normalizeBotUrl(config?.botUrl || current.botUrl)
+      profileId,
+      profileLabel: profile.label,
+      botUrl: profile.botUrl
     };
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(clean));
-    return clean;
+
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
+    return next;
+  }
+
+  function selectProfile(profileId, reload = true) {
+    const id = normalizeProfileId(profileId);
+    saveConfig({ profileId: id });
+    lastOverview = null;
+    lastOverviewAt = 0;
+
+    if (reload) {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set('perfil', id);
+      window.location.replace(nextUrl.toString());
+    }
+
+    return BOT_PROFILES[id];
   }
 
   function setStatus(message, state = 'idle') {
@@ -103,6 +160,7 @@
     const rawStatus = source.status ?? source.state ?? source.connection ??
       source.connectionState ?? source.sessionStatus ?? source.whatsappStatus;
     const status = normalizeStatusValue(rawStatus);
+
     const onlineStates = [
       'conectado', 'connected', 'online', 'ready', 'authenticated', 'autenticado',
       'open', 'opened', 'logado', 'active', 'ativo'
@@ -148,20 +206,40 @@
     window.dispatchEvent(new CustomEvent('achoulevou:bot-overview', { detail }));
   }
 
-  async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 12000) {
+  async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 10000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
       const response = await fetch(url, {
         ...options,
         cache: 'no-store',
         signal: controller.signal
       });
-      const json = await response.json().catch(() => null);
-      return { response, json };
+      const text = await response.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch {}
+      return { response, json, text };
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  async function readBotPath(pathname) {
+    const config = loadConfig();
+    const separator = pathname.includes('?') ? '&' : '?';
+    const url = `${config.botUrl}${pathname}${separator}t=${Date.now()}`;
+    const { response, json, text } = await fetchJsonWithTimeout(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      credentials: 'omit',
+      mode: 'cors'
+    }, 10000);
+
+    if (!response.ok || !json) {
+      throw new Error(json?.error || `HTTP ${response.status}: ${text.slice(0, 120)}`);
+    }
+    return json;
   }
 
   async function getOverview(options = {}) {
@@ -171,75 +249,61 @@
     if (overviewRequest) return overviewRequest;
 
     overviewRequest = (async () => {
-      try {
-        const url = `${OVERVIEW_URL}?t=${Date.now()}`;
-        const { response, json } = await fetchJsonWithTimeout(url, {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
-          credentials: 'omit'
-        }, 15000);
+      const profile = activeProfile();
+      const [statusResult, queueResult] = await Promise.allSettled([
+        readBotPath('/status'),
+        readBotPath('/queue')
+      ]);
 
-        if (!json) throw new Error(`A ponte respondeu sem JSON (HTTP ${response.status}).`);
+      const statusOk = statusResult.status === 'fulfilled';
+      const queueOk = queueResult.status === 'fulfilled';
+      const overview = {
+        ok: statusOk || queueOk,
+        apiOnline: statusOk || queueOk,
+        statusOk,
+        queueOk,
+        status: statusOk ? statusResult.value : null,
+        queue: queueOk ? (queueResult.value?.queue || queueResult.value) : null,
+        profile: { id: profile.id, label: profile.label, botUrl: profile.botUrl },
+        errors: {
+          status: statusOk ? null : String(statusResult.reason?.message || statusResult.reason || 'Falha no status.'),
+          queue: queueOk ? null : String(queueResult.reason?.message || queueResult.reason || 'Falha na fila.')
+        },
+        checkedAt: new Date().toISOString()
+      };
 
-        lastOverview = json;
-        lastOverviewAt = Date.now();
-        dispatchOverview(json);
+      lastOverview = overview;
+      lastOverviewAt = Date.now();
+      dispatchOverview(overview);
 
-        if (json.statusOk && json.status) {
-          const interpreted = interpretBotStatus(json.status);
-          dispatchStatus({ ...interpreted, raw: json.status, overview: json });
-        } else {
-          dispatchStatus({
-            label: 'Servidor instável',
-            state: 'warning',
-            connected: null,
-            unavailable: true,
-            error: true,
-            overview: json
-          });
-        }
-
-        return json;
-      } catch (error) {
-        const unavailable = {
-          ok: false,
-          apiOnline: false,
-          statusOk: false,
-          queueOk: false,
-          status: null,
-          queue: null,
-          unavailable: true,
-          error: error?.name === 'AbortError'
-            ? 'Tempo limite ao consultar o servidor.'
-            : String(error?.message || error),
-          checkedAt: new Date().toISOString()
-        };
-
-        dispatchOverview(unavailable);
+      if (statusOk) {
+        const interpreted = interpretBotStatus(overview.status);
+        dispatchStatus({ ...interpreted, raw: overview.status, overview, profile: overview.profile });
+      } else {
         dispatchStatus({
-          label: 'Servidor indisponível',
+          label: `${profile.label}: sem leitura`,
           state: 'warning',
           connected: null,
           unavailable: true,
           error: true,
-          overview: unavailable
+          overview,
+          profile: overview.profile
         });
-        return unavailable;
-      } finally {
-        overviewRequest = null;
       }
-    })();
+
+      return overview;
+    })().finally(() => {
+      overviewRequest = null;
+    });
 
     return overviewRequest;
   }
 
   async function checkBotStatus() {
     const overview = await getOverview({ force: true });
-    if (overview?.statusOk && overview.status) {
-      return interpretBotStatus(overview.status);
-    }
+    if (overview?.statusOk && overview.status) return interpretBotStatus(overview.status);
     return {
-      label: overview?.apiOnline ? 'Servidor instável' : 'Servidor indisponível',
+      label: `${activeProfile().label}: sem leitura`,
       state: 'warning',
       connected: null,
       unavailable: true,
@@ -253,30 +317,33 @@
   }
 
   async function sendMessages(messages) {
+    const config = loadConfig();
     const cleanMessages = getCleanMessages(messages);
     if (!cleanMessages.length) throw new Error('Nenhuma mensagem para enviar.');
 
-    setStatus('Enviando', 'loading');
+    setStatus(`Enviando para ${config.profileLabel}`, 'loading');
+
     try {
-      const { response, json } = await fetchJsonWithTimeout(SEND_URL, {
+      const { response, json, text } = await fetchJsonWithTimeout(`${config.botUrl}/queue/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json'
         },
         body: JSON.stringify({ text: cleanMessages.join('\n---\n') }),
-        credentials: 'omit'
+        credentials: 'omit',
+        mode: 'cors'
       }, 25000);
 
       if (!response.ok || !json?.ok) {
-        throw new Error(json?.error || json?.detalhe || `Falha ao enviar. HTTP ${response.status}`);
+        throw new Error(json?.error || `Falha ao enviar. HTTP ${response.status}: ${text.slice(0, 120)}`);
       }
 
-      setStatus('Fila atualizada', 'ok');
-      setTimeout(() => getOverview({ force: true }), 1200);
+      setStatus(`Fila da ${config.profileLabel} atualizada`, 'ok');
+      setTimeout(() => getOverview({ force: true }), 1000);
       return json;
     } catch (error) {
-      setStatus('Falha no envio', 'error');
+      setStatus(`Falha no envio para ${config.profileLabel}`, 'error');
       if (error?.name === 'AbortError') {
         throw new Error('O envio demorou mais de 25 segundos. Tente novamente.');
       }
@@ -289,8 +356,43 @@
     window.open(`${config.botUrl}/painel`, '_blank');
   }
 
+  function mountProfileSelector() {
+    if (document.getElementById('achou-profile-select')) return;
+    const actions = document.querySelector('.header-actions');
+    if (!actions) return;
+
+    const wrapper = document.createElement('label');
+    wrapper.id = 'achou-profile-wrapper';
+    wrapper.style.cssText = 'display:flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(105,229,220,.28);border-radius:14px;background:rgba(8,21,38,.72);color:#aab8cb;font-size:12px;font-weight:700;';
+    wrapper.innerHTML = '<span>Perfil</span>';
+
+    const select = document.createElement('select');
+    select.id = 'achou-profile-select';
+    select.setAttribute('aria-label', 'Selecionar bot');
+    select.style.cssText = 'border:0;outline:0;background:transparent;color:#39e1d2;font:inherit;font-size:14px;font-weight:800;max-width:92px;';
+
+    Object.values(BOT_PROFILES).forEach(profile => {
+      const option = document.createElement('option');
+      option.value = profile.id;
+      option.textContent = profile.label;
+      option.style.color = '#07111f';
+      select.appendChild(option);
+    });
+
+    select.value = activeProfileId();
+    select.addEventListener('change', () => selectProfile(select.value, true));
+    wrapper.appendChild(select);
+    actions.prepend(wrapper);
+
+    document.documentElement.dataset.botProfile = activeProfileId();
+    window.dispatchEvent(new CustomEvent('achoulevou:bot-profile', {
+      detail: activeProfile()
+    }));
+  }
+
   function startStatusPolling() {
     clearInterval(statusTimer);
+    mountProfileSelector();
     getOverview({ force: true });
     statusTimer = setInterval(() => getOverview({ force: true }), 10000);
   }
@@ -298,12 +400,14 @@
   window.AchouLevouBotQueue = {
     loadConfig,
     saveConfig,
+    selectProfile,
+    getProfiles: () => BOT_PROFILES,
     sendMessages,
     openPanel,
     checkBotStatus,
     getOverview,
     interpretBotStatus,
-    readBridgeUrl: BRIDGE_BASE
+    readBridgeUrl: null
   };
 
   document.addEventListener('DOMContentLoaded', startStatusPolling);
