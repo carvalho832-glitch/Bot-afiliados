@@ -10,13 +10,15 @@
       .filter(Boolean);
   }
 
-  function ehLeituraDiretaDoBot(url, method) {
-    if (method !== 'GET' || url.hostname !== BOT_HOST) return false;
+  function rotaLeitura(url, method) {
+    if (method !== 'GET' || url.hostname !== BOT_HOST) return null;
     const path = url.pathname.replace(/\/+$/, '') || '/';
-    return path === '/status' || path === '/queue';
+    if (path === '/status') return `${BRIDGE_BASE}/bot/status`;
+    if (path === '/queue') return `${BRIDGE_BASE}/bot/queue`;
+    return null;
   }
 
-  function headersLeituraDireta(input, init) {
+  function headersSemAutorizacao(input, init) {
     let baseHeaders = init?.headers;
     if (!baseHeaders && typeof Request !== 'undefined' && input instanceof Request) {
       baseHeaders = input.headers;
@@ -29,29 +31,69 @@
     return headers;
   }
 
-  window.fetch = function fetchAchouLevou(input, init = {}) {
-    let url;
+  async function fetchComTimeout(url, options = {}, timeoutMs = 9000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-      url = new URL(typeof input === 'string' ? input : input.url, window.location.href);
+      return await nativeFetch(url, {
+        ...options,
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  window.fetch = function fetchAchouLevou(input, init = {}) {
+    let originalUrl;
+    try {
+      originalUrl = new URL(typeof input === 'string' ? input : input.url, window.location.href);
     } catch {
       return nativeFetch(input, init);
     }
 
     const method = String(init.method || (typeof input === 'object' && input?.method) || 'GET').toUpperCase();
+    const bridgeRoute = rotaLeitura(originalUrl, method);
 
-    if (!ehLeituraDiretaDoBot(url, method)) {
-      return nativeFetch(input, init);
-    }
+    if (!bridgeRoute) return nativeFetch(input, init);
 
-    // /status e /queue não exigem autenticação no servidor. Remover Authorization
-    // evita o preflight CORS que impedia a leitura direta no aplicativo instalado.
-    return nativeFetch(url.toString(), {
-      ...init,
-      method: 'GET',
-      headers: headersLeituraDireta(input, init),
-      credentials: 'omit',
-      cache: 'no-store'
-    });
+    const bridgeUrl = new URL(bridgeRoute);
+    originalUrl.searchParams.forEach((value, key) => bridgeUrl.searchParams.set(key, value));
+    bridgeUrl.searchParams.set('_bridge', Date.now().toString());
+    const cleanHeaders = headersSemAutorizacao(input, init);
+
+    return (async () => {
+      let bridgeResponse = null;
+
+      try {
+        bridgeResponse = await fetchComTimeout(bridgeUrl.toString(), {
+          method: 'GET',
+          headers: cleanHeaders,
+          credentials: 'omit'
+        }, 9000);
+
+        if (bridgeResponse.ok) return bridgeResponse;
+      } catch (error) {
+        console.warn('Ponte de leitura indisponível, tentando VM diretamente:', error?.message || error);
+      }
+
+      try {
+        const directResponse = await fetchComTimeout(originalUrl.toString(), {
+          method: 'GET',
+          headers: cleanHeaders,
+          credentials: 'omit'
+        }, 6000);
+
+        if (directResponse.ok || !bridgeResponse) return directResponse;
+      } catch (error) {
+        console.warn('Leitura direta da VM também falhou:', error?.message || error);
+      }
+
+      if (bridgeResponse) return bridgeResponse;
+      throw new TypeError('Não foi possível consultar status ou fila do robô.');
+    })();
   };
 
   async function enviarPelaPonte(messages) {
@@ -95,10 +137,9 @@
       return;
     }
 
-    // Somente o envio passa pelo Render. Status e fila permanecem na VM do WhatsApp.
     window.AchouLevouBotQueue.sendMessages = enviarPelaPonte;
-    window.AchouLevouBotQueue.readBridgeUrl = '';
-    console.log('Status e fila lidos diretamente da VM sem preflight; envio mantido pela ponte segura.');
+    window.AchouLevouBotQueue.readBridgeUrl = BRIDGE_BASE;
+    console.log('Status e fila pela ponte resiliente; envio mantido pela ponte segura.');
   }
 
   instalar();
