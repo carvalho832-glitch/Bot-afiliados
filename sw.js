@@ -1,26 +1,25 @@
-const CACHE_VERSION = 'achou-levou-v76-magazinevoce';
+const CACHE_VERSION = 'achou-levou-v77-leitura-direta-vm';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
-const BOT_DIRETO = 'https://bot.achoulevoubot.uk';
 const SHOPEE_PRODUCT_PATH = '/shopee/produto';
 const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v76 instalada.');
+    console.log('Achou Levou interface v77 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v76 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v77 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '76' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '77' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
@@ -132,32 +131,12 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (url.includes('bot-queue-proxy.js')) {
-        requestUrl.searchParams.set('v', '76');
+        requestUrl.searchParams.set('v', '77');
         event.respondWith(fetch(requestUrl.toString(), { cache: 'no-store' }));
         return;
     }
 
     const directPath = requestUrl.pathname.replace(/\/+$/, '') || '/';
-    const isBotRead = event.request.method === 'GET' &&
-        requestUrl.origin === BOT_DIRETO &&
-        (directPath === '/status' || directPath === '/queue');
-
-    if (isBotRead) {
-        const pontePath = directPath === '/status' ? '/bot/status' : '/bot/queue';
-        const ponteUrl = new URL(`${API_CORRETA}${pontePath}`);
-        requestUrl.searchParams.forEach((value, key) => ponteUrl.searchParams.set(key, value));
-        ponteUrl.searchParams.set('_sw', Date.now().toString());
-
-        event.respondWith(fetch(ponteUrl.toString(), {
-            method: 'GET',
-            headers: { Accept: 'application/json' },
-            mode: 'cors',
-            credentials: 'omit',
-            cache: 'no-store'
-        }));
-        return;
-    }
-
     const isShopeeProductRead = event.request.method === 'GET' &&
         requestUrl.origin === API_CORRETA &&
         directPath === SHOPEE_PRODUCT_PATH;
@@ -185,5 +164,6 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // Status e fila do WhatsApp passam direto para bot.achoulevoubot.uk.
     event.respondWith(fetch(event.request, { cache: 'no-store' }).catch(() => fetch(event.request)));
 });
