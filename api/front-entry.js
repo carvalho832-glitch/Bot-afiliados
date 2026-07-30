@@ -2,118 +2,157 @@ import 'dotenv/config';
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const OFFICIAL_BOT_URL = 'https://bot.achoulevoubot.uk';
-const ATTEMPT_TIMEOUT_MS = Math.max(2500, Number(process.env.BOT_READ_ATTEMPT_TIMEOUT_MS || 5000));
 const configuredBotUrl = String(process.env.BOT_PANEL_URL || OFFICIAL_BOT_URL).replace(/\/+$/, '');
+const BOT_USER = process.env.BOT_PANEL_USER || 'julio';
+const BOT_PASSWORD = process.env.BOT_PANEL_PASSWORD || 'AchouLevou2026';
+const GATEWAY_PORT = Number(process.env.GATEWAY_INTERNAL_PORT || 3099);
+const READ_TIMEOUT_MS = Math.max(3000, Number(process.env.BOT_READ_ATTEMPT_TIMEOUT_MS || 7000));
 
-function parseUrl(value) {
+function authHeader() {
+  return `Basic ${Buffer.from(`${BOT_USER}:${BOT_PASSWORD}`).toString('base64')}`;
+}
+
+function parseUrl(input) {
   try {
-    return new URL(typeof value === 'string' ? value : value?.url);
+    return new URL(typeof input === 'string' ? input : input?.url);
   } catch {
     return null;
   }
 }
 
-function methodOf(input, init = {}) {
-  return String(init.method || (typeof input === 'object' && input?.method) || 'GET').toUpperCase();
-}
-
-function isBotRead(url, method) {
-  if (!url || method !== 'GET') return false;
-
-  let configuredHost = '';
-  try { configuredHost = new URL(configuredBotUrl).host; } catch {}
-
-  const officialHost = new URL(OFFICIAL_BOT_URL).host;
-  const allowedPaths = new Set(['/status', '/queue', '/painel', '/api/status', '/painel/status']);
-  return allowedPaths.has(url.pathname.replace(/\/+$/, '') || '/') &&
-    (url.host === officialHost || url.host === configuredHost || url.toString().startsWith(configuredBotUrl));
-}
-
-function headersOf(init = {}, removeAuthorization = false) {
-  const headers = new Headers(init.headers || {});
-  if (removeAuthorization) {
-    headers.delete('Authorization');
-    headers.delete('authorization');
-  }
-  return headers;
-}
-
-function officialCandidate(url) {
-  const official = new URL(OFFICIAL_BOT_URL);
-  official.pathname = url.pathname;
-  official.search = url.search;
-  return official.toString();
-}
-
-async function fetchAttempt(url, init = {}, removeAuthorization = false) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
-
-  try {
-    return await nativeFetch(url, {
-      ...init,
-      headers: headersOf(init, removeAuthorization),
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-globalThis.fetch = async function resilientBotFetch(input, init = {}) {
+function isOverviewRequest(input, init = {}) {
   const url = parseUrl(input);
-  const method = methodOf(input, init);
+  const method = String(init.method || (typeof input === 'object' && input?.method) || 'GET').toUpperCase();
 
-  if (!isBotRead(url, method)) {
-    return nativeFetch(input, init);
-  }
+  return Boolean(
+    url &&
+    method === 'GET' &&
+    url.hostname === '127.0.0.1' &&
+    Number(url.port || 80) === GATEWAY_PORT &&
+    url.pathname.replace(/\/+$/, '') === '/bot/overview'
+  );
+}
 
-  // O domínio oficial entra primeiro. A variável do Render vira apenas reserva.
-  const candidates = [...new Set([officialCandidate(url), url.toString()])];
-  let lastResponse = null;
-  let lastError = null;
+function botCandidates() {
+  return [...new Set([OFFICIAL_BOT_URL, configuredBotUrl].filter(Boolean))];
+}
 
-  for (const candidate of candidates) {
+async function fetchBotJson(pathname) {
+  const attempts = [];
+
+  for (const baseUrl of botCandidates()) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), READ_TIMEOUT_MS);
+    const url = `${baseUrl}${pathname}${pathname.includes('?') ? '&' : '?'}t=${Date.now()}`;
+
     try {
-      const response = await fetchAttempt(candidate, init, false);
-      lastResponse = response;
+      const response = await nativeFetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Authorization: authHeader()
+        },
+        cache: 'no-store',
+        signal: controller.signal
+      });
 
-      if (response.ok) {
-        if (candidate !== url.toString()) {
-          console.warn(`[BOT-READ] Leitura recuperada pelo domínio oficial: ${url.pathname}`);
-        }
-        return response;
-      }
+      const text = await response.text();
+      let data = null;
+      try {
+        data = JSON.parse(text);
+      } catch {}
 
-      if (response.status === 401 || response.status === 403) {
-        const publicResponse = await fetchAttempt(candidate, init, true).catch(error => {
-          lastError = error;
-          return null;
-        });
+      attempts.push({
+        baseUrl,
+        status: response.status,
+        validJson: Boolean(data)
+      });
 
-        if (publicResponse) {
-          lastResponse = publicResponse;
-          if (publicResponse.ok) return publicResponse;
-        }
-      }
-
-      if (![401, 403, 404, 408, 425, 429, 500, 502, 503, 504].includes(response.status)) {
-        return response;
+      if (response.ok && data) {
+        return {
+          ok: true,
+          data,
+          source: baseUrl,
+          attempts
+        };
       }
     } catch (error) {
-      lastError = error;
+      attempts.push({
+        baseUrl,
+        error: error?.name === 'AbortError' ? 'timeout' : String(error?.message || error)
+      });
+    } finally {
+      clearTimeout(timer);
     }
   }
 
-  if (lastResponse) return lastResponse;
-  throw lastError || new Error(`Não foi possível consultar ${url.pathname} no robô.`);
+  return {
+    ok: false,
+    data: null,
+    source: null,
+    attempts,
+    error: `Não foi possível consultar ${pathname} no robô.`
+  };
+}
+
+async function buildOverview() {
+  const [statusRead, queueRead] = await Promise.all([
+    fetchBotJson('/status'),
+    fetchBotJson('/queue')
+  ]);
+
+  const statusOk = statusRead.ok;
+  const queueOk = queueRead.ok;
+  const apiOnline = statusOk || queueOk;
+
+  return {
+    httpStatus: apiOnline ? 200 : 503,
+    body: {
+      ok: apiOnline,
+      apiOnline,
+      statusOk,
+      queueOk,
+      status: statusOk ? statusRead.data : null,
+      queue: queueOk ? (queueRead.data?.queue || queueRead.data) : null,
+      sources: {
+        status: statusRead.source,
+        queue: queueRead.source
+      },
+      errors: {
+        status: statusOk ? null : statusRead.error,
+        queue: queueOk ? null : queueRead.error
+      },
+      diagnostics: {
+        statusAttempts: statusRead.attempts,
+        queueAttempts: queueRead.attempts
+      },
+      checkedAt: new Date().toISOString()
+    }
+  };
+}
+
+globalThis.fetch = async function achouLevouEntryFetch(input, init = {}) {
+  if (!isOverviewRequest(input, init)) {
+    return nativeFetch(input, init);
+  }
+
+  const overview = await buildOverview();
+
+  return new Response(JSON.stringify(overview.body), {
+    status: overview.httpStatus,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      Pragma: 'no-cache',
+      Expires: '0'
+    }
+  });
 };
 
-console.log('[BOT-READ] Recuperação de status e fila ativada.', {
-  configuredBotUrl,
+console.log('[BOT-OVERVIEW] Rota única de status e fila ativada.', {
   officialBotUrl: OFFICIAL_BOT_URL,
-  attemptTimeoutMs: ATTEMPT_TIMEOUT_MS
+  configuredBotUrl,
+  readTimeoutMs: READ_TIMEOUT_MS
 });
 
 await import('./front-gateway.js');
