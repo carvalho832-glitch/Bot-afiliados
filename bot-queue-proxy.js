@@ -1,5 +1,6 @@
 (function () {
   const BRIDGE_BASE = 'https://bot-afiliados-1fwi.onrender.com';
+  const BOT_HOST = 'bot.achoulevoubot.uk';
   const PROXY_SEND_URL = `${BRIDGE_BASE}/bot/queue/add`;
   const nativeFetch = window.fetch.bind(window);
 
@@ -8,6 +9,50 @@
       .map(message => String(message || '').trim())
       .filter(Boolean);
   }
+
+  function ehLeituraDiretaDoBot(url, method) {
+    if (method !== 'GET' || url.hostname !== BOT_HOST) return false;
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+    return path === '/status' || path === '/queue';
+  }
+
+  function headersLeituraDireta(input, init) {
+    let baseHeaders = init?.headers;
+    if (!baseHeaders && typeof Request !== 'undefined' && input instanceof Request) {
+      baseHeaders = input.headers;
+    }
+
+    const headers = new Headers(baseHeaders || {});
+    headers.delete('Authorization');
+    headers.delete('authorization');
+    headers.set('Accept', 'application/json');
+    return headers;
+  }
+
+  window.fetch = function fetchAchouLevou(input, init = {}) {
+    let url;
+    try {
+      url = new URL(typeof input === 'string' ? input : input.url, window.location.href);
+    } catch {
+      return nativeFetch(input, init);
+    }
+
+    const method = String(init.method || (typeof input === 'object' && input?.method) || 'GET').toUpperCase();
+
+    if (!ehLeituraDiretaDoBot(url, method)) {
+      return nativeFetch(input, init);
+    }
+
+    // /status e /queue não exigem autenticação no servidor. Remover Authorization
+    // evita o preflight CORS que impedia a leitura direta no aplicativo instalado.
+    return nativeFetch(url.toString(), {
+      ...init,
+      method: 'GET',
+      headers: headersLeituraDireta(input, init),
+      credentials: 'omit',
+      cache: 'no-store'
+    });
+  };
 
   async function enviarPelaPonte(messages) {
     const cleanMessages = limparMensagens(messages);
@@ -53,7 +98,7 @@
     // Somente o envio passa pelo Render. Status e fila permanecem na VM do WhatsApp.
     window.AchouLevouBotQueue.sendMessages = enviarPelaPonte;
     window.AchouLevouBotQueue.readBridgeUrl = '';
-    console.log('Status e fila lidos diretamente da VM; envio mantido pela ponte segura.');
+    console.log('Status e fila lidos diretamente da VM sem preflight; envio mantido pela ponte segura.');
   }
 
   instalar();
