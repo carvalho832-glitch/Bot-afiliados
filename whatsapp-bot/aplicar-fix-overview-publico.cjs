@@ -5,45 +5,28 @@ const path = require('path');
 
 const file = path.join(__dirname, 'server.js');
 let source = fs.readFileSync(file, 'utf8');
-const original = source;
 
-if (source.includes("app.get('/overview'")) {
+if (source.includes("app.get('/overview'") || source.includes('app.get("/overview"')) {
   console.log('[OVERVIEW] A rota /overview já está instalada.');
   process.exit(0);
 }
 
-let corsMiddleware = 'cors()';
-if (source.includes("app.use(cors({ origin: false }));")) {
-  const corsMarker = "app.use(cors({ origin: false }));";
-  source = source.replace(
-    corsMarker,
-    "const publicReadCors = cors({\n" +
-    "  origin: true,\n" +
-    "  methods: ['GET', 'OPTIONS'],\n" +
-    "  allowedHeaders: ['Accept', 'Content-Type'],\n" +
-    "  maxAge: 86400\n" +
-    "});\n\n" + corsMarker
-  );
-  corsMiddleware = 'publicReadCors';
-} else if (source.includes('app.use(cors());')) {
-  corsMiddleware = 'cors()';
-} else {
-  throw new Error('[OVERVIEW] Configuração CORS esperada não foi encontrada.');
+const publicRoute = `
+// Leitura pública e somente leitura para o painel Achou Levou.
+// Não expõe comandos de envio, configurações ou controle da fila.
+function publicOverviewCors(req, res, next) {
+  const origin = String(req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Accept, Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
 }
 
-const statusMarker = "app.get('/status', (req, res) => {";
-if (source.includes(statusMarker) && corsMiddleware === 'publicReadCors') {
-  source = source.replace(statusMarker, "app.get('/status', publicReadCors, (req, res) => {");
-}
-
-const adminMarker = "app.use(['/diagnostics', '/settings', '/groups', '/queue', '/send-controlado', '/panic', '/qr', '/qr-page', '/admin'], adminAuth);";
-const queueMarker = "app.get('/queue', (req, res) => {";
-const insertMarker = source.includes(adminMarker) ? adminMarker : queueMarker;
-if (!source.includes(insertMarker)) {
-  throw new Error('[OVERVIEW] Não foi possível localizar o ponto de instalação da rota.');
-}
-
-const overviewRoute = `app.get('/overview', ${corsMiddleware}, (req, res) => {
+app.options('/overview', publicOverviewCors);
+app.get('/overview', publicOverviewCors, (req, res) => {
   const connection = getConnectionState();
   const queue = getQueueSummary();
 
@@ -68,21 +51,35 @@ const overviewRoute = `app.get('/overview', ${corsMiddleware}, (req, res) => {
 
 `;
 
-source = source.replace(insertMarker, overviewRoute + insertMarker);
-source = source.replace(
-  "routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/qr-page']",
-  "routes: ['/painel', '/status', '/overview', '/diagnostics', '/groups', '/settings', '/queue', '/qr-page']"
-);
+const anchors = [
+  /app\.get\(\s*['"]\/['"]\s*,/,
+  /app\.get\(\s*['"]\/painel['"]\s*,/,
+  /app\.get\(\s*['"]\/status['"]\s*,/,
+  /app\.get\(\s*['"]\/diagnostics['"]\s*,/,
+  /app\.get\(\s*['"]\/queue['"]\s*,/
+];
 
-if (source === original || !source.includes("app.get('/overview'")) {
-  throw new Error('[OVERVIEW] Validação da alteração falhou.');
+let anchorIndex = -1;
+for (const pattern of anchors) {
+  const match = pattern.exec(source);
+  if (match && (anchorIndex < 0 || match.index < anchorIndex)) anchorIndex = match.index;
+}
+
+if (anchorIndex < 0) {
+  throw new Error('[OVERVIEW] Nenhuma rota Express conhecida foi localizada em server.js. Nada foi alterado.');
+}
+
+const updated = source.slice(0, anchorIndex) + publicRoute + source.slice(anchorIndex);
+if (!updated.includes("app.get('/overview'")) {
+  throw new Error('[OVERVIEW] A validação da nova rota falhou. Nada foi alterado.');
 }
 
 const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
 const backup = `${file}.backup-overview-${stamp}`;
 fs.copyFileSync(file, backup);
+
 const temporary = `${file}.tmp-${process.pid}`;
-fs.writeFileSync(temporary, source);
+fs.writeFileSync(temporary, updated, 'utf8');
 fs.renameSync(temporary, file);
 
 console.log('[OVERVIEW] Rota pública somente leitura instalada com sucesso.');
