@@ -1,90 +1,81 @@
 (function () {
-  const CONFIG_KEY = "achou_levou_bot_config";
-  const BOT_HTTPS_URL = "https://bot.achoulevoubot.uk";
+  const CONFIG_KEY = 'achou_levou_bot_config';
+  const BOT_HTTPS_URL = 'https://bot.achoulevoubot.uk';
+  const BRIDGE_BASE = 'https://bot-afiliados-1fwi.onrender.com';
+  const OVERVIEW_URL = `${BRIDGE_BASE}/bot/overview`;
+  const SEND_URL = `${BRIDGE_BASE}/bot/queue/add`;
 
   const DEFAULT_CONFIG = {
     botUrl: BOT_HTTPS_URL,
-    username: "julio",
-    password: "AchouLevou2026"
+    username: 'julio',
+    password: 'AchouLevou2026'
   };
 
-  let statusRequest = null;
   let statusTimer = null;
+  let overviewRequest = null;
+  let lastOverview = null;
+  let lastOverviewAt = 0;
 
   function normalizeBotUrl(url) {
-    let cleanUrl = String(url || "").trim().replace(/\/+$/, "");
-
+    const cleanUrl = String(url || '').trim().replace(/\/+$/, '');
     if (
       !cleanUrl ||
-      cleanUrl.includes("35.253.196.37") ||
-      cleanUrl.includes("localhost") ||
-      cleanUrl.includes("127.0.0.1") ||
-      cleanUrl.startsWith("http://")
+      cleanUrl.includes('35.253.196.37') ||
+      cleanUrl.includes('localhost') ||
+      cleanUrl.includes('127.0.0.1') ||
+      cleanUrl.startsWith('http://')
     ) {
       return BOT_HTTPS_URL;
     }
-
     return cleanUrl;
   }
 
   function loadConfig() {
     try {
-      const saved = JSON.parse(localStorage.getItem(CONFIG_KEY) || "{}");
+      const saved = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
       const config = {
         ...DEFAULT_CONFIG,
         ...saved,
         botUrl: normalizeBotUrl(saved.botUrl || DEFAULT_CONFIG.botUrl)
       };
-
       if (saved.botUrl !== config.botUrl) {
         localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
       }
-
       return config;
     } catch {
-      const fallback = {
-        ...DEFAULT_CONFIG,
-        botUrl: normalizeBotUrl(DEFAULT_CONFIG.botUrl)
-      };
+      const fallback = { ...DEFAULT_CONFIG, botUrl: BOT_HTTPS_URL };
       localStorage.setItem(CONFIG_KEY, JSON.stringify(fallback));
       return fallback;
     }
   }
 
   function saveConfig(config) {
+    const current = loadConfig();
     const clean = {
-      ...loadConfig(),
+      ...current,
       ...config,
-      botUrl: normalizeBotUrl(config?.botUrl || loadConfig().botUrl)
+      botUrl: normalizeBotUrl(config?.botUrl || current.botUrl)
     };
-
     localStorage.setItem(CONFIG_KEY, JSON.stringify(clean));
     return clean;
   }
 
-  function basicAuthHeader(username, password) {
-    return "Basic " + btoa(`${username}:${password}`);
-  }
-
-  function setStatus(message, state = "idle") {
-    const pill = document.getElementById("bot-status-pill");
-    const text = document.getElementById("bot-status-text");
+  function setStatus(message, state = 'idle') {
+    const pill = document.getElementById('bot-status-pill');
+    const text = document.getElementById('bot-status-text');
 
     if (pill) {
       pill.textContent = message;
       pill.dataset.state = state;
-      pill.title = `Última verificação: ${new Date().toLocaleTimeString("pt-BR")}`;
+      pill.title = `Última verificação: ${new Date().toLocaleTimeString('pt-BR')}`;
     }
-
-    if (text) {
-      text.textContent = message;
-    }
+    if (text) text.textContent = message;
   }
 
   function normalizeStatusValue(value) {
-    return String(value ?? "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
       .trim()
       .toLowerCase();
   }
@@ -100,162 +91,208 @@
   function interpretBotStatus(json) {
     const nested = json?.whatsapp || json?.session || json?.client || json?.data || {};
     const source = { ...json, ...nested };
-
     const connectedFlag = readBooleanStatus(source, [
-      "connected",
-      "isConnected",
-      "ready",
-      "isReady",
-      "authenticated",
-      "isAuthenticated",
-      "loggedIn",
-      "hasSession"
+      'connected', 'isConnected', 'ready', 'isReady', 'authenticated',
+      'isAuthenticated', 'loggedIn', 'hasSession'
     ]);
 
     if (connectedFlag === true) {
-      return { label: "Conectado", state: "ok", connected: true };
+      return { label: 'Conectado', state: 'ok', connected: true, explicit: true };
     }
 
-    const rawStatus = source.status ?? source.state ?? source.connection ?? source.connectionState ?? source.sessionStatus ?? source.whatsappStatus;
+    const rawStatus = source.status ?? source.state ?? source.connection ??
+      source.connectionState ?? source.sessionStatus ?? source.whatsappStatus;
     const status = normalizeStatusValue(rawStatus);
-
     const onlineStates = [
-      "conectado", "connected", "online", "ready", "authenticated", "autenticado",
-      "open", "opened", "logado", "active", "ativo"
+      'conectado', 'connected', 'online', 'ready', 'authenticated', 'autenticado',
+      'open', 'opened', 'logado', 'active', 'ativo'
     ];
-
     const connectingStates = [
-      "conectando", "connecting", "initializing", "iniciando", "loading",
-      "aguardando qr", "qr", "qr code"
+      'conectando', 'connecting', 'initializing', 'iniciando', 'loading',
+      'aguardando qr', 'qr', 'qr code'
     ];
-
     const offlineStates = [
-      "offline", "disconnected", "desconectado", "closed", "close", "logout",
-      "logged out", "sem sessao", "no session"
+      'offline', 'disconnected', 'desconectado', 'closed', 'close', 'logout',
+      'logged out', 'sem sessao', 'no session'
     ];
 
-    if (onlineStates.includes(status)) return { label: "Conectado", state: "ok", connected: true };
-    if (connectingStates.includes(status)) return { label: "Conectando...", state: "loading", connected: false, connecting: true };
-    if (offlineStates.includes(status) || connectedFlag === false) return { label: "Offline", state: "error", connected: false };
-
-    if (json?.ok === true && !status) {
-      return { label: "Online", state: "ok", connected: true };
+    if (onlineStates.includes(status)) {
+      return { label: 'Conectado', state: 'ok', connected: true, explicit: true };
     }
-
+    if (connectingStates.includes(status)) {
+      return { label: 'Conectando...', state: 'loading', connected: null, connecting: true, explicit: true };
+    }
+    if (offlineStates.includes(status) || connectedFlag === false) {
+      return { label: 'Offline', state: 'error', connected: false, explicit: true };
+    }
+    if (json?.ok === true && !status) {
+      return { label: 'Online', state: 'ok', connected: true, explicit: true };
+    }
     if (status) {
       return {
-        label: String(rawStatus).replace(/^./, letra => letra.toUpperCase()),
-        state: "idle",
-        connected: null
+        label: String(rawStatus).replace(/^./, letter => letter.toUpperCase()),
+        state: 'idle',
+        connected: null,
+        explicit: true
       };
     }
+    return { label: 'Verificando...', state: 'loading', connected: null, explicit: false };
+  }
 
-    return { label: "Verificando...", state: "loading", connected: null };
+  function dispatchStatus(detail) {
+    setStatus(detail.label, detail.state);
+    window.dispatchEvent(new CustomEvent('achoulevou:bot-status', { detail }));
+  }
+
+  function dispatchOverview(detail) {
+    window.dispatchEvent(new CustomEvent('achoulevou:bot-overview', { detail }));
+  }
+
+  async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 12000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      const json = await response.json().catch(() => null);
+      return { response, json };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function getOverview(options = {}) {
+    const force = options.force === true;
+    const freshEnough = lastOverview && Date.now() - lastOverviewAt < 2500;
+    if (!force && freshEnough) return lastOverview;
+    if (overviewRequest) return overviewRequest;
+
+    overviewRequest = (async () => {
+      try {
+        const url = `${OVERVIEW_URL}?t=${Date.now()}`;
+        const { response, json } = await fetchJsonWithTimeout(url, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+          credentials: 'omit'
+        }, 15000);
+
+        if (!json) throw new Error(`A ponte respondeu sem JSON (HTTP ${response.status}).`);
+
+        lastOverview = json;
+        lastOverviewAt = Date.now();
+        dispatchOverview(json);
+
+        if (json.statusOk && json.status) {
+          const interpreted = interpretBotStatus(json.status);
+          dispatchStatus({ ...interpreted, raw: json.status, overview: json });
+        } else {
+          dispatchStatus({
+            label: 'Servidor instável',
+            state: 'warning',
+            connected: null,
+            unavailable: true,
+            error: true,
+            overview: json
+          });
+        }
+
+        return json;
+      } catch (error) {
+        const unavailable = {
+          ok: false,
+          apiOnline: false,
+          statusOk: false,
+          queueOk: false,
+          status: null,
+          queue: null,
+          unavailable: true,
+          error: error?.name === 'AbortError'
+            ? 'Tempo limite ao consultar o servidor.'
+            : String(error?.message || error),
+          checkedAt: new Date().toISOString()
+        };
+
+        dispatchOverview(unavailable);
+        dispatchStatus({
+          label: 'Servidor indisponível',
+          state: 'warning',
+          connected: null,
+          unavailable: true,
+          error: true,
+          overview: unavailable
+        });
+        return unavailable;
+      } finally {
+        overviewRequest = null;
+      }
+    })();
+
+    return overviewRequest;
+  }
+
+  async function checkBotStatus() {
+    const overview = await getOverview({ force: true });
+    if (overview?.statusOk && overview.status) {
+      return interpretBotStatus(overview.status);
+    }
+    return {
+      label: overview?.apiOnline ? 'Servidor instável' : 'Servidor indisponível',
+      state: 'warning',
+      connected: null,
+      unavailable: true,
+      error: true
+    };
   }
 
   function getCleanMessages(messages) {
     if (!Array.isArray(messages)) return [];
-    return messages.map(message => String(message || "").trim()).filter(Boolean);
-  }
-
-  function formatFetchError(error, config) {
-    const msg = String(error?.message || error || "");
-    if (msg.includes("Failed to fetch") || error instanceof TypeError) {
-      return `Falha de conexão com o robô. Confirme se o painel abre em ${config.botUrl}/painel e se o robô está online.`;
-    }
-    return msg || "Erro desconhecido ao conectar com o robô.";
+    return messages.map(message => String(message || '').trim()).filter(Boolean);
   }
 
   async function sendMessages(messages) {
-    const config = loadConfig();
     const cleanMessages = getCleanMessages(messages);
+    if (!cleanMessages.length) throw new Error('Nenhuma mensagem para enviar.');
 
-    if (!config.botUrl) throw new Error("URL do bot não configurada.");
-    if (!config.username || !config.password) throw new Error("Usuário e senha do bot não configurados.");
-    if (!cleanMessages.length) throw new Error("Nenhuma mensagem para enviar.");
-
-    setStatus("Enviando", "loading");
-    const text = cleanMessages.join("\n---\n");
-
-    let response;
+    setStatus('Enviando', 'loading');
     try {
-      response = await fetch(`${config.botUrl}/queue/add`, {
-        method: "POST",
+      const { response, json } = await fetchJsonWithTimeout(SEND_URL, {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": basicAuthHeader(config.username, config.password)
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
         },
-        body: JSON.stringify({ text }),
-        cache: "no-store"
-      });
+        body: JSON.stringify({ text: cleanMessages.join('\n---\n') }),
+        credentials: 'omit'
+      }, 25000);
+
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error || json?.detalhe || `Falha ao enviar. HTTP ${response.status}`);
+      }
+
+      setStatus('Fila atualizada', 'ok');
+      setTimeout(() => getOverview({ force: true }), 1200);
+      return json;
     } catch (error) {
-      setStatus("Offline", "error");
-      throw new Error(formatFetchError(error, config));
+      setStatus('Falha no envio', 'error');
+      if (error?.name === 'AbortError') {
+        throw new Error('O envio demorou mais de 25 segundos. Tente novamente.');
+      }
+      throw error;
     }
-
-    const json = await response.json().catch(() => null);
-    if (!response.ok || !json?.ok) {
-      setStatus("Erro", "error");
-      throw new Error(json?.error || "Erro ao enviar mensagens para a fila.");
-    }
-
-    setStatus("Fila atualizada", "ok");
-    setTimeout(checkBotStatus, 1200);
-    return json;
   }
 
   function openPanel() {
     const config = loadConfig();
-    if (!config.botUrl) {
-      alert("URL do bot não configurada.");
-      return;
-    }
-    window.open(`${config.botUrl}/painel`, "_blank");
-  }
-
-  async function checkBotStatus() {
-    const config = loadConfig();
-    if (!config.botUrl || !config.username || !config.password) {
-      setStatus("Configurar", "warning");
-      return;
-    }
-
-    statusRequest?.abort();
-    statusRequest = new AbortController();
-    const timeout = setTimeout(() => statusRequest.abort(), 8000);
-
-    try {
-      const response = await fetch(`${config.botUrl}/status?t=${Date.now()}`, {
-        headers: {
-          "Authorization": basicAuthHeader(config.username, config.password),
-          "Accept": "application/json"
-        },
-        cache: "no-store",
-        signal: statusRequest.signal
-      });
-
-      const json = await response.json().catch(() => null);
-      if (!response.ok || !json) throw new Error(`Status HTTP ${response.status}`);
-
-      const interpreted = interpretBotStatus(json);
-      setStatus(interpreted.label, interpreted.state);
-      window.dispatchEvent(new CustomEvent("achoulevou:bot-status", { detail: { ...interpreted, raw: json } }));
-      return interpreted;
-    } catch (error) {
-      if (error?.name !== "AbortError") console.warn("Falha ao consultar status do robô:", error);
-      setStatus("Offline", "error");
-      const interpreted = { label: "Offline", state: "error", connected: false, error: true };
-      window.dispatchEvent(new CustomEvent("achoulevou:bot-status", { detail: interpreted }));
-      return interpreted;
-    } finally {
-      clearTimeout(timeout);
-    }
+    window.open(`${config.botUrl}/painel`, '_blank');
   }
 
   function startStatusPolling() {
     clearInterval(statusTimer);
-    checkBotStatus();
-    statusTimer = setInterval(checkBotStatus, 10000);
+    getOverview({ force: true });
+    statusTimer = setInterval(() => getOverview({ force: true }), 10000);
   }
 
   window.AchouLevouBotQueue = {
@@ -264,13 +301,14 @@
     sendMessages,
     openPanel,
     checkBotStatus,
+    getOverview,
     interpretBotStatus,
-    basicAuthHeader
+    readBridgeUrl: BRIDGE_BASE
   };
 
-  document.addEventListener("DOMContentLoaded", startStatusPolling);
-  window.addEventListener("focus", checkBotStatus);
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) checkBotStatus();
+  document.addEventListener('DOMContentLoaded', startStatusPolling);
+  window.addEventListener('focus', () => getOverview({ force: true }));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) getOverview({ force: true });
   });
 })();
