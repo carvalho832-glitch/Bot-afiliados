@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v82-perfis-isolados';
+const CACHE_VERSION = 'achou-levou-v83-overview-publico';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const SHOPEE_PRODUCT_PATH = '/shopee/produto';
@@ -7,19 +7,19 @@ const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v82 instalada.');
+    console.log('Achou Levou interface v83 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v82 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v83 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '82' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '83' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
@@ -130,8 +130,15 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (url.includes('bot-queue-proxy.js') || url.includes('bot-queue-integration.js')) {
-        requestUrl.searchParams.set('v', '82');
+    if (url.includes('bot-queue-integration.js')) {
+        const replacementUrl = new URL('./bot-queue-integration-v83.js', self.location.href);
+        replacementUrl.searchParams.set('v', '83');
+        event.respondWith(fetch(replacementUrl.toString(), { cache: 'no-store' }));
+        return;
+    }
+
+    if (url.includes('bot-queue-proxy.js')) {
+        requestUrl.searchParams.set('v', '83');
         event.respondWith(fetch(requestUrl.toString(), { cache: 'no-store' }));
         return;
     }
