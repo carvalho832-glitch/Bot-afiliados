@@ -1,6 +1,6 @@
 const GATEWAY_PORT = Number(process.env.GATEWAY_INTERNAL_PORT || 3099);
 const GATEWAY_URL = `http://127.0.0.1:${GATEWAY_PORT}`;
-const RESOLUTION_TIMEOUT_MS = Math.max(45000, Number(process.env.SHOPEE_RESOLUTION_TIMEOUT_MS || 125000));
+const RESOLUTION_TIMEOUT_MS = Math.max(35000, Number(process.env.SHOPEE_RESOLUTION_TIMEOUT_MS || 70000));
 
 function limparTexto(valor = '') {
   return String(valor || '').replace(/\s+/g, ' ').trim();
@@ -81,13 +81,13 @@ function montarLinkCompleto(ids) {
     : '';
 }
 
-async function consultarGatewayExistente(linkOriginal) {
+async function consultarConversorExistente(linkOriginal) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), RESOLUTION_TIMEOUT_MS);
-  const params = new URLSearchParams({ url: linkOriginal, _resolver: 'front-gateway' });
+  const params = new URLSearchParams({ url: linkOriginal });
 
   try {
-    const resposta = await fetch(`${GATEWAY_URL}/shopee/produto?${params.toString()}`, {
+    const resposta = await fetch(`${GATEWAY_URL}/shopee/converter-link?${params.toString()}`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
       cache: 'no-store',
@@ -120,16 +120,19 @@ export async function resolverLinkShopee(valor) {
   }
 
   try {
-    const { dados, corpo } = await consultarGatewayExistente(linkOriginal);
+    const { dados, corpo } = await consultarConversorExistente(linkOriginal);
 
-    if (dados?.shopId && dados?.itemId) {
-      const ids = { shopId: String(dados.shopId), itemId: String(dados.itemId) };
+    const idsInformados = dados?.ids?.shopId && dados?.ids?.itemId
+      ? { shopId: String(dados.ids.shopId), itemId: String(dados.ids.itemId) }
+      : null;
+
+    if (idsInformados) {
       return {
         ok: true,
-        ids,
-        linkCompleto: montarLinkCompleto(ids),
-        metodo: 'gateway-dados',
-        urlFinal: dados.linkCompleto || dados.urlNavegador || linkOriginal
+        ids: idsInformados,
+        linkCompleto: montarLinkCompleto(idsInformados),
+        metodo: dados?.metodo || 'conversor-existente',
+        urlFinal: dados?.urlNavegador || dados?.linkCompleto || linkOriginal
       };
     }
 
@@ -137,8 +140,8 @@ export async function resolverLinkShopee(valor) {
       dados?.linkCompleto,
       dados?.urlNavegador,
       dados?.urlResolvida,
-      dados?.aviso,
       dados?.detalhe,
+      dados?.aviso,
       dados?.error,
       corpo
     ].filter(Boolean).join(' ');
@@ -150,7 +153,7 @@ export async function resolverLinkShopee(valor) {
         ok: true,
         ids,
         linkCompleto: montarLinkCompleto(ids),
-        metodo: 'gateway-url-final',
+        metodo: 'url-final-do-conversor',
         urlFinal: urlEncontrada
       };
     }
@@ -158,19 +161,19 @@ export async function resolverLinkShopee(valor) {
     return {
       ok: false,
       error: 'Não consegui converter esse link curto da Shopee.',
-      detalhe: dados?.aviso || dados?.detalhe || dados?.error || 'O navegador existente abriu o link, mas não revelou os códigos do produto.'
+      detalhe: dados?.detalhe || dados?.aviso || dados?.error || 'O navegador abriu o link, mas não revelou os códigos do produto.'
     };
   } catch (error) {
     return {
       ok: false,
       error: 'Não consegui converter esse link curto da Shopee.',
       detalhe: error?.name === 'AbortError'
-        ? 'A resolução do link ultrapassou o tempo limite.'
+        ? 'A conversão do link ultrapassou o tempo limite.'
         : String(error?.message || error)
     };
   }
 }
 
 // Mantido para compatibilidade com o encerramento da ponte frontal.
-// Este módulo não possui mais navegador próprio.
+// Este módulo não abre navegador próprio.
 export async function fecharShopeeBrowser() {}
