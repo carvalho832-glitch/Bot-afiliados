@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v79-cache-forcado';
+const CACHE_VERSION = 'achou-levou-v80-ponte-resiliente';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const SHOPEE_PRODUCT_PATH = '/shopee/produto';
@@ -7,19 +7,19 @@ const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v79 instalada.');
+    console.log('Achou Levou interface v80 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v79 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v80 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '79' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '80' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
@@ -131,7 +131,7 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (url.includes('bot-queue-proxy.js')) {
-        requestUrl.searchParams.set('v', '79');
+        requestUrl.searchParams.set('v', '80');
         event.respondWith(fetch(requestUrl.toString(), { cache: 'no-store' }));
         return;
     }
@@ -164,6 +164,5 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Status e fila do WhatsApp passam direto para bot.achoulevoubot.uk.
     event.respondWith(fetch(event.request, { cache: 'no-store' }).catch(() => fetch(event.request)));
 });
