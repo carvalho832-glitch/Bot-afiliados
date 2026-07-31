@@ -347,3 +347,135 @@
         }
     }, true);
 })();
+
+(() => {
+    const STYLE_ID = 'achou-levou-theme-light-v84';
+    if (document.getElementById(STYLE_ID)) return;
+
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = `
+        body.dark {
+            color-scheme: dark;
+        }
+
+        body:not(.dark) {
+            --v2-bg: #edf6fb;
+            --v2-panel: #f4f9fd;
+            --v2-panel2: #ffffff;
+            --v2-line: #c9d9e7;
+            --v2-cyan: #0f766e;
+            --v2-blue: #0284c7;
+            --v2-green: #059669;
+            --v2-purple: #7c3aed;
+            --v2-red: #dc2626;
+            --v2-text: #102033;
+            --v2-muted: #607286;
+            color-scheme: light;
+            color: var(--v2-text) !important;
+            background:
+                radial-gradient(circle at 12% 0, rgba(20, 184, 166, .13), transparent 28%),
+                radial-gradient(circle at 92% 8%, rgba(56, 189, 248, .12), transparent 25%),
+                var(--v2-bg) !important;
+        }
+
+        body:not(.dark) .app-header {
+            background: linear-gradient(145deg, rgba(255, 255, 255, .98), rgba(239, 247, 252, .98));
+            border-color: var(--v2-line);
+            box-shadow: 0 18px 48px rgba(30, 64, 92, .12);
+        }
+
+        body:not(.dark) .icon-action,
+        body:not(.dark) .theme-toggle,
+        body:not(.dark) .v2-qr-btn {
+            background: #ffffff !important;
+            color: var(--v2-text) !important;
+            border-color: var(--v2-line) !important;
+        }
+
+        body:not(.dark) .v2-nav button {
+            color: var(--v2-muted);
+        }
+
+        body:not(.dark) .v2-nav button.active {
+            color: var(--v2-cyan);
+            background: rgba(15, 118, 110, .09);
+        }
+
+        body:not(.dark) .v2-metric,
+        body:not(.dark) .v2-progress,
+        body:not(.dark) .v2-live-queue,
+        body:not(.dark) .v2-robot-card,
+        body:not(.dark) .v2-current-card {
+            background: linear-gradient(145deg, #ffffff, #edf5fb);
+            border-color: var(--v2-line);
+            box-shadow: 0 14px 38px rgba(30, 64, 92, .10);
+        }
+
+        body:not(.dark) .card {
+            background: linear-gradient(145deg, #ffffff, #f0f7fc) !important;
+            border-color: var(--v2-line) !important;
+            box-shadow: 0 14px 36px rgba(30, 64, 92, .10) !important;
+        }
+
+        body:not(.dark) .v2-progress-track {
+            background: #dceaf4;
+            border-color: #bfd1df;
+        }
+
+        body:not(.dark) .v2-queue-item {
+            background: #f8fbfe;
+            border-color: var(--v2-line);
+        }
+
+        body:not(.dark) .v2-queue-item.is-sent {
+            background: #eefbf5;
+            border-color: rgba(5, 150, 105, .28);
+        }
+
+        body:not(.dark) .v2-queue-item.has-error {
+            background: #fff3f5;
+            border-color: rgba(220, 38, 38, .28);
+        }
+
+        body:not(.dark) .v2-queue-empty {
+            background: rgba(255, 255, 255, .55);
+        }
+
+        body:not(.dark) input,
+        body:not(.dark) select,
+        body:not(.dark) textarea,
+        body:not(.dark) .message-editor {
+            background: #ffffff !important;
+            color: var(--v2-text) !important;
+            border-color: var(--v2-line) !important;
+        }
+
+        body:not(.dark) input::placeholder,
+        body:not(.dark) textarea::placeholder {
+            color: #8191a3;
+        }
+
+        body:not(.dark) .v2-current-empty strong {
+            color: var(--v2-text);
+        }
+
+        body,
+        .app-header,
+        .card,
+        .v2-metric,
+        .v2-progress,
+        .v2-live-queue,
+        .v2-robot-card,
+        .v2-current-card,
+        .v2-queue-item,
+        input,
+        select,
+        textarea,
+        .message-editor {
+            transition: background .25s ease, color .25s ease, border-color .25s ease, box-shadow .25s ease;
+        }
+    `;
+
+    document.head.appendChild(style);
+})();
