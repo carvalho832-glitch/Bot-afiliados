@@ -7,6 +7,7 @@ window.addEventListener('load', function () {
   const displayCupom = document.getElementById('display-cupom');
   const messageBox = document.getElementById('msg-preview');
   const btnGerar = document.getElementById('btn-gerar');
+  const btnSalvar = document.getElementById('btn-salvar');
 
   if (!inputLink || !displayProduto || !messageBox || !btnGerar) return;
 
@@ -22,16 +23,9 @@ window.addEventListener('load', function () {
       .join(' ');
   }
   function extrairLink(texto = '') { return String(texto || '').match(/https?:\/\/[^\s]+/)?.[0] || limpar(texto); }
-  function moedaNumero(valor = '') { return parseFloat(String(valor || '').replace(/[^\d,]/g, '').replace(',', '.')) || 0; }
   function temValor(valor = '') {
     const v = limpar(valor);
     return v && v !== 'R$ 0,00' && v !== '0' && v.toLowerCase() !== 'não informado';
-  }
-  function calcularDesconto(de, por) {
-    const valorDe = moedaNumero(de);
-    const valorPor = moedaNumero(por);
-    if (valorDe > valorPor && valorPor > 0) return `${Math.floor(((valorDe - valorPor) / valorDe) * 100)}% OFF`;
-    return '';
   }
   function detectarLoja(link = '') {
     const escolha = selectLoja?.value || 'auto';
@@ -43,13 +37,55 @@ window.addEventListener('load', function () {
     return 'Loja oficial';
   }
 
+  // O campo de cupom é exclusivamente manual. As integrações podem limpá-lo,
+  // mas qualquer tentativa de preenchimento automático com desconto é ignorada.
+  const valueDescriptor = displayCupom
+    ? Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')
+    : null;
+
+  function limparCupomInternamente() {
+    if (!displayCupom) return;
+    if (valueDescriptor?.set) valueDescriptor.set.call(displayCupom, '');
+    else displayCupom.setAttribute('value', '');
+  }
+
+  if (displayCupom && valueDescriptor?.get && valueDescriptor?.set) {
+    limparCupomInternamente();
+
+    try {
+      Object.defineProperty(displayCupom, 'value', {
+        configurable: true,
+        enumerable: valueDescriptor.enumerable,
+        get() {
+          return valueDescriptor.get.call(this);
+        },
+        set() {
+          valueDescriptor.set.call(this, '');
+        }
+      });
+    } catch (error) {
+      console.warn('Não foi possível proteger o campo de cupom contra preenchimento automático:', error);
+    }
+  } else {
+    limparCupomInternamente();
+  }
+
+  // Limpa o cupom ao iniciar a leitura de outro produto. O usuário pode
+  // preenchê-lo normalmente depois que os dados da oferta forem carregados.
+  document.addEventListener('click', function (event) {
+    if (event.target.closest('#btn-puxar, #btn-limpar-campos')) {
+      limparCupomInternamente();
+    }
+  }, true);
+
+  inputLink.addEventListener('input', limparCupomInternamente, true);
+
   btnGerar.onclick = function () {
     const produto = limpar(displayProduto.value || 'Oferta especial');
     const link = extrairLink(inputLink.value || '');
     const precoDe = displayDe?.value || '';
     const precoPor = displayPor?.value || '';
     const cupom = displayCupom?.value?.trim() || '';
-    const desconto = calcularDesconto(precoDe, precoPor);
     const loja = detectarLoja(link);
     const cupomEhFrete = /frete|gr[aá]tis/i.test(cupom);
 
@@ -61,7 +97,6 @@ window.addEventListener('load', function () {
     linhas.push('');
     if (temValor(precoDe)) linhas.push(`❌ De: ~${precoDe}~`);
     linhas.push(`💰 *POR APENAS: ${temValor(precoPor) ? precoPor : 'Confira no site'}*`);
-    if (temValor(desconto)) linhas.push(`🔥 *${desconto}!*`);
     if (temValor(cupom)) linhas.push(cupomEhFrete ? `🚚 *Frete grátis:* ${cupom}` : `🎫 *Cupom:* ${cupom}`);
     linhas.push('');
     linhas.push('🔒 *Compre com segurança no site oficial:*');
@@ -71,6 +106,21 @@ window.addEventListener('load', function () {
     window.__ultimaMensagemAchouLevou = mensagem;
     messageBox.innerText = mensagem;
   };
+
+  // Evita que o botão Salvar use o gerador antigo, que calculava porcentagem
+  // automaticamente, quando ainda não há uma mensagem na tela.
+  btnSalvar?.addEventListener('click', function (event) {
+    const atual = (messageBox.innerText || '').trim();
+    if (atual && atual !== 'Aguardando geração...') return;
+
+    btnGerar.click();
+    const gerada = (messageBox.innerText || '').trim();
+
+    if (!gerada || gerada === 'Aguardando geração...') {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+  }, true);
 });
 
 window.addEventListener('load', function () {
