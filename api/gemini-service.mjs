@@ -91,11 +91,12 @@ function criarPrompt(dados) {
   return [
     'Você cria uma mensagem curta de venda para WhatsApp em português do Brasil.',
     'Use somente os dados fornecidos. Não invente recursos, certificações, avaliações, garantia, estoque, desconto, cupom, frete ou benefícios médicos.',
-    'Retorne somente os campos solicitados no formato JSON definido pela API.',
+    'Responda somente com JSON válido, sem Markdown e sem explicações.',
+    'Formato exato: {"titulo":"texto","beneficio":"texto"}',
     '',
     `Produto: ${dados.produto}`,
     '',
-    'Crie:',
+    'Regras:',
     '1. titulo: título fiel ao produto, com 6 a 12 palavras, sem preço, loja, emoji ou pontuação final.',
     '2. beneficio: uma frase curta e segura sobre uso ou praticidade, baseada somente no nome do produto, sem promessas absolutas.'
   ].join('\n');
@@ -156,26 +157,7 @@ async function consultarGemini(dados) {
             thinkingLevel: 'minimal',
             includeThoughts: false
           },
-          responseFormat: {
-            text: {
-              mimeType: 'application/json',
-              schema: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                  titulo: {
-                    type: 'string',
-                    description: 'Título fiel ao produto, entre 6 e 12 palavras.'
-                  },
-                  beneficio: {
-                    type: 'string',
-                    description: 'Uma frase curta, segura e baseada somente no nome do produto.'
-                  }
-                },
-                required: ['titulo', 'beneficio']
-              }
-            }
-          }
+          responseMimeType: 'application/json'
         }
       }),
       signal: controller.signal
