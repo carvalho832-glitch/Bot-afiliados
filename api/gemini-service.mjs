@@ -91,7 +91,7 @@ function criarPrompt(dados) {
   return [
     'Você cria uma mensagem curta de venda para WhatsApp em português do Brasil.',
     'Use somente os dados fornecidos. Não invente recursos, certificações, avaliações, garantia, estoque, desconto, cupom, frete ou benefícios médicos.',
-    'Retorne apenas o JSON solicitado.',
+    'Retorne somente os campos solicitados no formato JSON definido pela API.',
     '',
     `Produto: ${dados.produto}`,
     '',
@@ -103,9 +103,31 @@ function criarPrompt(dados) {
 
 function extrairTextoGemini(json) {
   return (json?.candidates?.[0]?.content?.parts || [])
+    .filter(part => !part?.thought)
     .map(part => part?.text || '')
     .join('')
     .trim();
+}
+
+function interpretarCriacao(texto = '') {
+  const limpo = String(texto || '')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  const tentativas = [limpo, limpo.match(/\{[\s\S]*\}/)?.[0]].filter(Boolean);
+  for (const tentativa of tentativas) {
+    try {
+      const valor = JSON.parse(tentativa);
+      const criacao = Array.isArray(valor) ? valor[0] : valor;
+      if (criacao && typeof criacao === 'object') return criacao;
+    } catch {
+      // Tenta o próximo formato antes de usar o fallback local.
+    }
+  }
+
+  throw new Error('O Gemini devolveu um formato inesperado.');
 }
 
 async function consultarGemini(dados) {
@@ -129,21 +151,30 @@ async function consultarGemini(dados) {
           parts: [{ text: criarPrompt(dados) }]
         }],
         generationConfig: {
-          maxOutputTokens: 350,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'OBJECT',
-            properties: {
-              titulo: {
-                type: 'STRING',
-                description: 'Título fiel ao produto, entre 6 e 12 palavras.'
-              },
-              beneficio: {
-                type: 'STRING',
-                description: 'Uma frase curta, segura e baseada somente no nome do produto.'
+          maxOutputTokens: 800,
+          thinkingConfig: {
+            thinkingLevel: 'minimal',
+            includeThoughts: false
+          },
+          responseFormat: {
+            text: {
+              mimeType: 'application/json',
+              schema: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  titulo: {
+                    type: 'string',
+                    description: 'Título fiel ao produto, entre 6 e 12 palavras.'
+                  },
+                  beneficio: {
+                    type: 'string',
+                    description: 'Uma frase curta, segura e baseada somente no nome do produto.'
+                  }
+                },
+                required: ['titulo', 'beneficio']
               }
-            },
-            required: ['titulo', 'beneficio']
+            }
           }
         }
       }),
@@ -157,17 +188,12 @@ async function consultarGemini(dados) {
     }
 
     const texto = extrairTextoGemini(json);
-    if (!texto) throw new Error('O Gemini não devolveu conteúdo.');
-
-    let criacao;
-    try {
-      criacao = JSON.parse(texto);
-    } catch {
-      const bloco = texto.match(/\{[\s\S]*\}/)?.[0];
-      if (!bloco) throw new Error('O Gemini devolveu um formato inesperado.');
-      criacao = JSON.parse(bloco);
+    if (!texto) {
+      const motivo = json?.candidates?.[0]?.finishReason || json?.promptFeedback?.blockReason || 'sem conteúdo';
+      throw new Error(`O Gemini não devolveu conteúdo (${motivo}).`);
     }
 
+    const criacao = interpretarCriacao(texto);
     const titulo = limpar(criacao?.titulo || '', 180);
     const beneficio = limpar(criacao?.beneficio || '', 240);
     if (!titulo || !beneficio) throw new Error('O Gemini não devolveu título e benefício válidos.');
