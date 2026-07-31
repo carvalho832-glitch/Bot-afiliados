@@ -89,16 +89,18 @@ function verificarLimite(clientId = 'anonimo') {
 
 function criarPrompt(dados) {
   return [
-    'Você cria uma mensagem curta de venda para WhatsApp em português do Brasil.',
+    'Você cria mensagens de venda para WhatsApp em português do Brasil.',
     'Use somente os dados fornecidos. Não invente recursos, certificações, avaliações, garantia, estoque, desconto, cupom, frete ou benefícios médicos.',
+    'Crie uma versão mais elaborada, natural e persuasiva, variando o vocabulário e o ângulo de venda a cada geração.',
+    'Evite frases genéricas repetidas. Escolha o melhor enfoque para o produto, como praticidade, organização, conforto, presente, design ou uso no dia a dia.',
     'Responda somente com JSON válido, sem Markdown e sem explicações.',
     'Formato exato: {"titulo":"texto","beneficio":"texto"}',
     '',
     `Produto: ${dados.produto}`,
     '',
     'Regras:',
-    '1. titulo: título fiel ao produto, com 6 a 12 palavras, sem preço, loja, emoji ou pontuação final.',
-    '2. beneficio: uma frase curta e segura sobre uso ou praticidade, baseada somente no nome do produto, sem promessas absolutas.'
+    '1. titulo: título fiel e atraente, com 7 a 14 palavras, sem preço, loja, emoji ou pontuação final.',
+    '2. beneficio: duas frases curtas e naturais, com no máximo 220 caracteres no total, destacando utilidade e desejo sem promessas absolutas.'
   ].join('\n');
 }
 
@@ -154,7 +156,7 @@ async function consultarGemini(dados) {
         generationConfig: {
           maxOutputTokens: 800,
           thinkingConfig: {
-            thinkingLevel: 'minimal',
+            thinkingLevel: 'medium',
             includeThoughts: false
           },
           responseMimeType: 'application/json'
