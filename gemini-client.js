@@ -1,4 +1,7 @@
 (() => {
+  const API_URL = 'https://bot-afiliados-1fwi.onrender.com';
+  const REQUEST_TIMEOUT_MS = 45000;
+
   const inputLink = document.getElementById('input-link');
   const selectLoja = document.getElementById('select-loja');
   const displayProduto = document.getElementById('display-produto');
@@ -7,182 +10,154 @@
   const displayCupom = document.getElementById('display-cupom');
   const messageBox = document.getElementById('msg-preview');
   const btnGerar = document.getElementById('btn-gerar');
+  const btnSalvar = document.getElementById('btn-salvar');
   const btnCopiar = document.getElementById('btn-copiar');
 
   if (!inputLink || !displayProduto || !messageBox || !btnGerar) return;
 
-  let ultimoToqueLink = 0;
+  let geracaoEmAndamento = null;
+  let salvandoDepoisDaGeracao = false;
 
-  function limparCampoLinkAoTocar() {
-    const agora = Date.now();
-    if (!inputLink.value.trim()) return;
-    if (agora - ultimoToqueLink < 500) return;
-
-    ultimoToqueLink = agora;
-    inputLink.value = '';
-    inputLink.placeholder = 'Cole o novo link aqui...';
-    inputLink.dispatchEvent(new Event('input', { bubbles: true }));
+  function limpar(valor = '') {
+    return String(valor || '').replace(/\s+/g, ' ').trim();
   }
 
-  inputLink.addEventListener('click', limparCampoLinkAoTocar);
-  inputLink.addEventListener('touchstart', limparCampoLinkAoTocar, { passive: true });
-
   function extrairLink(texto = '') {
-    return String(texto).match(/https?:\/\/[^\s]+/)?.[0] || String(texto).trim();
+    return String(texto || '').match(/https?:\/\/[^\s]+/)?.[0] || limpar(texto);
   }
 
   function detectarLoja(link = '') {
     const escolha = selectLoja?.value || 'auto';
     if (escolha !== 'auto') return escolha;
 
-    const l = String(link).toLowerCase();
-    if (l.includes('shopee') || l.includes('shp.ee') || l.includes('collshp')) return 'Shopee';
-    if (l.includes('mercadolivre') || l.includes('mercado livre') || l.includes('meli.la')) return 'Mercado Livre';
-    if (l.includes('amazon') || l.includes('amzn.to')) return 'Amazon';
+    const valor = String(link).toLowerCase();
+    if (valor.includes('shopee') || valor.includes('shp.ee') || valor.includes('collshp')) return 'Shopee';
+    if (valor.includes('mercadolivre') || valor.includes('mercado livre') || valor.includes('meli.la')) return 'Mercado Livre';
+    if (valor.includes('amazon') || valor.includes('amzn.to')) return 'Amazon';
+    if (valor.includes('magalu') || valor.includes('magazineluiza') || valor.includes('magazinevoce')) return 'Magalu';
     return 'Loja oficial';
   }
 
-  function moedaNumero(valor = '') {
-    return parseFloat(String(valor).replace(/[^\d,]/g, '').replace(',', '.')) || 0;
-  }
-
-  function temValor(valor = '') {
-    const v = String(valor || '').trim();
-    return v && v !== 'R$ 0,00' && v !== '0' && v.toLowerCase() !== 'não informado';
-  }
-
-  function calcularDesconto(de, por) {
-    const valorDe = moedaNumero(de);
-    const valorPor = moedaNumero(por);
-    if (valorDe > valorPor && valorPor > 0) return `${Math.floor(((valorDe - valorPor) / valorDe) * 100)}% OFF`;
-    return '';
-  }
-
-  function limparTitulo(produto = '') {
-    return String(produto || 'Oferta especial')
-      .replace(/Amazon\.com\.br\s?:?\s?/gi, '')
-      .replace(/\|\s?Mercado\s?Livre/gi, '')
-      .replace(/- Mercado Livre/gi, '')
-      .replace(/\|\s?Shopee Brasil/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  function tituloDestaque(produto = '') {
-    return limparTitulo(produto || 'Oferta especial').split(' ').slice(0, 12).join(' ');
-  }
-
-  function tem(texto, palavras) {
-    return palavras.some(palavra => texto.includes(palavra));
-  }
-
-  function chamadaVendaCurta(produto = '') {
-    const p = produto.toLowerCase();
-
-    // Prioridade: primeiro identifica o produto principal. Ex: pochete com zíper NÃO é kit de reparo de zíper.
-    if (tem(p, ['pochete', 'cintura tática', 'cintura tatica', 'bolsa de cintura'])) {
-      return 'Olha que prática: pochete para carregar celular, carteira, chaves e pequenos itens com organização.';
-    }
-
-    if (tem(p, ['mochila'])) {
-      return 'Achadinho para carregar seus itens com mais organização no trabalho, viagem ou dia a dia.';
-    }
-
-    if (tem(p, ['bolsa', 'necessaire'])) {
-      return 'Achadinho para carregar e organizar seus itens pessoais com praticidade.';
-    }
-
-    const ehZiperReparo =
-      tem(p, ['zíper', 'ziper', 'fecho', 'cursor']) &&
-      tem(p, ['kit', 'reparo', 'conserto', 'sem costura', 'universal', 'instantâneo', 'instantaneo']);
-
-    if (ehZiperReparo) {
-      return 'Olha que prático: kit de zíper para reparar roupas, bolsas e mochilas sem complicação.';
-    }
-
-    if (tem(p, ['fita dupla face', 'cola instantânea', 'cola instantanea', 'adesivo reparo', 'reparo', 'conserto'])) {
-      return 'Ótimo achadinho para pequenos reparos do dia a dia com mais praticidade.';
-    }
-
-    if (tem(p, ['multivitamina', 'multi vitamina', 'polivitaminico', 'polivitamínico', 'vitaminas e minerais', 'centrum', 'lavitan'])) return 'Achadinho para complementar vitaminas e minerais na rotina diária.';
-    if (tem(p, ['vitamina c', 'acerola', 'camu'])) return 'Achadinho para complementar vitamina C na rotina do dia a dia.';
-    if (tem(p, ['vitamina d', 'd3'])) return 'Achadinho para complementar vitamina D na rotina.';
-    if (tem(p, ['b12', 'complexo b'])) return 'Achadinho para complementar vitaminas do complexo B.';
-    if (tem(p, ['omega', 'ômega', 'epa', 'dha'])) return 'Achadinho para complementar ômega 3 na rotina.';
-    if (tem(p, ['creatina'])) return 'Achadinho para complementar sua rotina de treinos.';
-    if (tem(p, ['whey', 'proteina', 'proteína', 'albumina'])) return 'Achadinho para complementar proteína de forma prática.';
-    if (tem(p, ['colageno', 'colágeno'])) return 'Achadinho para complementar a rotina de cuidados pessoais.';
-    if (tem(p, ['magnesio', 'magnésio'])) return 'Achadinho para complementar magnésio na rotina diária.';
-    if (tem(p, ['cafeina', 'cafeína', 'pre treino', 'pré treino'])) return 'Achadinho para incluir cafeína na rotina, conforme orientação do fabricante.';
-
-    if (tem(p, ['carrinho elétrico', 'carrinho eletrico', 'brinquedo', 'boneca', 'lego', 'hot wheels', 'maral', 'infantil 6v'])) return 'Olha que legal: opção divertida para as crianças e ótima ideia de presente.';
-
-    if (tem(p, ['smartwatch', 'relogio', 'relógio'])) return 'Achadinho para acompanhar horários, notificações e atividades no dia a dia.';
-    if (tem(p, ['fone', 'headset', 'bluetooth'])) return 'Achadinho para ouvir músicas, vídeos e chamadas com praticidade.';
-    if (tem(p, ['notebook', 'laptop', 'tablet'])) return 'Achadinho para estudos, trabalho e tarefas do dia a dia.';
-    if (tem(p, ['celular', 'smartphone', 'iphone', 'galaxy', 'motorola'])) return 'Achadinho para fotos, vídeos, redes sociais, apps e uso diário.';
-
-    if (tem(p, ['air fryer', 'fritadeira'])) return 'Achadinho para preparar refeições rápidas com mais praticidade.';
-    if (tem(p, ['cafeteira', 'café', 'cafe'])) return 'Achadinho para preparar café com mais praticidade na rotina.';
-    if (tem(p, ['liquidificador', 'batedeira', 'mixer'])) return 'Achadinho para preparar receitas e bebidas com mais facilidade.';
-
-    if (tem(p, ['tenis', 'tênis', 'sapato', 'sandalia', 'sandália'])) return 'Achadinho para usar no dia a dia, passeio ou trabalho com conforto.';
-    if (tem(p, ['blusa', 'camiseta', 'calça', 'calca', 'vestido', 'tricô', 'tricot'])) return 'Achadinho para compor looks do dia a dia com praticidade.';
-    if (tem(p, ['toalha', 'lençol', 'lencol', 'cama', 'banho', 'edredom'])) return 'Achadinho para renovar a casa e deixar a rotina mais confortável.';
-
-    return 'Achadinho selecionado para facilitar a rotina com praticidade e economia.';
+  function obterLinkOriginal() {
+    return extrairLink(window.__achouLevouOriginalShortUrl || inputLink.value || '');
   }
 
   function dadosDaTela() {
-    const link = extrairLink(inputLink.value || '');
-    const produto = limparTitulo(displayProduto.value || 'Oferta especial');
-    const chamadaVenda = chamadaVendaCurta(produto);
-
+    const link = obterLinkOriginal();
     return {
-      produto,
-      precoDe: displayDe?.value || '',
-      precoPor: displayPor?.value || '',
-      desconto: calcularDesconto(displayDe?.value || '', displayPor?.value || ''),
-      cupom: displayCupom?.value?.trim() || '',
+      produto: limpar(displayProduto.value || ''),
+      precoDe: limpar(displayDe?.value || ''),
+      precoPor: limpar(displayPor?.value || ''),
+      cupom: limpar(displayCupom?.value || ''),
       loja: detectarLoja(link),
-      link,
-      chamadaVenda
+      link
     };
   }
 
-  function montarAnuncioVenda(dados) {
-    const linhas = [];
-    const cupomEhFrete = /frete|gr[aá]tis/i.test(dados.cupom || '');
-
-    linhas.push(`🔥 *${tituloDestaque(dados.produto)}!*`);
-    linhas.push(`✨ ${dados.chamadaVenda}`);
-    linhas.push('');
-
-    if (temValor(dados.precoDe)) linhas.push(`❌ De: ~${dados.precoDe}~`);
-    linhas.push(`💰 *POR APENAS: ${temValor(dados.precoPor) ? dados.precoPor : 'Confira no site'}*`);
-    if (temValor(dados.desconto)) linhas.push(`🔥 *${dados.desconto}!*`);
-    if (temValor(dados.cupom)) linhas.push(cupomEhFrete ? `🚚 *Frete grátis:* ${dados.cupom}` : `🎫 *Cupom:* ${dados.cupom}`);
-
-    linhas.push('');
-    linhas.push('🔒 *Compre com segurança no site oficial:*');
-    linhas.push(`🛒 *Link ${dados.loja}:* ${dados.link}`);
-
-    return linhas.join('\n');
-  }
-
-  function setMensagem(texto) {
-    window.__ultimaMensagemAchouLevou = texto;
-    messageBox.innerText = texto || 'Aguardando geração...';
-  }
-
-  function getMensagemEditada() {
+  function mensagemAtual() {
     const texto = (messageBox.innerText || '').trim();
     return texto && texto !== 'Aguardando geração...' ? texto : '';
   }
 
+  function aplicarMensagem(texto) {
+    const mensagem = String(texto || '').trim();
+    window.__ultimaMensagemAchouLevou = mensagem;
+    messageBox.innerText = mensagem || 'Aguardando geração...';
+    messageBox.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  async function lerJson(resposta) {
+    const texto = await resposta.text();
+    try {
+      return JSON.parse(texto);
+    } catch {
+      throw new Error(`O servidor devolveu uma resposta inválida: ${texto.slice(0, 160)}`);
+    }
+  }
+
+  function restaurarBotao(textoOriginal, textoTemporario, atraso = 1300) {
+    btnGerar.innerText = textoTemporario;
+    setTimeout(() => {
+      btnGerar.innerText = textoOriginal;
+      btnGerar.disabled = false;
+    }, atraso);
+  }
+
+  function avisarFallbackUmaVez(aviso) {
+    const chave = 'achou_levou_aviso_gemini_fallback';
+    if (sessionStorage.getItem(chave)) return;
+    sessionStorage.setItem(chave, '1');
+    alert(`${aviso || 'O Gemini não respondeu. Uma mensagem local segura foi criada.'}\n\nA oferta pode ser revisada normalmente antes de salvar.`);
+  }
+
+  async function gerarMensagem() {
+    if (geracaoEmAndamento) return geracaoEmAndamento;
+
+    const dados = dadosDaTela();
+    if (!dados.produto || /buscando/i.test(dados.produto)) {
+      alert('Puxe os dados primeiro ou preencha o produto manualmente!');
+      return null;
+    }
+    if (!dados.link) {
+      alert('Cole o link de afiliado antes de gerar a mensagem.');
+      return null;
+    }
+
+    const textoOriginal = '🤖 Gerar mensagem com IA';
+    btnGerar.disabled = true;
+    btnGerar.innerText = '✨ Gemini criando...';
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    geracaoEmAndamento = (async () => {
+      try {
+        const resposta = await fetch(`${API_URL}/gerar-mensagem`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
+          body: JSON.stringify(dados),
+          cache: 'no-store',
+          credentials: 'omit',
+          signal: controller.signal
+        });
+
+        const json = await lerJson(resposta);
+        if (!resposta.ok || !json?.ok || !json?.mensagem) {
+          throw new Error(json?.error || json?.detalhe || `Falha HTTP ${resposta.status}.`);
+        }
+
+        aplicarMensagem(json.mensagem);
+
+        if (json.fallback) {
+          restaurarBotao(textoOriginal, '⚠️ Mensagem local', 1700);
+          avisarFallbackUmaVez(json.warning);
+        } else {
+          restaurarBotao(textoOriginal, '✅ Criada com Gemini');
+        }
+
+        return json;
+      } catch (error) {
+        btnGerar.disabled = false;
+        btnGerar.innerText = textoOriginal;
+        const detalhe = error?.name === 'AbortError'
+          ? 'O Gemini demorou mais de 45 segundos para responder.'
+          : String(error?.message || error);
+        alert(`Não foi possível gerar a mensagem com IA.\n\n${detalhe}`);
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+        geracaoEmAndamento = null;
+      }
+    })();
+
+    return geracaoEmAndamento;
+  }
+
   async function copiar(texto) {
     if (!texto) return alert('Gere uma mensagem primeiro!');
-
     try {
       await navigator.clipboard.writeText(texto);
     } catch {
@@ -193,40 +168,45 @@
       document.execCommand('copy');
       area.remove();
     }
-
     alert('Copiado! ✅');
   }
 
-  btnGerar.onclick = () => {
-    if (!displayProduto.value || displayProduto.value === 'Buscando...') {
-      alert('Puxe os dados primeiro ou preencha o produto manualmente!');
-      return;
-    }
+  // A captura ocorre antes dos geradores antigos. Assim, somente esta integração
+  // controla o botão sem interferir na fila, nos grupos ou no envio ao WhatsApp.
+  btnGerar.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    gerarMensagem().catch(error => console.error('[GEMINI] Falha na geração:', error));
+  }, true);
 
-    const dados = dadosDaTela();
-    const textoOriginal = '🤖 Gerar mensagem com IA';
+  // O salvamento antigo esperava uma mensagem síncrona. Quando a tela estiver
+  // vazia, aguardamos o Gemini e repetimos o clique já com a mensagem pronta.
+  btnSalvar?.addEventListener('click', event => {
+    if (mensagemAtual() || salvandoDepoisDaGeracao) return;
 
-    if (!dados.link) {
-      alert('Cole o link de afiliado antes de gerar a mensagem.');
-      return;
-    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    salvandoDepoisDaGeracao = true;
 
-    btnGerar.disabled = true;
-    btnGerar.innerText = '🤖 Criando anúncio...';
+    gerarMensagem()
+      .then(resultado => {
+        if (resultado?.mensagem && mensagemAtual()) btnSalvar.click();
+      })
+      .catch(error => console.error('[GEMINI] Não foi possível gerar antes de salvar:', error))
+      .finally(() => {
+        salvandoDepoisDaGeracao = false;
+      });
+  }, true);
 
-    const mensagem = montarAnuncioVenda(dados);
-    setMensagem(mensagem);
+  btnCopiar?.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    copiar(mensagemAtual() || window.__ultimaMensagemAchouLevou || '');
+  }, true);
 
-    btnGerar.innerText = '✅ Mensagem gerada';
-    setTimeout(() => {
-      btnGerar.innerText = textoOriginal;
-      btnGerar.disabled = false;
-    }, 900);
+  window.AchouLevouGemini = {
+    gerarMensagem,
+    dadosDaTela,
+    apiUrl: API_URL
   };
-
-  if (btnCopiar) {
-    btnCopiar.onclick = async () => {
-      await copiar(getMensagemEditada() || window.__ultimaMensagemAchouLevou || '');
-    };
-  }
 })();
