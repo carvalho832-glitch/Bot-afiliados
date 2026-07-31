@@ -1,10 +1,10 @@
 (function () {
   'use strict';
 
-  const FALLBACK_BRIDGE = 'https://bot-afiliados-1fwi.onrender.com';
-  const BRIDGE_BASE = /^https?:$/i.test(location.protocol)
-    ? location.origin.replace(/\/+$/, '')
-    : FALLBACK_BRIDGE;
+  // O painel roda no GitHub Pages, portanto location.origin aponta para um
+  // servidor estático que rejeita POST com HTTP 405. A leitura e o envio
+  // precisam passar sempre pela API do Achou Levou no Render.
+  const BRIDGE_BASE = 'https://bot-afiliados-1fwi.onrender.com';
 
   let overviewInFlight = null;
   let lastOverview = null;
