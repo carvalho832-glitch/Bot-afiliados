@@ -130,24 +130,20 @@ async function consultarGemini(dados) {
         }],
         generationConfig: {
           maxOutputTokens: 350,
-          responseFormat: {
-            text: {
-              mimeType: 'application/json',
-              schema: {
-                type: 'object',
-                properties: {
-                  titulo: {
-                    type: 'string',
-                    description: 'Título fiel ao produto, entre 6 e 12 palavras.'
-                  },
-                  beneficio: {
-                    type: 'string',
-                    description: 'Uma frase curta, segura e baseada somente no nome do produto.'
-                  }
-                },
-                required: ['titulo', 'beneficio']
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              titulo: {
+                type: 'STRING',
+                description: 'Título fiel ao produto, entre 6 e 12 palavras.'
+              },
+              beneficio: {
+                type: 'STRING',
+                description: 'Uma frase curta, segura e baseada somente no nome do produto.'
               }
-            }
+            },
+            required: ['titulo', 'beneficio']
           }
         }
       }),
