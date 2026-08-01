@@ -18,6 +18,7 @@ npm install
 node --check server.js
 node --check bot-store.mjs
 node --check bot-engine.mjs
+node --check frame-recovery.mjs
 node --check shopee-tracking.mjs
 bash -n start-production.sh
 

@@ -1,6 +1,6 @@
 {
   "name": "achou-levou-whatsapp-bot",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Bot WhatsApp Achou Levou com fila persistente, grupos ativos e painel estável.",
   "type": "module",
   "main": "server.js",
@@ -8,7 +8,7 @@
     "start": "bash start-production.sh",
     "start:raw": "node server.js",
     "setup:production": "bash setup-server.sh",
-    "check": "node --check server.js && node --check bot-store.mjs && node --check bot-engine.mjs && node --check shopee-tracking.mjs && bash -n start-production.sh && bash -n setup-server.sh",
+    "check": "node --check server.js && node --check bot-store.mjs && node --check bot-engine.mjs && node --check frame-recovery.mjs && node --check shopee-tracking.mjs && bash -n start-production.sh && bash -n setup-server.sh",
     "test": "node --test test/*.test.mjs",
     "doctor": "bash bot-doctor.sh",
     "dev": "node --watch server.js"

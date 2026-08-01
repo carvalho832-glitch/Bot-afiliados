@@ -25,6 +25,10 @@ import {
   prepararMensagemRastreada,
   getShopeeTrackingConfiguration
 } from './shopee-tracking.mjs';
+import {
+  createBrowserRestartGate,
+  isRecoverableBrowserContextError
+} from './frame-recovery.mjs';
 
 const { Client, LocalAuth } = pkg;
 const SEND_DELAY_MS = Math.max(800, Number(process.env.SEND_DELAY_MS || 1500));
@@ -38,6 +42,9 @@ let lastError = null;
 let queueTimer = null;
 let queueProcessing = false;
 let liveGroupsCache = { at: 0, groups: [] };
+const browserRestartGate = createBrowserRestartGate({
+  delayMs: Math.max(500, Number(process.env.BROWSER_RECOVERY_RESTART_MS || 2000))
+});
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -57,13 +64,26 @@ export function getQrState() {
   return { status, qr: qrRaw, qrDataUrl };
 }
 
-export async function fetchLiveGroups({ force = false } = {}) {
-  if (status !== 'conectado' || !client?.pupPage) throw new Error('WhatsApp ainda não conectado.');
-  if (!force && liveGroupsCache.groups.length && Date.now() - liveGroupsCache.at < 15000) {
-    return liveGroupsCache.groups;
-  }
+function scheduleBrowserRecovery(error, { source, pauseQueue = false } = {}) {
+  return browserRestartGate.schedule(error, () => {
+    const detail = String(error?.message || error || 'Contexto do navegador inválido');
+    const recoveryMessage = `WhatsApp Web reiniciando após falha em ${source || 'operação interna'}: ${detail}`;
+    status = 'reconectando';
+    lastError = recoveryMessage;
+    clearQueueTimer();
+    if (pauseQueue) setQueueRunning(false);
+    saveRuntime({
+      nextRunAt: null,
+      lastCycleResult: pauseQueue
+        ? 'Fila pausada para evitar duplicação durante a recuperação do WhatsApp Web.'
+        : 'WhatsApp Web reiniciando automaticamente; fila preservada.'
+    });
+    console.error('[RECUPERAÇÃO]', recoveryMessage);
+  });
+}
 
-  const groups = await client.pupPage.evaluate(() => {
+async function readGroupsFromWhatsAppPage() {
+  return client.pupPage.evaluate(() => {
     let chatCollection = null;
     try { chatCollection = window.require?.('WAWebCollections')?.Chat || null; } catch {}
     chatCollection = chatCollection || window.Store?.Chat || null;
@@ -81,6 +101,32 @@ export async function fetchLiveGroups({ force = false } = {}) {
       };
     }).filter(Boolean);
   });
+}
+
+export async function fetchLiveGroups({ force = false } = {}) {
+  if (status !== 'conectado' || !client?.pupPage) throw new Error('WhatsApp ainda não conectado.');
+  if (!force && liveGroupsCache.groups.length && Date.now() - liveGroupsCache.at < 15000) {
+    return liveGroupsCache.groups;
+  }
+
+  let groups;
+  try {
+    groups = await readGroupsFromWhatsAppPage();
+  } catch (error) {
+    if (!isRecoverableBrowserContextError(error)) throw error;
+    await sleep(900);
+    try {
+      groups = await readGroupsFromWhatsAppPage();
+    } catch (retryError) {
+      if (!isRecoverableBrowserContextError(retryError)) throw retryError;
+      scheduleBrowserRecovery(retryError, { source: 'carregamento dos grupos' });
+      const recoveryError = new Error('WhatsApp Web reiniciando automaticamente. Tente atualizar os grupos novamente em alguns segundos.', {
+        cause: retryError
+      });
+      recoveryError.browserRecovery = true;
+      throw recoveryError;
+    }
+  }
 
   const unique = Array.from(new Map(groups.map(group => [group.id, group])).values())
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
@@ -185,7 +231,7 @@ function clearQueueTimer() {
 
 function scheduleNextQueueRun(delayMs = 1000) {
   clearQueueTimer();
-  if (!getRuntime().queueRunning) return;
+  if (!getRuntime().queueRunning || browserRestartGate.isScheduled()) return;
   const safeDelay = Math.max(250, Number(delayMs || 1000));
   saveRuntime({ nextRunAt: new Date(Date.now() + safeDelay).toISOString() });
   queueTimer = setTimeout(() => {
@@ -299,6 +345,16 @@ export async function processQueue() {
           if (error?.trackingRecord) item.trackingByTarget[target.id] = error.trackingRecord;
           const message = String(error?.message || error || 'Falha desconhecida');
           item.targetErrors[target.id] = { message, at: new Date().toISOString() };
+          if (isRecoverableBrowserContextError(error)) {
+            item.error = 'Envio interrompido para recuperar a sessão do WhatsApp sem avançar para outros grupos.';
+            item.retryAfter = Date.now() + 5 * 60000;
+            saveQueue(queue);
+            scheduleBrowserRecovery(error, {
+              source: `envio para ${target.name || target.id}`,
+              pauseQueue: true
+            });
+            throw error;
+          }
           item.error = `Falha em ${Object.keys(item.targetErrors).length} grupo(s). O bot continuou para os demais.`;
           item.retryAfter = Date.now() + 5 * 60000;
           console.error(`[FILA] Falha no grupo ${target.name} (${target.id}):`, error?.stack || error);
@@ -339,7 +395,9 @@ export async function processQueue() {
   } catch (error) {
     console.error('[FILA] Falha no ciclo:', error?.stack || error);
     saveRuntime({ lastCycleResult: String(error?.message || error) });
-    scheduleNextQueueRun(RETRY_DELAY_MS);
+    if (!isRecoverableBrowserContextError(error) && !browserRestartGate.isScheduled()) {
+      scheduleNextQueueRun(RETRY_DELAY_MS);
+    }
   } finally {
     queueProcessing = false;
   }
@@ -392,6 +450,7 @@ export async function sendMessageToConfiguredGroups(message, category = null) {
         tracking: delivery.tracking?.status || 'not_applicable'
       });
     } catch (error) {
+      const recoveringBrowser = isRecoverableBrowserContextError(error);
       results.push({
         ok: false,
         groupId: group.id,
@@ -400,6 +459,13 @@ export async function sendMessageToConfiguredGroups(message, category = null) {
         tracking: error?.trackingRecord?.status || 'fallback',
         error: String(error?.message || error)
       });
+      if (recoveringBrowser) {
+        scheduleBrowserRecovery(error, {
+          source: `envio direto para ${group.name || group.id}`,
+          pauseQueue: true
+        });
+        break;
+      }
     }
     await sleep(SEND_DELAY_MS);
   }
@@ -421,7 +487,7 @@ export async function sendMessageToConfiguredGroups(message, category = null) {
 export function getDiagnostics() {
   const settings = getSettings();
   return {
-    version: '2.1.0',
+    version: '2.1.1',
     status,
     serverTime: horaServidor(),
     uptimeSeconds: Math.round(process.uptime()),
