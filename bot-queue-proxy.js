@@ -5,10 +5,18 @@
   // servidor estático que rejeita POST com HTTP 405. A leitura e o envio
   // precisam passar sempre pela API do Achou Levou no Render.
   const BRIDGE_BASE = 'https://bot-afiliados-1fwi.onrender.com';
+  const STALE_GRACE_MS = 90000;
+  const RECOVERY_DELAYS_MS = [1500, 4000, 8000];
 
   let overviewInFlight = null;
   let lastOverview = null;
   let lastOverviewAt = 0;
+  let lastGoodStatus = null;
+  let lastGoodStatusAt = 0;
+  let lastGoodQueue = null;
+  let lastGoodQueueAt = 0;
+  let consecutiveFailures = 0;
+  let recoveryTimer = null;
 
   function setStatus(label, state = 'idle') {
     const pill = document.getElementById('bot-status-pill');
@@ -80,6 +88,44 @@
     window.dispatchEvent(new CustomEvent('achoulevou:bot-status', { detail }));
   }
 
+  function hasFreshSnapshot(value, savedAt) {
+    return Boolean(value) && Date.now() - savedAt <= STALE_GRACE_MS;
+  }
+
+  function preserveLastGoodData(rawOverview) {
+    const sourceStatusOk = rawOverview.statusOk === true && Boolean(rawOverview.status);
+    const sourceQueueOk = rawOverview.queueOk === true && Boolean(rawOverview.queue);
+
+    if (sourceStatusOk) {
+      lastGoodStatus = rawOverview.status;
+      lastGoodStatusAt = Date.now();
+    }
+    if (sourceQueueOk) {
+      lastGoodQueue = rawOverview.queue;
+      lastGoodQueueAt = Date.now();
+    }
+
+    const reusedStatus = !sourceStatusOk && hasFreshSnapshot(lastGoodStatus, lastGoodStatusAt);
+    const reusedQueue = !sourceQueueOk && hasFreshSnapshot(lastGoodQueue, lastGoodQueueAt);
+    const status = sourceStatusOk ? rawOverview.status : reusedStatus ? lastGoodStatus : null;
+    const queue = sourceQueueOk ? rawOverview.queue : reusedQueue ? lastGoodQueue : null;
+
+    return {
+      ...rawOverview,
+      ok: Boolean(status || queue),
+      apiOnline: rawOverview.apiOnline === true || Boolean(status || queue),
+      statusOk: Boolean(status),
+      queueOk: Boolean(queue),
+      status,
+      queue,
+      stale: reusedStatus || reusedQueue,
+      staleStatus: reusedStatus,
+      staleQueue: reusedQueue,
+      sourceStatusOk,
+      sourceQueueOk
+    };
+  }
+
   function installBridge() {
     const queueApi = window.AchouLevouBotQueue;
     if (!queueApi) {
@@ -90,6 +136,29 @@
     const originalSendMessages = queueApi.sendMessages?.bind(queueApi);
     const originalGetOverview = queueApi.getOverview?.bind(queueApi);
     const originalCheckBotStatus = queueApi.checkBotStatus?.bind(queueApi);
+
+    function scheduleRecovery() {
+      if (recoveryTimer) return;
+      const index = Math.min(Math.max(consecutiveFailures - 1, 0), RECOVERY_DELAYS_MS.length - 1);
+      recoveryTimer = setTimeout(() => {
+        recoveryTimer = null;
+        getOverview({ force: true, recovery: true });
+      }, RECOVERY_DELAYS_MS[index]);
+    }
+
+    function registerResult(overview) {
+      if (overview.sourceStatusOk && overview.sourceQueueOk) {
+        consecutiveFailures = 0;
+        if (recoveryTimer) {
+          clearTimeout(recoveryTimer);
+          recoveryTimer = null;
+        }
+        return;
+      }
+
+      consecutiveFailures += 1;
+      scheduleRecovery();
+    }
 
     function isJulioProfile() {
       const config = queueApi.loadConfig?.() || {};
@@ -110,7 +179,7 @@
             headers: { Accept: 'application/json' }
           }, 18000);
 
-          const overview = {
+          const rawOverview = {
             ...payload,
             ok: payload.ok === true,
             apiOnline: payload.apiOnline === true,
@@ -118,9 +187,11 @@
             queueOk: payload.queueOk === true,
             checkedAt: payload.checkedAt || new Date().toISOString()
           };
+          const overview = preserveLastGoodData(rawOverview);
 
           lastOverview = overview;
           lastOverviewAt = Date.now();
+          registerResult(overview);
           dispatchOverview(overview);
           dispatchStatus(queueApi, overview);
           return overview;
@@ -128,7 +199,7 @@
           const message = error?.name === 'AbortError'
             ? 'Tempo esgotado na leitura do servidor.'
             : String(error?.message || error);
-          const overview = {
+          const rawOverview = {
             ok: false,
             apiOnline: false,
             statusOk: false,
@@ -138,8 +209,10 @@
             errors: { status: message, queue: message },
             checkedAt: new Date().toISOString()
           };
+          const overview = preserveLastGoodData(rawOverview);
           lastOverview = overview;
           lastOverviewAt = Date.now();
+          registerResult(overview);
           dispatchOverview(overview);
           dispatchStatus(queueApi, overview);
           return overview;
