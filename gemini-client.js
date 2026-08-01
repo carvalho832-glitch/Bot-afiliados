@@ -1,6 +1,6 @@
 (() => {
   const API_URL = 'https://bot-afiliados-1fwi.onrender.com';
-  const REQUEST_TIMEOUT_MS = 45000;
+  const REQUEST_TIMEOUT_MS = 100000;
 
   const inputLink = document.getElementById('input-link');
   const selectLoja = document.getElementById('select-loja');
@@ -109,6 +109,9 @@
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const avisoEspera = setTimeout(() => {
+      if (btnGerar.disabled) btnGerar.innerText = '⏳ Aguardando limite do Gemini...';
+    }, 18000);
 
     geracaoEmAndamento = (async () => {
       try {
@@ -143,12 +146,13 @@
         btnGerar.disabled = false;
         btnGerar.innerText = textoOriginal;
         const detalhe = error?.name === 'AbortError'
-          ? 'O Gemini demorou mais de 45 segundos para responder.'
+          ? 'O Gemini demorou mais de 100 segundos para responder.'
           : String(error?.message || error);
         alert(`Não foi possível gerar a mensagem com IA.\n\n${detalhe}`);
         throw error;
       } finally {
         clearTimeout(timeout);
+        clearTimeout(avisoEspera);
         geracaoEmAndamento = null;
       }
     })();
