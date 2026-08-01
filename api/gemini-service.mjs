@@ -228,11 +228,17 @@ function finalizarFrase(valor = '') {
   return `${texto}.`;
 }
 
-function normalizarCta(valor = '') {
-  return limparCampoCriativo(valor, 70)
+function normalizarCta(valor = '', alternativa = '') {
+  const cta = limparCampoCriativo(valor, 70)
     .replace(/[.!?👇]+$/g, '')
+    .replace(/\bGANTA\b/gi, 'GARANTA')
     .trim()
     .toLocaleUpperCase('pt-BR');
+
+  if (/\b(?:GARANTA|APROVEITE|CONFIRA|COMPRE|ESCOLHA|ACESSE|VEJA|PEGUE)\b/.test(cta)) {
+    return cta;
+  }
+  return alternativa ? normalizarCta(alternativa) : cta;
 }
 
 function montarMensagem(dados, criacao = {}) {
@@ -240,7 +246,7 @@ function montarMensagem(dados, criacao = {}) {
   const titulo = limparCampoCriativo(criacao.titulo || local.titulo, 150).replace(/[.!?]+$/g, '');
   const gancho = finalizarFrase(limparCampoCriativo(criacao.gancho || local.gancho, 130));
   const beneficio = finalizarFrase(limparCampoCriativo(criacao.beneficio || local.beneficio, 150));
-  const cta = normalizarCta(criacao.cta || local.cta) || 'APROVEITE ESTA OFERTA AGORA';
+  const cta = normalizarCta(criacao.cta, local.cta) || 'APROVEITE ESTA OFERTA AGORA';
   const cupomEhFrete = /frete|gr[aá]tis/i.test(dados.cupom);
   const linhas = [`🔥 *${titulo}*`];
 
@@ -382,7 +388,8 @@ function criarPrompt(dados) {
     '1. titulo: 5 a 14 palavras, fiel ao produto, sem pontuação final.',
     '2. gancho: uma única frase, até 120 caracteres, com dor ou necessidade natural e sem exagero.',
     '3. beneficio: uma única frase diferente do gancho, até 140 caracteres, com resultado prático ou desejo.',
-    '4. cta: de 3 a 7 palavras, direto, sem pontuação final.'
+    '4. cta: de 3 a 7 palavras, direto, com verbo no imperativo e sem pontuação final.',
+    '5. Revise a ortografia de todos os campos antes de responder.'
   ].join('\n');
 }
 
