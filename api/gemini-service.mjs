@@ -1,8 +1,9 @@
 const GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-3.6-flash';
-const REQUEST_TIMEOUT_MS = Math.max(5000, Number(process.env.GEMINI_TIMEOUT_MS || 30000));
+const REQUEST_TIMEOUT_MS = Math.max(5000, Number(process.env.GEMINI_TIMEOUT_MS || 40000));
 const MAX_REQUESTS_PER_HOUR = Math.max(10, Number(process.env.GEMINI_MAX_REQUESTS_PER_HOUR || 120));
 const requestWindows = new Map();
+let proximoInicioGemini = 0;
 
 const CRIACAO_SCHEMA = {
   type: 'object',
@@ -274,6 +275,80 @@ function verificarLimite(clientId = 'anonimo') {
   requestWindows.set(chave, registros);
 }
 
+function numeroConfigurado(nome, padrao, minimo, maximo) {
+  const numero = Number(process.env[nome]);
+  if (!Number.isFinite(numero)) return padrao;
+  return Math.max(minimo, Math.min(maximo, numero));
+}
+
+function esperarComCancelamento(ms, signal) {
+  if (!ms || ms <= 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      const error = new Error('Operação cancelada.');
+      error.name = 'AbortError';
+      reject(error);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', cancelar);
+      resolve();
+    }, ms);
+    const cancelar = () => {
+      clearTimeout(timer);
+      const error = new Error('Operação cancelada.');
+      error.name = 'AbortError';
+      reject(error);
+    };
+    signal?.addEventListener('abort', cancelar, { once: true });
+  });
+}
+
+async function aguardarIntervaloGemini(signal) {
+  // Mantém no máximo cerca de nove chamadas por minuto no plano mais restrito.
+  // A reserva é feita antes do await para que pedidos simultâneos entrem em fila.
+  const intervalo = numeroConfigurado('GEMINI_MIN_INTERVAL_MS', 6500, 0, 60000);
+  const agora = Date.now();
+  const inicioReservado = Math.max(agora, proximoInicioGemini);
+  proximoInicioGemini = inicioReservado + intervalo;
+  await esperarComCancelamento(inicioReservado - agora, signal);
+}
+
+function converterAtrasoEmMs(valor) {
+  const texto = String(valor || '').trim();
+  if (!texto) return 0;
+  const segundos = texto.match(/^(\d+(?:\.\d+)?)s$/i);
+  if (segundos) return Math.ceil(Number(segundos[1]) * 1000);
+  if (/^\d+(?:\.\d+)?$/.test(texto)) return Math.ceil(Number(texto) * 1000);
+  const data = Date.parse(texto);
+  return Number.isNaN(data) ? 0 : Math.max(0, data - Date.now());
+}
+
+function atrasoSugeridoGemini(json, resposta) {
+  const peloCabecalho = converterAtrasoEmMs(resposta?.headers?.get?.('retry-after'));
+  if (peloCabecalho) return peloCabecalho;
+
+  const detalhes = Array.isArray(json?.error?.details) ? json.error.details : [];
+  const retryInfo = detalhes.find(item => /RetryInfo$/i.test(String(item?.['@type'] || '')));
+  return converterAtrasoEmMs(retryInfo?.retryDelay);
+}
+
+function erroTemporarioGemini(error) {
+  const status = Number(error?.statusCode || 0);
+  const codigo = String(error?.geminiStatus || error?.message || '');
+  return [408, 429, 500, 502, 503, 504].includes(status) ||
+    /RESOURCE_EXHAUSTED|UNAVAILABLE|DEADLINE_EXCEEDED|temporar|alta demanda/i.test(codigo);
+}
+
+function atrasoDaTentativa(error, tentativa) {
+  const base = numeroConfigurado('GEMINI_RETRY_BASE_MS', 5000, 1, 15000);
+  const calculado = base * (2 ** Math.max(0, tentativa - 1));
+  const sugerido = Number(error?.retryAfterMs || 0);
+  const jitter = Math.floor(Math.random() * Math.min(800, base * 0.2));
+  return Math.min(16000, Math.max(calculado, sugerido) + jitter);
+}
+
 function criarPrompt(dados) {
   return [
     'Você é uma copywriter vendedora especialista em ofertas para grupos de WhatsApp no Brasil.',
@@ -501,6 +576,8 @@ async function requisitarGemini({ apiKey, model, dados, generationConfig, signal
     const detalhe = json?.error?.message || `Gemini respondeu com HTTP ${resposta.status}.`;
     const error = new Error(detalhe);
     error.statusCode = resposta.status;
+    error.geminiStatus = json?.error?.status || '';
+    error.retryAfterMs = atrasoSugeridoGemini(json, resposta);
     throw error;
   }
 
@@ -511,6 +588,33 @@ async function requisitarGemini({ apiKey, model, dados, generationConfig, signal
   }
 
   return interpretarCriacao(texto);
+}
+
+async function requisitarGeminiComRetentativas(opcoes) {
+  const maxTentativas = Math.round(numeroConfigurado('GEMINI_MAX_RETRIES', 3, 1, 4));
+  let ultimoErro = null;
+
+  for (let tentativa = 1; tentativa <= maxTentativas; tentativa += 1) {
+    if (tentativa > 1) {
+      const atraso = atrasoDaTentativa(ultimoErro, tentativa - 1);
+      console.warn(
+        `[GEMINI] Limite ou instabilidade temporária. Nova tentativa ${tentativa}/${maxTentativas} em ${atraso}ms:`,
+        ultimoErro?.message
+      );
+      await esperarComCancelamento(atraso, opcoes.signal);
+    }
+
+    await aguardarIntervaloGemini(opcoes.signal);
+
+    try {
+      return await requisitarGemini(opcoes);
+    } catch (error) {
+      ultimoErro = error;
+      if (!erroTemporarioGemini(error) || tentativa >= maxTentativas) throw error;
+    }
+  }
+
+  throw ultimoErro || new Error('O Gemini não respondeu após novas tentativas.');
 }
 
 function podeTentarSemSchema(error) {
@@ -530,7 +634,7 @@ async function consultarGemini(dados) {
     let ultimoErro = null;
     for (const comSchema of [true, false]) {
       try {
-        const criacao = await requisitarGemini({
+        const criacao = await requisitarGeminiComRetentativas({
           apiKey,
           model,
           dados,
