@@ -32,8 +32,8 @@ test('gera cinco Sub_ids estáveis e exclusivos por ID real do grupo', () => {
   assert.equal(a.length, 5);
   assert.notEqual(a[0], b[0]);
   assert.deepEqual(a, aNovamente);
-  assert.ok(a.every(subId => subId.length <= 50 && /^[a-z0-9_]+$/.test(subId)));
-  assert.deepEqual(a.slice(1), ['of_oferta_10', 'cat_calcados', 'h_0730', 'wa_20260731']);
+  assert.ok(a.every(subId => subId.length <= 50 && /^[a-z0-9]+$/.test(subId)));
+  assert.deepEqual(a.slice(1), ['ofoferta10', 'catcalcados', 'h0730', 'wa20260731']);
 });
 
 test('troca o link original pelo oficial rastreado e envia os Sub_ids do grupo', async () => {
@@ -56,7 +56,7 @@ test('troca o link original pelo oficial rastreado e envia os Sub_ids do grupo',
   assert.doesNotMatch(resultado.message, /\/original/);
   assert.equal(requestBody.originUrl, 'https://s.shopee.com.br/original');
   assert.deepEqual(requestBody.subIds, resultado.record.subIds);
-  assert.match(requestBody.subIds[0], /^g_grupo_biritiba_mirim_[a-f0-9]{6}$/);
+  assert.match(requestBody.subIds[0], /^ggrupobiritibamirim[a-f0-9]{6}$/);
 });
 
 test('a mesma oferta recebe marcador diferente em cada grupo', async () => {
@@ -91,7 +91,7 @@ test('reutiliza o link salvo ao tentar reenviar para o mesmo grupo', async () =>
       originalUrl: 'https://s.shopee.com.br/original',
       shortLink: 'https://s.shopee.com.br/cache123'
     }],
-    subIds: ['g_grupo_abc123'],
+    subIds: ['ggrupoabc123'],
     generatedAt: NOW.toISOString(),
     error: null
   };

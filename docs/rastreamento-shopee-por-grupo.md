@@ -15,11 +15,14 @@
 
 | Posição | Exemplo | Uso |
 |---|---|---|
-| 1 | `g_feira_da_barganha_a1b2c3` | grupo real do WhatsApp |
-| 2 | `of_1785548415297_abcd` | oferta da fila |
-| 3 | `cat_geral` | categoria do bot |
-| 4 | `h_0730` | horário efetivo do envio |
-| 5 | `wa_20260731` | canal e data |
+| 1 | `gfeiradabarganhaa1b2c3` | grupo real do WhatsApp |
+| 2 | `of1785548415297abcd` | oferta da fila |
+| 3 | `catgeral` | categoria do bot |
+| 4 | `h0730` | horário efetivo do envio |
+| 5 | `wa20260731` | canal e data |
+
+A API brasileira aceita somente letras e números nos Sub_ids; por isso os
+marcadores são enviados sem espaços, sublinhados ou hífens.
 
 ## Segurança e continuidade
 
