@@ -10,7 +10,7 @@ import {
 test('normaliza no máximo cinco Sub_ids aceitos pela Shopee', () => {
   assert.deepEqual(
     normalizarSubIds(['Grupo São José 🚀', 'Oferta 123', 'Calçados', '07:30', 'WhatsApp 31/07/2026', 'ignorado']),
-    ['grupo_sao_jose', 'oferta_123', 'calcados', '07_30', 'whatsapp_31_07_2026']
+    ['gruposaojose', 'oferta123', 'calcados', '0730', 'whatsapp31072026']
   );
 });
 
@@ -23,7 +23,7 @@ test('monta a mutação oficial sem interpolar conteúdo fora de strings GraphQL
 
   assert.match(body.query, /generateShortLink/);
   assert.match(body.query, /originUrl: "https:\/\/shopee\.com\.br\/product\/123\/456\?x=1"/);
-  assert.match(body.query, /subIds: \["grupo_teste","oferta_1"\]/);
+  assert.match(body.query, /subIds: \["grupoteste","oferta1"\]/);
 });
 
 test('assina o mesmo payload de forma determinística', () => {
@@ -60,7 +60,7 @@ test('gera e aceita somente um link curto oficial da Shopee Brasil', async () =>
   });
 
   assert.equal(resultado.shortLink, 'https://s.shopee.com.br/abc123');
-  assert.deepEqual(resultado.subIds, ['grupo_a', 'oferta_1']);
+  assert.deepEqual(resultado.subIds, ['grupoa', 'oferta1']);
   assert.equal(request.options.method, 'POST');
   assert.match(request.options.headers.Authorization, /^SHA256 Credential=12345, Timestamp=\d+, Signature=[a-f0-9]{64}$/);
   assert.match(JSON.parse(request.options.body).query, /generateShortLink/);

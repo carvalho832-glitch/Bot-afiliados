@@ -9,14 +9,13 @@ function ehDominioShopee(hostname = '') {
 }
 
 function normalizarMarcador(valor = '', fallback = 'na', limite = 50) {
-  const normalizado = String(valor || '')
+  const limpar = entrada => String(entrada || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
+    .replace(/[^a-z0-9]+/g, '')
     .slice(0, limite);
-  return normalizado || fallback;
+  return limpar(valor) || limpar(fallback) || 'na';
 }
 
 function hashCurto(valor = '') {
@@ -59,12 +58,12 @@ export function extrairLinksShopee(message = '') {
 
 export function criarSubIdsRastreamento({ target = {}, offerId = '', category = 'geral', now = new Date() } = {}) {
   const nomeGrupo = normalizarMarcador(target.name || 'grupo', 'grupo', 32);
-  const grupo = normalizarMarcador(`g_${nomeGrupo}_${hashCurto(target.id || target.name)}`, 'g_grupo');
-  const oferta = normalizarMarcador(`of_${offerId}`, `of_${Date.now()}`);
-  const categoria = normalizarMarcador(`cat_${category || 'geral'}`, 'cat_geral');
+  const grupo = normalizarMarcador(`g${nomeGrupo}${hashCurto(target.id || target.name)}`, 'ggrupo');
+  const oferta = normalizarMarcador(`of${offerId}`, `of${Date.now()}`);
+  const categoria = normalizarMarcador(`cat${category || 'geral'}`, 'catgeral');
   const horario = dataHoraNoFuso(now);
 
-  return [grupo, oferta, categoria, `h_${horario.time}`, `wa_${horario.day}`];
+  return [grupo, oferta, categoria, `h${horario.time}`, `wa${horario.day}`];
 }
 
 export function aplicarLinksRastreados(message = '', links = []) {

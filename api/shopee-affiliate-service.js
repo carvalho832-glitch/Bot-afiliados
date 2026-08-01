@@ -11,20 +11,20 @@ function ehDominioShopee(hostname = '') {
 }
 
 export function normalizarSubId(valor = '', fallback = 'na') {
-  const normalizado = String(valor || '')
+  const limpar = entrada => String(entrada || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
+    .replace(/[^a-z0-9]+/g, '')
     .slice(0, 50);
+  const normalizado = limpar(valor);
 
-  return normalizado || fallback;
+  return normalizado || limpar(fallback) || 'na';
 }
 
 export function normalizarSubIds(valores = []) {
   const origem = Array.isArray(valores) ? valores : [];
-  return origem.slice(0, 5).map((valor, indice) => normalizarSubId(valor, `na_${indice + 1}`));
+  return origem.slice(0, 5).map((valor, indice) => normalizarSubId(valor, `na${indice + 1}`));
 }
 
 export function validarUrlShopee(valor = '') {
