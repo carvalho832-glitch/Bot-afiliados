@@ -338,7 +338,12 @@ function atrasoSugeridoGemini(json, resposta) {
 
   const detalhes = Array.isArray(json?.error?.details) ? json.error.details : [];
   const retryInfo = detalhes.find(item => /RetryInfo$/i.test(String(item?.['@type'] || '')));
-  return converterAtrasoEmMs(retryInfo?.retryDelay);
+  const pelosDetalhes = converterAtrasoEmMs(retryInfo?.retryDelay);
+  if (pelosDetalhes) return pelosDetalhes;
+
+  // Algumas respostas informam o tempo apenas na frase “Please retry in 45.8s”.
+  const peloTexto = String(json?.error?.message || '').match(/retry\s+in\s+(\d+(?:\.\d+)?)s/i);
+  return peloTexto ? converterAtrasoEmMs(`${peloTexto[1]}s`) : 0;
 }
 
 function erroTemporarioGemini(error) {
