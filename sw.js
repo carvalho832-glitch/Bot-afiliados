@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v85-gemini';
+const CACHE_VERSION = 'achou-levou-v86-gemini';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const SHOPEE_PRODUCT_PATH = '/shopee/produto';
@@ -7,19 +7,19 @@ const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v85 instalada.');
+    console.log('Achou Levou interface v86 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v85 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v86 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '85' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '86' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
@@ -132,7 +132,7 @@ self.addEventListener('fetch', (event) => {
 
     if (url.includes('gemini-client.js')) {
         const replacementUrl = new URL('./gemini-client.js', self.location.href);
-        replacementUrl.searchParams.set('v', '85');
+        replacementUrl.searchParams.set('v', '86');
         event.respondWith(fetch(replacementUrl.toString(), { cache: 'no-store' }));
         return;
     }
