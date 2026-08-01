@@ -393,8 +393,16 @@
   function startStatusPolling() {
     clearInterval(statusTimer);
     mountProfileSelector();
-    getOverview({ force: true });
-    statusTimer = setInterval(() => getOverview({ force: true }), 10000);
+    requestActiveOverview({ force: true });
+    statusTimer = setInterval(() => requestActiveOverview({ force: true }), 10000);
+  }
+
+  function requestActiveOverview(options = {}) {
+    const activeReader = window.AchouLevouBotQueue?.getOverview;
+    if (typeof activeReader === 'function' && activeReader !== getOverview) {
+      return activeReader(options);
+    }
+    return getOverview(options);
   }
 
   window.AchouLevouBotQueue = {
@@ -411,8 +419,8 @@
   };
 
   document.addEventListener('DOMContentLoaded', startStatusPolling);
-  window.addEventListener('focus', () => getOverview({ force: true }));
+  window.addEventListener('focus', () => requestActiveOverview({ force: true }));
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) getOverview({ force: true });
+    if (!document.hidden) requestActiveOverview({ force: true });
   });
 })();

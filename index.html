@@ -11,7 +11,7 @@
     <script>
         (function () {
             try {
-                const UI_VERSION = '86';
+                const UI_VERSION = '87';
                 const VERSION_KEY = 'achou_levou_ui_version';
                 const previousVersion = localStorage.getItem(VERSION_KEY);
 
@@ -74,15 +74,15 @@
         })();
     </script>
 
-    <link rel="manifest" href="manifest.json?v=86">
+    <link rel="manifest" href="manifest.json?v=87">
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
-    <link rel="apple-touch-icon" href="icon.png?v=86">
+    <link rel="apple-touch-icon" href="icon.png?v=87">
 
-    <link rel="stylesheet" href="style.css?v=86">
-    <link rel="stylesheet" href="progress-style.css?v=86">
-    <link rel="stylesheet" href="robot-realistic.css?v=86">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=86">
-    <link rel="stylesheet" href="achou-levou-v2.css?v=86">
+    <link rel="stylesheet" href="style.css?v=87">
+    <link rel="stylesheet" href="progress-style.css?v=87">
+    <link rel="stylesheet" href="robot-realistic.css?v=87">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=87">
+    <link rel="stylesheet" href="achou-levou-v2.css?v=87">
 </head>
 <body>
     <div class="app-shell">
@@ -229,23 +229,23 @@
         </div>
     </div>
 
-    <script src="script.js?v=86"></script>
-    <script src="progress-loader.js?v=86"></script>
-    <script src="app-dialog.js?v=86"></script>
-    <script src="shopee-helper.js?v=86"></script>
-    <script src="magalu-helper.js?v=86"></script>
-    <script src="gemini-client.js?v=86"></script>
-    <script src="product-message-patch.js?v=86"></script>
-    <script src="bot-queue-integration.js?v=86"></script>
-    <script src="bot-queue-proxy.js?v=86"></script>
-    <script src="achou-levou-v2.js?v=86"></script>
+    <script src="script.js?v=87"></script>
+    <script src="progress-loader.js?v=87"></script>
+    <script src="app-dialog.js?v=87"></script>
+    <script src="shopee-helper.js?v=87"></script>
+    <script src="magalu-helper.js?v=87"></script>
+    <script src="gemini-client.js?v=87"></script>
+    <script src="product-message-patch.js?v=87"></script>
+    <script src="bot-queue-integration.js?v=87"></script>
+    <script src="bot-queue-proxy.js?v=87"></script>
+    <script src="achou-levou-v2.js?v=87"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=86', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=87', { updateViaCache: 'none' })
                     .then(reg => {
-                        console.log('PWA v86 ativado!', reg);
+                        console.log('PWA v87 ativado!', reg);
                         reg.update();
                     })
                     .catch(err => console.log('Falha no PWA:', err));

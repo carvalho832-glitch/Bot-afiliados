@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v86-gemini';
+const CACHE_VERSION = 'achou-levou-v87-status';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const SHOPEE_PRODUCT_PATH = '/shopee/produto';
@@ -7,19 +7,19 @@ const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v86 instalada.');
+    console.log('Achou Levou interface v87 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v86 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v87 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '86' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '87' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
@@ -132,20 +132,19 @@ self.addEventListener('fetch', (event) => {
 
     if (url.includes('gemini-client.js')) {
         const replacementUrl = new URL('./gemini-client.js', self.location.href);
-        replacementUrl.searchParams.set('v', '86');
+        replacementUrl.searchParams.set('v', '87');
         event.respondWith(fetch(replacementUrl.toString(), { cache: 'no-store' }));
         return;
     }
 
     if (url.includes('bot-queue-integration.js')) {
-        const replacementUrl = new URL('./bot-queue-integration-v83.js', self.location.href);
-        replacementUrl.searchParams.set('v', '83');
-        event.respondWith(fetch(replacementUrl.toString(), { cache: 'no-store' }));
+        requestUrl.searchParams.set('v', '87');
+        event.respondWith(fetch(requestUrl.toString(), { cache: 'no-store' }));
         return;
     }
 
     if (url.includes('bot-queue-proxy.js')) {
-        requestUrl.searchParams.set('v', '83');
+        requestUrl.searchParams.set('v', '87');
         event.respondWith(fetch(requestUrl.toString(), { cache: 'no-store' }));
         return;
     }
