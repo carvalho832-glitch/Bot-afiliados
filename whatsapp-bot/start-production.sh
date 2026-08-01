@@ -13,6 +13,7 @@ mkdir -p "$PUPPETEER_CACHE_DIR"
 node --check server.js
 node --check bot-store.mjs
 node --check bot-engine.mjs
+node --check shopee-tracking.mjs
 
 EXPECTED_CHROME="$(node - <<'NODE'
 try {

@@ -58,6 +58,7 @@ function preencherGruposNasOfertasPendentes() {
       targets: item.targets,
       sentTargets: item.sentTargets,
       targetErrors: item.targetErrors,
+      trackingByTarget: item.trackingByTarget,
       error: item.error
     });
 
@@ -66,12 +67,16 @@ function preencherGruposNasOfertasPendentes() {
     item.targetErrors = Object.fromEntries(
       Object.entries(item.targetErrors || {}).filter(([id]) => targetIds.has(id))
     );
+    item.trackingByTarget = Object.fromEntries(
+      Object.entries(item.trackingByTarget || {}).filter(([id]) => targetIds.has(id))
+    );
     item.error = targets.length ? null : 'Nenhum grupo ativo compatível com esta oferta.';
 
     const current = JSON.stringify({
       targets: item.targets,
       sentTargets: item.sentTargets,
       targetErrors: item.targetErrors,
+      trackingByTarget: item.trackingByTarget,
       error: item.error
     });
 
@@ -100,7 +105,7 @@ app.get('/', (req, res) => {
   res.json({
     ok: true,
     service: 'Achou Levou WhatsApp Bot',
-    version: '2.0.0',
+    version: '2.1.0',
     ...getConnectionState(),
     serverTime: horaServidor(),
     routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/qr-page']
@@ -285,6 +290,6 @@ initializeBot();
 startQueueWatchdog();
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[SERVIDOR] Bot v2.0.0 rodando em http://localhost:${PORT}`);
+  console.log(`[SERVIDOR] Bot v2.1.0 rodando em http://localhost:${PORT}`);
   console.log('[DADOS]', { settings: SETTINGS_FILE, queue: QUEUE_FILE, runtime: RUNTIME_FILE });
 });

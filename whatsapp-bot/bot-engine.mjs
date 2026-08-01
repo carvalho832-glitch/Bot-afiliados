@@ -21,6 +21,10 @@ import {
   getBlockReason,
   nextEligibleAt
 } from './bot-store.mjs';
+import {
+  prepararMensagemRastreada,
+  getShopeeTrackingConfiguration
+} from './shopee-tracking.mjs';
 
 const { Client, LocalAuth } = pkg;
 const SEND_DELAY_MS = Math.max(800, Number(process.env.SEND_DELAY_MS || 1500));
@@ -106,15 +110,26 @@ export async function sincronizarGruposAtivos({ force = true } = {}) {
   let queueChanged = false;
   for (const item of queue) {
     if (item.status === 'sent') continue;
-    const old = JSON.stringify({ targets: item.targets, sentTargets: item.sentTargets, error: item.error });
+    const old = JSON.stringify({
+      targets: item.targets,
+      sentTargets: item.sentTargets,
+      trackingByTarget: item.trackingByTarget,
+      error: item.error
+    });
     const targets = escolherGruposPorCategoria(settings, item.category);
     const targetIds = new Set(targets.map(group => group.id));
     item.targets = targets;
     item.sentTargets = item.sentTargets.filter(id => targetIds.has(id));
     item.targetErrors = Object.fromEntries(Object.entries(item.targetErrors || {}).filter(([id]) => targetIds.has(id)));
+    item.trackingByTarget = Object.fromEntries(Object.entries(item.trackingByTarget || {}).filter(([id]) => targetIds.has(id)));
     item.status = 'pending';
     item.error = targets.length ? null : 'Nenhum grupo ativo compatível com esta oferta.';
-    if (old !== JSON.stringify({ targets: item.targets, sentTargets: item.sentTargets, error: item.error })) queueChanged = true;
+    if (old !== JSON.stringify({
+      targets: item.targets,
+      sentTargets: item.sentTargets,
+      trackingByTarget: item.trackingByTarget,
+      error: item.error
+    })) queueChanged = true;
   }
   if (queueChanged) saveQueue(queue);
 
@@ -135,6 +150,7 @@ export function getQueueSummary() {
   const queue = getQueue();
   const settings = getSettings();
   const runtime = getRuntime();
+  const trackingRecords = queue.flatMap(item => Object.values(item.trackingByTarget || {}));
   return {
     total: queue.length,
     pending: queue.filter(item => item.status === 'pending').length,
@@ -153,6 +169,11 @@ export function getQueueSummary() {
     sentToday: settings.sentToday,
     dailyLimit: settings.dailyLimit,
     selectedGroups: settings.selectedGroups.length,
+    tracking: {
+      tracked: trackingRecords.filter(record => record.status === 'tracked').length,
+      fallback: trackingRecords.filter(record => record.status === 'fallback').length,
+      notApplicable: trackingRecords.filter(record => record.status === 'not_applicable').length
+    },
     items: queue
   };
 }
@@ -175,9 +196,31 @@ function scheduleNextQueueRun(delayMs = 1000) {
   }, safeDelay);
 }
 
-async function sendDirect(message, target) {
-  await client.sendMessage(target.id, String(message).trim());
-  return { ok: true, groupId: target.id, groupName: target.name || target.id };
+async function sendDirect(message, target, trackingContext = {}) {
+  const preparada = await prepararMensagemRastreada({
+    message,
+    target,
+    offerId: trackingContext.offerId,
+    category: trackingContext.category,
+    existing: trackingContext.existing
+  });
+
+  try {
+    await client.sendMessage(target.id, preparada.message);
+  } catch (error) {
+    const wrapped = new Error(String(error?.message || error || 'Falha ao enviar no WhatsApp'));
+    wrapped.cause = error;
+    wrapped.stack = error?.stack || wrapped.stack;
+    wrapped.trackingRecord = preparada.record;
+    throw wrapped;
+  }
+
+  return {
+    ok: true,
+    groupId: target.id,
+    groupName: target.name || target.id,
+    tracking: preparada.record
+  };
 }
 
 export async function processQueue() {
@@ -233,19 +276,27 @@ export async function processQueue() {
       const targets = escolherGruposPorCategoria(getSettings(), item.category);
       item.targets = targets;
       item.sentTargets = item.sentTargets.filter(id => targets.some(target => target.id === id));
+      item.trackingByTarget = item.trackingByTarget || {};
       item.lastAttemptAt = new Date().toISOString();
       item.retryAfter = 0;
 
       for (const target of targets) {
         if (item.sentTargets.includes(target.id)) continue;
         try {
-          await sendDirect(item.message, target);
+          const delivery = await sendDirect(item.message, target, {
+            offerId: item.id,
+            category: item.category,
+            existing: item.trackingByTarget[target.id]
+          });
+          item.trackingByTarget[target.id] = delivery.tracking;
           item.sentTargets.push(target.id);
           delete item.targetErrors[target.id];
           item.error = null;
           successfulDeliveries += 1;
-          console.log(`[FILA] Oferta ${item.id} enviada para ${target.name}.`);
+          const trackingStatus = delivery.tracking?.status || 'not_applicable';
+          console.log(`[FILA] Oferta ${item.id} enviada para ${target.name}. Rastreamento: ${trackingStatus}.`);
         } catch (error) {
+          if (error?.trackingRecord) item.trackingByTarget[target.id] = error.trackingRecord;
           const message = String(error?.message || error || 'Falha desconhecida');
           item.targetErrors[target.id] = { message, at: new Date().toISOString() };
           item.error = `Falha em ${Object.keys(item.targetErrors).length} grupo(s). O bot continuou para os demais.`;
@@ -326,12 +377,29 @@ export async function sendMessageToConfiguredGroups(message, category = null) {
   if (block) return { ok: false, error: block, results: [] };
   const groups = category ? escolherGruposPorCategoria(settings, category) : gruposAutorizados(settings);
   const results = [];
+  const directOfferId = `direct_${Date.now()}`;
   for (const group of groups) {
     try {
-      await sendDirect(message, group);
-      results.push({ ok: true, groupId: group.id, groupName: group.name, category: group.category });
+      const delivery = await sendDirect(message, group, {
+        offerId: directOfferId,
+        category: category || group.category || 'geral'
+      });
+      results.push({
+        ok: true,
+        groupId: group.id,
+        groupName: group.name,
+        category: group.category,
+        tracking: delivery.tracking?.status || 'not_applicable'
+      });
     } catch (error) {
-      results.push({ ok: false, groupId: group.id, groupName: group.name, category: group.category, error: String(error?.message || error) });
+      results.push({
+        ok: false,
+        groupId: group.id,
+        groupName: group.name,
+        category: group.category,
+        tracking: error?.trackingRecord?.status || 'fallback',
+        error: String(error?.message || error)
+      });
     }
     await sleep(SEND_DELAY_MS);
   }
@@ -353,7 +421,7 @@ export async function sendMessageToConfiguredGroups(message, category = null) {
 export function getDiagnostics() {
   const settings = getSettings();
   return {
-    version: '2.0.0',
+    version: '2.1.0',
     status,
     serverTime: horaServidor(),
     uptimeSeconds: Math.round(process.uptime()),
@@ -370,6 +438,7 @@ export function getDiagnostics() {
     },
     runtime: getRuntime(),
     queue: getQueueSummary(),
+    shopeeTracking: getShopeeTrackingConfiguration(),
     dataFiles: { dataDir: DATA_DIR, settings: SETTINGS_FILE, queue: QUEUE_FILE, runtime: RUNTIME_FILE },
     timeZone: TIME_ZONE
   };
