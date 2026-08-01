@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import { spawn } from 'node:child_process';
+import crypto from 'node:crypto';
 
 process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
 const { buscarProdutoMagalu, fecharMagaluBrowser } = await import('./magalu-service.js');
 const { buscarProdutoMagazineVoce } = await import('./magazinevoce-service.js');
 const { resolverLinkShopee, fecharShopeeBrowser } = await import('./shopee-link-service.js');
+const { gerarLinkRastreadoShopee } = await import('./shopee-affiliate-service.js');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -14,6 +16,9 @@ const GATEWAY_URL = `http://127.0.0.1:${GATEWAY_PORT}`;
 const BOT_URL = String(process.env.BOT_PANEL_URL || 'https://bot.achoulevoubot.uk').replace(/\/+$/, '');
 const BOT_USER = process.env.BOT_PANEL_USER || 'julio';
 const BOT_PASSWORD = process.env.BOT_PANEL_PASSWORD || 'AchouLevou2026';
+const SHOPEE_TRACKING_TOKEN = String(process.env.SHOPEE_TRACKING_TOKEN || '').trim();
+const SHOPEE_TRACKING_LIMIT = Math.max(20, Number(process.env.SHOPEE_TRACKING_LIMIT_PER_10_MIN || 120));
+const trackingRequests = [];
 
 app.use(cors({
   origin: '*',
@@ -37,6 +42,29 @@ gatewayProcess.on('exit', (code, signal) => {
 
 function authHeader() {
   return `Basic ${Buffer.from(`${BOT_USER}:${BOT_PASSWORD}`).toString('base64')}`;
+}
+
+function comparacaoSegura(recebido = '', esperado = '') {
+  const a = Buffer.from(String(recebido || ''));
+  const b = Buffer.from(String(esperado || ''));
+  return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
+}
+
+function rastreamentoAutorizado(req) {
+  const recebido = String(req.get('authorization') || '').trim();
+  if (SHOPEE_TRACKING_TOKEN) {
+    return comparacaoSegura(recebido, `Bearer ${SHOPEE_TRACKING_TOKEN}`);
+  }
+  return comparacaoSegura(recebido, authHeader());
+}
+
+function dentroDoLimiteDeRastreamento() {
+  const agora = Date.now();
+  const inicio = agora - 10 * 60 * 1000;
+  while (trackingRequests.length && trackingRequests[0] < inicio) trackingRequests.shift();
+  if (trackingRequests.length >= SHOPEE_TRACKING_LIMIT) return false;
+  trackingRequests.push(agora);
+  return true;
 }
 
 function ehLinkProdutoMagalu(valor = '') {
@@ -124,6 +152,55 @@ async function lerJsonDoBot(caminho, res) {
     return res.status(502).json({ ok: false, error: 'Não foi possível consultar o robô.', detalhe });
   }
 }
+
+app.post('/shopee/rastrear', async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+
+  if (!rastreamentoAutorizado(req)) {
+    return res.status(401).json({ ok: false, error: 'Rastreamento não autorizado.' });
+  }
+  if (!dentroDoLimiteDeRastreamento()) {
+    return res.status(429).json({ ok: false, error: 'Limite temporário de geração de links atingido.' });
+  }
+
+  const linkOriginal = String(req.body?.originUrl || req.body?.url || req.body?.link || '').trim();
+  const subIds = Array.isArray(req.body?.subIds) ? req.body.subIds : [];
+  if (!linkOriginal) return res.status(400).json({ ok: false, error: 'Informe o link da Shopee.' });
+  if (!subIds.length) return res.status(400).json({ ok: false, error: 'Informe os Sub_ids do rastreamento.' });
+
+  try {
+    let linkDestino = linkOriginal;
+    let resolucao = 'link-original';
+
+    if (ehLinkCurtoShopee(linkOriginal)) {
+      const conversao = await resolverLinkShopee(linkOriginal);
+      if (conversao?.ok && conversao.linkCompleto) {
+        linkDestino = conversao.linkCompleto;
+        resolucao = conversao.metodo || 'link-curto-resolvido';
+      }
+    }
+
+    const resultado = await gerarLinkRastreadoShopee({ originUrl: linkDestino, subIds });
+    return res.json({
+      ok: true,
+      shortLink: resultado.shortLink,
+      subIds: resultado.subIds,
+      resolucao
+    });
+  } catch (error) {
+    const detalhe = error?.name === 'AbortError'
+      ? 'A Shopee demorou além do limite para responder.'
+      : String(error?.message || error);
+    console.error('[SHOPEE-TRACKING] Falha ao gerar link oficial:', detalhe);
+    return res.status(502).json({
+      ok: false,
+      error: 'A Shopee não conseguiu gerar o link rastreado agora.',
+      detalhe
+    });
+  }
+});
 
 app.get('/bot/queue', (_req, res) => lerJsonDoBot('/queue', res));
 

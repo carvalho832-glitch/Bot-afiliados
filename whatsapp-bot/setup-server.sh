@@ -18,6 +18,7 @@ npm install
 node --check server.js
 node --check bot-store.mjs
 node --check bot-engine.mjs
+node --check shopee-tracking.mjs
 bash -n start-production.sh
 
 # Preserva o timer, remove somente processos antigos que interferem no bot.

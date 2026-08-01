@@ -18,7 +18,10 @@ Backend seguro para gerar mensagens de venda usando Gemini.
 
 ```txt
 GEMINI_API_KEY=sua_chave_gemini
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-3.6-flash
+SHOPEE_APP_ID=seu_app_id
+SHOPEE_SECRET=seu_app_secret
+SHOPEE_TRACKING_TOKEN=um_token_longo_e_exclusivo
 ```
 
 7. Faça o deploy.
@@ -38,6 +41,17 @@ Se aparecer:
 ```
 
 A API está funcionando.
+
+## Rastreamento oficial da Shopee por grupo
+
+O endpoint protegido `POST /shopee/rastrear` usa a API oficial de Afiliados da
+Shopee para gerar um endereço `https://s.shopee.com.br/...` com até cinco
+Sub_ids. As credenciais `SHOPEE_APP_ID` e `SHOPEE_SECRET` ficam somente no
+Render e nunca são enviadas ao navegador ou ao WhatsApp.
+
+O robô chama essa rota automaticamente no momento de entregar a oferta a cada
+grupo. Configure o mesmo `SHOPEE_TRACKING_TOKEN` no Render e no `.env` do robô.
+Se a API estiver indisponível, o robô mantém o link original e continua a fila.
 
 ## Endpoint
 

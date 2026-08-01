@@ -277,6 +277,33 @@ export function setQueueRunning(value) {
   return saveRuntime({ queueRunning: Boolean(value), nextRunAt: value ? runtime.nextRunAt : null });
 }
 
+function normalizeTrackingByTarget(value = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const result = {};
+
+  for (const [targetId, raw] of Object.entries(value)) {
+    const id = String(targetId || '').trim();
+    if (!id || !raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const status = ['tracked', 'fallback', 'not_applicable'].includes(raw.status)
+      ? raw.status
+      : 'fallback';
+    const links = (Array.isArray(raw.links) ? raw.links : []).slice(0, 3).map(link => ({
+      originalUrl: String(link?.originalUrl || '').trim(),
+      shortLink: String(link?.shortLink || '').trim()
+    })).filter(link => link.originalUrl);
+
+    result[id] = {
+      status,
+      links,
+      subIds: (Array.isArray(raw.subIds) ? raw.subIds : []).slice(0, 5).map(String),
+      generatedAt: raw.generatedAt || null,
+      error: raw.error ? String(raw.error).slice(0, 300) : null
+    };
+  }
+
+  return result;
+}
+
 function normalizeQueueItem(raw = {}) {
   return {
     id: String(raw.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`),
@@ -291,6 +318,7 @@ function normalizeQueueItem(raw = {}) {
     countedAt: raw.countedAt || null,
     lastAttemptAt: raw.lastAttemptAt || null,
     retryAfter: Number(raw.retryAfter || 0),
+    trackingByTarget: normalizeTrackingByTarget(raw.trackingByTarget),
     error: raw.error || null
   };
 }
