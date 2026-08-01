@@ -1,6 +1,7 @@
 const GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-3.6-flash';
-const REQUEST_TIMEOUT_MS = Math.max(5000, Number(process.env.GEMINI_TIMEOUT_MS || 40000));
+const DEFAULT_FALLBACK_MODEL = 'gemini-2.5-flash';
+const REQUEST_TIMEOUT_MS = Math.max(5000, Number(process.env.GEMINI_TIMEOUT_MS || 85000));
 const MAX_REQUESTS_PER_HOUR = Math.max(10, Number(process.env.GEMINI_MAX_REQUESTS_PER_HOUR || 120));
 const requestWindows = new Map();
 let proximoInicioGemini = 0;
@@ -343,10 +344,12 @@ function erroTemporarioGemini(error) {
 
 function atrasoDaTentativa(error, tentativa) {
   const base = numeroConfigurado('GEMINI_RETRY_BASE_MS', 5000, 1, 15000);
+  const limite = numeroConfigurado('GEMINI_MAX_RETRY_DELAY_MS', 60000, 1000, 75000);
   const calculado = base * (2 ** Math.max(0, tentativa - 1));
   const sugerido = Number(error?.retryAfterMs || 0);
   const jitter = Math.floor(Math.random() * Math.min(800, base * 0.2));
-  return Math.min(16000, Math.max(calculado, sugerido) + jitter);
+  const atrasoDaApi = sugerido > 0 ? sugerido + 750 : 0;
+  return Math.min(limite, Math.max(calculado, atrasoDaApi) + jitter);
 }
 
 function criarPrompt(dados) {
@@ -538,17 +541,22 @@ function interpretarCriacao(texto = '') {
   throw new Error('O Gemini devolveu um formato inesperado.');
 }
 
-function configGeracao({ comSchema }) {
+function configGeracao({ comSchema, model }) {
   const config = {
     temperature: 0.85,
     topP: 0.9,
     maxOutputTokens: 1600,
-    thinkingConfig: {
-      thinkingLevel: 'low',
-      includeThoughts: false
-    },
     responseMimeType: 'application/json'
   };
+
+  // thinkingLevel pertence aos modelos Gemini 3. Nos modelos de reserva 2.5,
+  // omitir o campo evita rejeição por incompatibilidade da configuração.
+  if (/^gemini-3(?:\.|-|$)/i.test(model)) {
+    config.thinkingConfig = {
+      thinkingLevel: 'low',
+      includeThoughts: false
+    };
+  }
 
   if (comSchema) config.responseJsonSchema = CRIACAO_SCHEMA;
   return config;
@@ -591,7 +599,9 @@ async function requisitarGemini({ apiKey, model, dados, generationConfig, signal
 }
 
 async function requisitarGeminiComRetentativas(opcoes) {
-  const maxTentativas = Math.round(numeroConfigurado('GEMINI_MAX_RETRIES', 3, 1, 4));
+  const maxTentativas = Number.isFinite(Number(opcoes.maxTentativas))
+    ? Math.max(1, Math.min(4, Math.round(Number(opcoes.maxTentativas))))
+    : Math.round(numeroConfigurado('GEMINI_MAX_RETRIES', 2, 1, 4));
   let ultimoErro = null;
 
   for (let tentativa = 1; tentativa <= maxTentativas; tentativa += 1) {
@@ -622,9 +632,50 @@ function podeTentarSemSchema(error) {
   return Number(error?.statusCode || 0) === 400 || /formato inesperado|json|schema|invalid argument|unknown name/i.test(mensagem);
 }
 
+async function consultarModeloGemini({ apiKey, model, dados, signal, maxTentativas }) {
+  let ultimoErro = null;
+  for (const comSchema of [true, false]) {
+    try {
+      const criacao = await requisitarGeminiComRetentativas({
+        apiKey,
+        model,
+        dados,
+        generationConfig: configGeracao({ comSchema, model }),
+        signal,
+        maxTentativas
+      });
+
+      const local = criacaoLocal(dados.produto);
+      const titulo = limparCampoCriativo(criacao?.titulo || local.titulo, 150);
+      const gancho = limparCampoCriativo(criacao?.gancho || local.gancho, 130);
+      const beneficio = limparCampoCriativo(criacao?.beneficio || local.beneficio, 150);
+      const cta = limparCampoCriativo(criacao?.cta || local.cta, 70);
+      if (!titulo || !gancho || !beneficio || !cta) {
+        throw new Error('O Gemini não devolveu os campos de venda válidos.');
+      }
+
+      return { titulo, gancho, beneficio, cta, model };
+    } catch (error) {
+      ultimoErro = error;
+      if (comSchema && podeTentarSemSchema(error)) {
+        console.warn('[GEMINI] Saída estruturada incompatível. Repetindo em modo JSON simples:', error.message);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw ultimoErro || new Error(`O modelo ${model} não respondeu.`);
+}
+
 async function consultarGemini(dados) {
   const apiKey = limpar(process.env.GEMINI_API_KEY || '', 300);
-  const model = limpar(process.env.GEMINI_MODEL || DEFAULT_MODEL, 100) || DEFAULT_MODEL;
+  const modelPrincipal = limpar(process.env.GEMINI_MODEL || DEFAULT_MODEL, 100) || DEFAULT_MODEL;
+  const modelReserva = limpar(
+    process.env.GEMINI_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL,
+    100
+  ) || DEFAULT_FALLBACK_MODEL;
+  const modelos = [...new Set([modelPrincipal, modelReserva].filter(Boolean))];
   if (!apiKey) throw new Error('GEMINI_API_KEY não configurada no servidor.');
 
   const controller = new AbortController();
@@ -632,30 +683,26 @@ async function consultarGemini(dados) {
 
   try {
     let ultimoErro = null;
-    for (const comSchema of [true, false]) {
+    for (let indice = 0; indice < modelos.length; indice += 1) {
+      const model = modelos[indice];
+      const temProximoModelo = indice < modelos.length - 1;
       try {
-        const criacao = await requisitarGeminiComRetentativas({
+        return await consultarModeloGemini({
           apiKey,
           model,
           dados,
-          generationConfig: configGeracao({ comSchema }),
-          signal: controller.signal
+          signal: controller.signal,
+          // Se o 3.6 estiver limitado, troca logo para outro Gemini. O último
+          // modelo aguarda o tempo indicado pela API antes de desistir.
+          maxTentativas: temProximoModelo ? 1 : undefined
         });
-
-        const local = criacaoLocal(dados.produto);
-        const titulo = limparCampoCriativo(criacao?.titulo || local.titulo, 150);
-        const gancho = limparCampoCriativo(criacao?.gancho || local.gancho, 130);
-        const beneficio = limparCampoCriativo(criacao?.beneficio || local.beneficio, 150);
-        const cta = limparCampoCriativo(criacao?.cta || local.cta, 70);
-        if (!titulo || !gancho || !beneficio || !cta) {
-          throw new Error('O Gemini não devolveu os campos de venda válidos.');
-        }
-
-        return { titulo, gancho, beneficio, cta, model };
       } catch (error) {
         ultimoErro = error;
-        if (comSchema && podeTentarSemSchema(error)) {
-          console.warn('[GEMINI] Saída estruturada incompatível. Repetindo em modo JSON simples:', error.message);
+        if (temProximoModelo && erroTemporarioGemini(error)) {
+          console.warn(
+            `[GEMINI] ${model} temporariamente indisponível. Tentando ${modelos[indice + 1]}:`,
+            error.message
+          );
           continue;
         }
         throw error;
