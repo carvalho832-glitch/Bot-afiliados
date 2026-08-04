@@ -1,13 +1,13 @@
 {
   "schema": 1,
-  "release": "2026.08.04.1",
-  "uiVersion": "1.0.0",
-  "minimumShellVersion": 1800,
+  "release": "2026.08.04.2",
+  "uiVersion": "1.1.0",
+  "minimumShellVersion": 1801,
   "panelUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/",
   "shopeeUrl": "https://affiliate.shopee.com.br/offer/product_offer",
   "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/?v=87",
   "modules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/shopee.js?v=1",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/shopee.js?v=2",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/achou-levou.js?v=1"
   },
   "allowedHosts": [
@@ -21,6 +21,7 @@
     "remoteDashboard": true,
     "classicFallback": true,
     "remoteModules": true,
+    "desktopToggle": true,
     "sharedQueueApi": false
   }
 }
