@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "release": "2026.08.04.4",
-  "uiVersion": "1.3.0",
+  "release": "2026.08.04.5",
+  "uiVersion": "1.3.1",
   "minimumShellVersion": 1801,
   "panelUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/",
   "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json",
@@ -26,6 +26,7 @@
     "desktopViewport": "1440x25%",
     "sharedQueueApi": true,
     "verifiedSave": true,
-    "showClassicRelease": true
+    "showClassicRelease": true,
+    "cacheCompatibilityRepair": true
   }
 }
