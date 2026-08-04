@@ -3,13 +3,14 @@
 
   const BASE = new URL('.', location.href);
   const CONFIG_URL = new URL('config.json', BASE).href;
-  const CLASSIC_CONFIG_URL = new URL('classic-config.json', BASE).href;
+  const DEFAULT_CLASSIC_CONFIG_URL = new URL('classic-config.json', BASE).href;
   const state = {
     config: null,
     classicConfig: null,
     queue: readJson('radar_remote_queue', []),
     lastCheck: null
   };
+
   const $ = id => document.getElementById(id);
 
   function nativeAvailable() {
@@ -28,8 +29,44 @@
     localStorage.setItem(key, JSON.stringify(value));
   }
 
+  function setText(id, value) {
+    const element = $(id);
+    if (element) element.textContent = value;
+  }
+
+  function ensureCurrentMarkup() {
+    const hero = document.querySelector('.hero');
+    const panelBadge = $('version');
+
+    if (hero && panelBadge && !$('classic-version')) {
+      let badges = hero.querySelector('.release-badges');
+      if (!badges) {
+        badges = document.createElement('div');
+        badges.className = 'release-badges';
+        panelBadge.replaceWith(badges);
+        badges.appendChild(panelBadge);
+      }
+
+      const classicBadge = document.createElement('span');
+      classicBadge.id = 'classic-version';
+      classicBadge.className = 'badge classic-badge';
+      classicBadge.textContent = 'clássico carregando';
+      badges.appendChild(classicBadge);
+    }
+
+    const details = document.querySelector('.details');
+    if (details && !$('classic-module-version')) {
+      const item = document.createElement('div');
+      item.innerHTML = '<span>Clássico</span><strong id="classic-module-version">-</strong>';
+      const lastCheck = $('last-check')?.parentElement;
+      if (lastCheck) details.insertBefore(item, lastCheck);
+      else details.appendChild(item);
+    }
+  }
+
   function toast(message) {
     const box = $('toast');
+    if (!box) return;
     box.textContent = message;
     box.classList.add('show');
     clearTimeout(toast.t);
@@ -45,18 +82,22 @@
   }
 
   async function fetchJson(url) {
-    const response = await fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' });
+    const separator = url.includes('?') ? '&' : '?';
+    const response = await fetch(`${url}${separator}t=${Date.now()}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
   }
 
   async function loadConfig(showToast = false) {
-    $('status').textContent = 'Buscando painel e módulos clássicos no servidor...';
+    ensureCurrentMarkup();
+    setText('status', 'Buscando painel e módulos clássicos no servidor...');
 
-    const [panelResult, classicResult] = await Promise.allSettled([
-      fetchJson(CONFIG_URL),
-      fetchJson(CLASSIC_CONFIG_URL)
-    ]);
+    let panelResult;
+    try {
+      panelResult = { status: 'fulfilled', value: await fetchJson(CONFIG_URL) };
+    } catch (error) {
+      panelResult = { status: 'rejected', reason: error };
+    }
 
     if (panelResult.status === 'fulfilled') {
       state.config = panelResult.value;
@@ -68,10 +109,11 @@
       state.config = readJson('radar_remote_config', null);
     }
 
-    if (classicResult.status === 'fulfilled') {
-      state.classicConfig = classicResult.value;
+    const classicUrl = state.config?.classicConfigUrl || DEFAULT_CLASSIC_CONFIG_URL;
+    try {
+      state.classicConfig = await fetchJson(classicUrl);
       saveJson('radar_classic_remote_config', state.classicConfig);
-    } else {
+    } catch (error) {
       state.classicConfig = readJson('radar_classic_remote_config', null);
     }
 
@@ -86,8 +128,9 @@
   }
 
   function renderQueue() {
-    $('queue-count').textContent = String(state.queue.length);
+    setText('queue-count', String(state.queue.length));
     const box = $('queue');
+    if (!box) return;
 
     if (!state.queue.length) {
       box.className = 'queue empty';
@@ -108,24 +151,26 @@
   }
 
   function render() {
+    ensureCurrentMarkup();
+
     const config = state.config;
     const classic = state.classicConfig;
     const shellVersion = nativeAvailable() && RadarNative.getShellVersion
       ? RadarNative.getShellVersion()
       : 'navegador';
 
-    $('status').textContent = nativeAvailable()
-      ? 'APK-casca conectado. Painel e clássico consultados separadamente.'
-      : 'Modo navegador. Abra pelo Radar IA para usar a automação.';
-
-    $('version').textContent = config ? `painel ${config.release}` : 'painel offline';
-    $('classic-version').textContent = classic
-      ? `clássico ${classic.release}`
-      : 'clássico offline';
-    $('ui-version').textContent = config?.uiVersion || '-';
-    $('module-version').textContent = shellVersion;
-    $('classic-module-version').textContent = classic?.release || '-';
-    $('last-check').textContent = state.lastCheck || '-';
+    setText(
+      'status',
+      nativeAvailable()
+        ? 'APK-casca conectado. Painel e clássico consultados separadamente.'
+        : 'Modo navegador. Abra pelo Radar IA para usar a automação.'
+    );
+    setText('version', config ? `painel ${config.release}` : 'painel offline');
+    setText('classic-version', classic ? `clássico ${classic.release}` : 'clássico offline');
+    setText('ui-version', config?.uiVersion || '-');
+    setText('module-version', shellVersion);
+    setText('classic-module-version', classic?.release || '-');
+    setText('last-check', state.lastCheck || '-');
     renderQueue();
   }
 
@@ -188,11 +233,20 @@
     if (button) handleAction(button.dataset.action);
   });
 
-  $('refresh').addEventListener('click', () => loadConfig(true));
+  $('refresh')?.addEventListener('click', () => loadConfig(true));
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloading) return;
+      reloading = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register('sw.js?v=3', { updateViaCache: 'none' })
+      .then(registration => registration.update())
+      .catch(() => {});
   }
 
+  ensureCurrentMarkup();
   loadConfig(false);
 })();
