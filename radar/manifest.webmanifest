@@ -1,0 +1,10 @@
+{
+  "name": "Radar IA",
+  "short_name": "Radar IA",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#050b14",
+  "theme_color": "#07111f",
+  "description": "Painel atualizável do Radar IA Mobile"
+}
