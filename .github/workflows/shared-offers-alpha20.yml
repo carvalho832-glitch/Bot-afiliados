@@ -1,0 +1,62 @@
+name: Validar fila compartilhada Alpha 20
+
+on:
+  push:
+    branches:
+      - 'agent/shared-offers-alpha20'
+    paths:
+      - 'api/shared-offers-preload.js'
+      - 'api/package.json'
+      - 'api/test/shared-offers.test.mjs'
+      - 'shared-offers-client.js'
+      - 'radar/modules/classic-achou-levou.js'
+      - 'radar/classic-config.json'
+      - 'sw.js'
+      - '.github/workflows/shared-offers-alpha20.yml'
+  pull_request:
+    paths:
+      - 'api/shared-offers-preload.js'
+      - 'api/package.json'
+      - 'api/test/shared-offers.test.mjs'
+      - 'shared-offers-client.js'
+      - 'radar/modules/classic-achou-levou.js'
+      - 'radar/classic-config.json'
+      - 'sw.js'
+      - '.github/workflows/shared-offers-alpha20.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Instalar dependências sem baixar navegador
+        working-directory: api
+        run: npm ci --ignore-scripts
+
+      - name: Validar sintaxe da API
+        working-directory: api
+        run: npm run check
+
+      - name: Validar módulos do navegador
+        run: |
+          node --check shared-offers-client.js
+          node --check radar/modules/classic-achou-levou.js
+          node --check sw.js
+
+      - name: Testar fila compartilhada
+        working-directory: api
+        run: node --test test/shared-offers.test.mjs
