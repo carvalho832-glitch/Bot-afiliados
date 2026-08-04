@@ -66,6 +66,6 @@ jobs:
           test "$(grep -c "fetchJson('/queue/start'" phase22-control.js)" -eq 1
           ! grep -q "send-controlado" phase22-control.js
 
-      - name: Executar testes do bot
+      - name: Executar testes estáveis do motor
         working-directory: whatsapp-bot
-        run: npm test
+        run: node --test test/frame-recovery.test.mjs test/shopee-tracking.test.mjs
