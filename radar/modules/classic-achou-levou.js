@@ -1,10 +1,11 @@
 (() => {
   'use strict';
 
-  const VERSION = '2.0.0';
+  const VERSION = '2.1.0';
   const API_BASE = 'https://bot-afiliados-1fwi.onrender.com';
   const ENDPOINT = `${API_BASE}/shared/offers`;
   const STORAGE_KEY = 'ofertas_achou_levou';
+  const REQUEST_TIMEOUT_MS = 45000;
   const root = window.RadarClassicRemote = window.RadarClassicRemote || {};
 
   if (root.achouLevouVersion === VERSION) return;
@@ -23,36 +24,14 @@
   };
 
   const clean = value => String(value || '').replace(/\r\n/g, '\n').trim();
-  const originalStorageSetItem = Storage.prototype.setItem;
   const state = {
-    active: false,
+    saving: false,
     confirmed: false,
     error: '',
     lastOfferId: ''
   };
 
-  function xhrJson(method, url, body) {
-    const xhr = new XMLHttpRequest();
-    xhr.open(method, url, false);
-    xhr.setRequestHeader('Accept', 'application/json');
-    xhr.setRequestHeader('Cache-Control', 'no-cache');
-    if (body !== undefined) xhr.setRequestHeader('Content-Type', 'application/json');
-
-    try {
-      xhr.send(body === undefined ? null : JSON.stringify(body));
-    } catch (error) {
-      throw new Error(`A fila compartilhada não respondeu: ${error.message}`);
-    }
-
-    let json = null;
-    try { json = JSON.parse(xhr.responseText || '{}'); } catch {}
-    if (xhr.status < 200 || xhr.status >= 300 || !json?.ok) {
-      throw new Error(json?.error || `A fila compartilhada respondeu com HTTP ${xhr.status || 0}.`);
-    }
-    return json;
-  }
-
-  function toLocal(item = {}) {
+  function normalizeRemote(item = {}) {
     const message = clean(item.message || item.mensagem || item.texto || item.text || '');
     return {
       id: item.id,
@@ -72,13 +51,12 @@
     };
   }
 
-  function writeConfirmedLocal(remoteOffers) {
+  function applyRemoteList(remoteOffers) {
     const local = (Array.isArray(remoteOffers) ? remoteOffers : [])
-      .map(toLocal)
+      .map(normalizeRemote)
       .filter(item => item.texto);
 
-    state.confirmed = true;
-    originalStorageSetItem.call(localStorage, STORAGE_KEY, JSON.stringify(local));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(local));
 
     try {
       if (typeof ofertasSet !== 'undefined' && Array.isArray(ofertasSet)) {
@@ -86,13 +64,48 @@
       }
       if (typeof renderizarOfertas === 'function') renderizarOfertas();
     } catch (error) {
-      console.warn('[RADAR-SHARED] A fila foi salva, mas a lista visual não pôde ser redesenhada:', error);
+      console.warn('[RADAR-SHARED] Lista confirmada, mas a tela não redesenhou:', error);
     }
 
     window.dispatchEvent(new CustomEvent('achoulevou:ofertas-atualizadas', {
       detail: { total: local.length, shared: true, confirmed: true }
     }));
     return local;
+  }
+
+  async function request(path = '', options = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(`${ENDPOINT}${path}`, {
+        ...options,
+        headers: {
+          Accept: 'application/json',
+          ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+          ...(options.headers || {})
+        },
+        cache: 'no-store',
+        credentials: 'omit',
+        signal: controller.signal
+      });
+
+      const text = await response.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch {}
+
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error || `A fila compartilhada respondeu com HTTP ${response.status}.`);
+      }
+      return json;
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new Error('A fila compartilhada demorou demais para responder.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   function currentOffer() {
@@ -102,28 +115,32 @@
       if (typeof ofertasSet !== 'undefined' && Array.isArray(ofertasSet)) candidate = ofertasSet[0];
     } catch {}
 
-    const message = clean(
-      candidate?.texto || candidate?.mensagem ||
-      document.getElementById(ids.message)?.innerText ||
-      window.__ultimaMensagemAchouLevou || ''
-    );
-    const link = clean(candidate?.link || document.getElementById(ids.link)?.value || '');
+    const screenMessage = clean(document.getElementById(ids.message)?.innerText || '');
+    const latestMessage = clean(window.__ultimaMensagemAchouLevou || '');
+    const message = !/aguardando gera[cç][aã]o/i.test(screenMessage)
+      ? screenMessage
+      : latestMessage || clean(candidate?.texto || candidate?.mensagem || '');
+
+    const screenLink = clean(document.getElementById(ids.link)?.value || '');
+    const link = screenLink || clean(candidate?.link || '');
 
     return {
       source: 'radar-ia-classic',
       sourceId: clean(window.__radarCurrentQueueItemId || candidate?.sourceId || ''),
-      title: clean(candidate?.titulo || document.getElementById(ids.title)?.value || ''),
-      price: clean(candidate?.preco || document.getElementById(ids.price)?.value || ''),
-      oldPrice: clean(candidate?.precoAntigo || document.getElementById(ids.oldPrice)?.value || ''),
-      coupon: clean(candidate?.cupom || document.getElementById(ids.coupon)?.value || ''),
-      image: clean(candidate?.imagem || window.__produtoImagemAtual || ''),
+      title: clean(document.getElementById(ids.title)?.value || candidate?.titulo || ''),
+      price: clean(document.getElementById(ids.price)?.value || candidate?.preco || ''),
+      oldPrice: clean(document.getElementById(ids.oldPrice)?.value || candidate?.precoAntigo || ''),
+      coupon: clean(document.getElementById(ids.coupon)?.value || candidate?.cupom || ''),
+      image: clean(window.__produtoImagemAtual || candidate?.imagem || ''),
       link,
       message
     };
   }
 
-  function saveSharedSynchronously() {
-    state.active = true;
+  async function saveShared() {
+    if (state.saving) throw new Error('A oferta já está sendo salva.');
+
+    state.saving = true;
     state.confirmed = false;
     state.error = '';
     state.lastOfferId = '';
@@ -135,63 +152,88 @@
       }
       if (!offer.link) throw new Error('O link de afiliado está vazio.');
 
-      const saved = xhrJson('POST', ENDPOINT, offer);
-      const id = encodeURIComponent(saved.offer?.id || '');
-      if (!id) throw new Error('A API não devolveu o ID da oferta.');
+      const saved = await request('', {
+        method: 'POST',
+        body: JSON.stringify(offer)
+      });
 
-      const verified = xhrJson('GET', `${ENDPOINT}/${id}`);
-      if (String(verified.offer?.id || '') !== String(saved.offer.id)) {
+      const rawId = String(saved.offer?.id || '');
+      if (!rawId) throw new Error('A API não devolveu o ID da oferta.');
+
+      const verified = await request(`/${encodeURIComponent(rawId)}`);
+      if (String(verified.offer?.id || '') !== rawId) {
         throw new Error('O ID devolvido não apareceu na consulta de confirmação.');
       }
 
-      const list = xhrJson('GET', ENDPOINT);
+      const list = await request('');
       const offers = Array.isArray(list.offers) ? list.offers : [];
-      if (!offers.some(item => String(item.id) === String(saved.offer.id))) {
+      if (!offers.some(item => String(item.id) === rawId)) {
         throw new Error('A oferta não apareceu na fila compartilhada após a gravação.');
       }
 
-      writeConfirmedLocal(offers);
-      state.lastOfferId = String(saved.offer.id);
-      state.active = false;
-      return saved;
+      applyRemoteList(offers);
+      state.confirmed = true;
+      state.lastOfferId = rawId;
+      return { ...saved, verified: true, offers };
     } catch (error) {
       state.error = String(error?.message || error);
       state.confirmed = false;
-      // Mantemos active=true para bloquear o fallback local do código nativo.
       throw error;
+    } finally {
+      state.saving = false;
     }
   }
-
-  Storage.prototype.setItem = function radarSharedSetItem(key, value) {
-    if (this === localStorage && key === STORAGE_KEY && state.active && !state.confirmed) {
-      throw new Error(state.error || 'A oferta não recebeu confirmação da fila compartilhada.');
-    }
-    return originalStorageSetItem.call(this, key, value);
-  };
-
-  window.salvarOfertas = function salvarOfertasCompartilhadas() {
-    return saveSharedSynchronously();
-  };
 
   async function syncFromServer() {
     try {
-      const response = await fetch(`${ENDPOINT}?t=${Date.now()}`, {
-        headers: { Accept: 'application/json' },
-        cache: 'no-store',
-        credentials: 'omit'
-      });
-      const json = await response.json();
-      if (!response.ok || !json?.ok || !Array.isArray(json.offers)) return;
-      state.active = false;
+      const list = await request('');
+      const offers = Array.isArray(list.offers) ? list.offers : [];
+      applyRemoteList(offers);
       state.confirmed = true;
-      writeConfirmedLocal(json.offers);
-      state.active = false;
+      return offers;
     } catch (error) {
-      console.warn('[RADAR-SHARED] Sincronização inicial indisponível:', error.message);
+      state.error = String(error?.message || error);
+      console.warn('[RADAR-SHARED] Sincronização inicial indisponível:', state.error);
+      return null;
     }
   }
 
-  root.saveSharedAchouLevou = saveSharedSynchronously;
+  function showMessage(message) {
+    if (typeof window.appAlert === 'function') return window.appAlert(message);
+    window.alert(message);
+    return Promise.resolve();
+  }
+
+  function installSaveInterceptor() {
+    const button = document.getElementById(root.selectors.achouLevou.save);
+    if (!button || button.dataset.radarSharedSave === VERSION) return;
+    button.dataset.radarSharedSave = VERSION;
+
+    button.addEventListener('click', async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+
+      const original = button.innerText;
+      button.disabled = true;
+      button.innerText = '☁️ Salvando e confirmando...';
+
+      try {
+        const result = await saveShared();
+        button.innerText = '✅ Salva e confirmada';
+        await showMessage(`Oferta salva na fila compartilhada.\n\nID: ${result.offer.id}`);
+      } catch (error) {
+        button.innerText = '❌ Não foi salva';
+        await showMessage(`A oferta não foi salva no Achou Levou.\n\n${error.message}`);
+      } finally {
+        button.disabled = false;
+        setTimeout(() => { button.innerText = original; }, 2200);
+      }
+    }, true);
+  }
+
+  window.salvarOfertas = saveShared;
+  root.saveSharedAchouLevou = saveShared;
   root.syncSharedAchouLevou = syncFromServer;
 
   root.probeAchouLevou = () => {
@@ -208,7 +250,7 @@
       shared: {
         endpoint: ENDPOINT,
         confirmed: state.confirmed,
-        active: state.active,
+        saving: state.saving,
         error: state.error,
         lastOfferId: state.lastOfferId
       },
@@ -218,7 +260,7 @@
 
   root.beforePrepareAchouLevou = () => {
     const ids = root.selectors.achouLevou;
-    const required = [ids.link, ids.title, ids.price, ids.message];
+    const required = [ids.link, ids.title, ids.price, ids.message, ids.save];
     return {
       handled: required.every(id => !!document.getElementById(id)),
       missing: required.filter(id => !document.getElementById(id)),
@@ -232,9 +274,11 @@
     version: VERSION,
     ready: true,
     shared: true,
+    verifiedSave: true,
     endpoint: ENDPOINT,
     loadedAt: Date.now()
   };
 
+  installSaveInterceptor();
   syncFromServer();
 })();
