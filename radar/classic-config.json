@@ -1,15 +1,17 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.04.1",
+  "release": "classic-2026.08.04.2-shared",
   "minimumClassicVersion": 1900,
   "classicModules": {
     "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee.js?v=1",
-    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou.js?v=1"
+    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou.js?v=2"
   },
   "features": {
     "classicAsHome": true,
     "remoteModules": true,
     "moduleCache": true,
-    "sharedQueueApi": false
+    "sharedQueueApi": true,
+    "verifiedSave": true,
+    "sharedOffersEndpoint": "https://bot-afiliados-1fwi.onrender.com/shared/offers"
   }
 }
