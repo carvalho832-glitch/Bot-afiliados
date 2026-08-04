@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07111f">
   <meta name="description" content="Painel atualizável do Radar IA Mobile">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=1">
+  <link rel="stylesheet" href="styles.css?v=2">
   <title>Radar IA</title>
 </head>
 <body>
@@ -25,7 +25,10 @@
         <h2>Central de automação</h2>
         <p id="status">Conectando ao aplicativo...</p>
       </div>
-      <span id="version" class="badge">carregando</span>
+      <div class="release-badges">
+        <span id="version" class="badge">painel carregando</span>
+        <span id="classic-version" class="badge classic-badge">clássico carregando</span>
+      </div>
     </section>
 
     <section class="grid">
@@ -47,7 +50,7 @@
       <button class="action" data-action="sync">
         <span class="action-icon">☁️</span>
         <strong>Buscar atualização</strong>
-        <small>Baixar configuração e módulos do servidor</small>
+        <small>Baixar configurações do painel e do clássico</small>
       </button>
     </section>
 
@@ -56,18 +59,19 @@
         <h2>Fila do Radar</h2>
         <span id="queue-count" class="badge">0</span>
       </div>
-      <p class="muted">A fila desta fase fica preservada no painel. A sincronização com o Achou Levou será ligada à API compartilhada.</p>
+      <p class="muted">Esta fila visual ainda pertence ao painel. As ofertas salvas no Achou Levou usam a fila compartilhada verificada.</p>
       <div id="queue" class="queue empty">Nenhum produto na fila remota.</div>
     </section>
 
     <section class="card details">
       <div><span>Interface</span><strong id="ui-version">-</strong></div>
-      <div><span>Módulos</span><strong id="module-version">-</strong></div>
+      <div><span>APK-casca</span><strong id="module-version">-</strong></div>
+      <div><span>Clássico</span><strong id="classic-module-version">-</strong></div>
       <div><span>Última busca</span><strong id="last-check">-</strong></div>
     </section>
   </main>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=1" defer></script>
+  <script src="app.js?v=2" defer></script>
 </body>
 </html>
