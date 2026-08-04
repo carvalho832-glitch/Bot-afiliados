@@ -5,6 +5,7 @@ on:
     branches:
       - 'agent/shared-offers-alpha20'
       - 'fix/shared-offers-alpha20-live'
+      - 'agent/verified-bot-queue-phase21'
     paths:
       - 'api/shared-offers-preload.js'
       - 'api/package.json'
@@ -57,7 +58,7 @@ jobs:
           node --check shared-offers-client.js
           node --check radar/modules/classic-achou-levou.js
           node --check sw.js
-          grep -q 'shared-offers-client.js?v=88' index.html
+          grep -Eq 'shared-offers-client\.js\?v=(88|89)' index.html
           grep -q 'classic-2026.08.04.3-shared-fix' radar/classic-config.json
 
       - name: Testar fila compartilhada
