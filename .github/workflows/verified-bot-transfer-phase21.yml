@@ -1,0 +1,48 @@
+name: Validar transferência verificada Fase 21
+
+on:
+  push:
+    branches:
+      - 'agent/verified-bot-queue-phase21'
+    paths:
+      - 'verified-bot-transfer.js'
+      - 'index.html'
+      - '.github/workflows/verified-bot-transfer-phase21.yml'
+  pull_request:
+    paths:
+      - 'verified-bot-transfer.js'
+      - 'index.html'
+      - '.github/workflows/verified-bot-transfer-phase21.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validar sintaxe do módulo
+        run: node --check verified-bot-transfer.js
+
+      - name: Validar publicação da interface 89
+        run: |
+          grep -F "const UI_VERSION = '89';" index.html
+          grep -F 'verified-bot-transfer.js?v=1' index.html
+          grep -F 'Fila compartilhada' index.html
+
+      - name: Validar travas de segurança
+        run: |
+          grep -F "event.stopImmediatePropagation()" verified-bot-transfer.js
+          grep -F "A fila não será iniciada" verified-bot-transfer.js
+          grep -F "releitura-da-fila" verified-bot-transfer.js
+          grep -F "Todas as ofertas já foram confirmadas" verified-bot-transfer.js
