@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="Painel atualizável do Radar IA Mobile">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css?v=1">
+  <title>Radar IA</title>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <span class="eyebrow">OFERTA BRUTA</span>
+      <h1>Radar IA</h1>
+    </div>
+    <button id="refresh" class="icon-button" aria-label="Atualizar">↻</button>
+  </header>
+
+  <main>
+    <section class="hero card">
+      <div class="orb">◉</div>
+      <div>
+        <h2>Central de automação</h2>
+        <p id="status">Conectando ao aplicativo...</p>
+      </div>
+      <span id="version" class="badge">carregando</span>
+    </section>
+
+    <section class="grid">
+      <button class="action primary" data-action="shopee">
+        <span class="action-icon">🛒</span>
+        <strong>Shopee Afiliados</strong>
+        <small>Abrir garimpo e ferramentas remotas</small>
+      </button>
+      <button class="action" data-action="achou">
+        <span class="action-icon">📦</span>
+        <strong>Achou Levou</strong>
+        <small>Criar, revisar e acompanhar ofertas</small>
+      </button>
+      <button class="action" data-action="classic">
+        <span class="action-icon">🧰</span>
+        <strong>Modo clássico</strong>
+        <small>Usar as funções já aprovadas no APK</small>
+      </button>
+      <button class="action" data-action="sync">
+        <span class="action-icon">☁️</span>
+        <strong>Buscar atualização</strong>
+        <small>Baixar configuração e módulos do servidor</small>
+      </button>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <h2>Fila do Radar</h2>
+        <span id="queue-count" class="badge">0</span>
+      </div>
+      <p class="muted">A fila desta fase fica preservada no painel. A sincronização com o Achou Levou será ligada à API compartilhada.</p>
+      <div id="queue" class="queue empty">Nenhum produto na fila remota.</div>
+    </section>
+
+    <section class="card details">
+      <div><span>Interface</span><strong id="ui-version">-</strong></div>
+      <div><span>Módulos</span><strong id="module-version">-</strong></div>
+      <div><span>Última busca</span><strong id="last-check">-</strong></div>
+    </section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js?v=1" defer></script>
+</body>
+</html>
