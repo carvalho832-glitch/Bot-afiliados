@@ -14,6 +14,9 @@ node --check server.js
 node --check bot-store.mjs
 node --check bot-engine.mjs
 node --check shopee-tracking.mjs
+node --check phase22-control.js
+node --check apply-phase22-panel.cjs
+node apply-phase22-panel.cjs
 
 EXPECTED_CHROME="$(node - <<'NODE'
 try {

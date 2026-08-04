@@ -1,0 +1,71 @@
+name: Validar assistente guiado Fase 22
+
+on:
+  pull_request:
+    paths:
+      - 'whatsapp-bot/phase22-control.js'
+      - 'whatsapp-bot/apply-phase22-panel.cjs'
+      - 'whatsapp-bot/start-production.sh'
+      - 'whatsapp-bot/package.json'
+      - 'whatsapp-bot/panel.html'
+      - '.github/workflows/phase22-guided-control.yml'
+  push:
+    branches:
+      - 'agent/phase22-guided-whatsapp-control'
+    paths:
+      - 'whatsapp-bot/phase22-control.js'
+      - 'whatsapp-bot/apply-phase22-panel.cjs'
+      - 'whatsapp-bot/start-production.sh'
+      - 'whatsapp-bot/package.json'
+      - 'whatsapp-bot/panel.html'
+      - '.github/workflows/phase22-guided-control.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências sem scripts
+        working-directory: whatsapp-bot
+        run: npm install --ignore-scripts
+
+      - name: Validar sintaxe
+        working-directory: whatsapp-bot
+        run: npm run check
+
+      - name: Validar injeção idempotente
+        working-directory: whatsapp-bot
+        run: |
+          node apply-phase22-panel.cjs
+          node apply-phase22-panel.cjs
+          test "$(grep -c 'PHASE22_GUIDED_CONTROL_START' panel.html)" -eq 1
+          grep -q "const VERSION = '22.0.0'" panel.html
+
+      - name: Validar travas de segurança
+        working-directory: whatsapp-bot
+        run: |
+          grep -q "07:30" phase22-control.js
+          grep -q "21:30" phase22-control.js
+          grep -q "intervalMinutes: 60" phase22-control.js
+          grep -q "offersPerBatch: 1" phase22-control.js
+          grep -q "dailyLimit: 15" phase22-control.js
+          grep -q "confirmationUntil" phase22-control.js
+          grep -q "fetchJson('/queue/stop'" phase22-control.js
+          test "$(grep -c "fetchJson('/queue/start'" phase22-control.js)" -eq 1
+          ! grep -q "send-controlado" phase22-control.js
+
+      - name: Executar testes estáveis do motor
+        working-directory: whatsapp-bot
+        run: node --test test/frame-recovery.test.mjs test/shopee-tracking.test.mjs
