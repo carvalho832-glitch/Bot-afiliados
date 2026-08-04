@@ -11,7 +11,7 @@
     <script>
         (function () {
             try {
-                const UI_VERSION = '88';
+                const UI_VERSION = '89';
                 const VERSION_KEY = 'achou_levou_ui_version';
                 const previousVersion = localStorage.getItem(VERSION_KEY);
 
@@ -74,15 +74,15 @@
         })();
     </script>
 
-    <link rel="manifest" href="manifest.json?v=88">
+    <link rel="manifest" href="manifest.json?v=89">
     <meta name="theme-color" content="#07111f" id="meta-theme-color">
-    <link rel="apple-touch-icon" href="icon.png?v=88">
+    <link rel="apple-touch-icon" href="icon.png?v=89">
 
-    <link rel="stylesheet" href="style.css?v=88">
-    <link rel="stylesheet" href="progress-style.css?v=88">
-    <link rel="stylesheet" href="robot-realistic.css?v=88">
-    <link rel="stylesheet" href="ui-fix-v38.css?v=88">
-    <link rel="stylesheet" href="achou-levou-v2.css?v=88">
+    <link rel="stylesheet" href="style.css?v=89">
+    <link rel="stylesheet" href="progress-style.css?v=89">
+    <link rel="stylesheet" href="robot-realistic.css?v=89">
+    <link rel="stylesheet" href="ui-fix-v38.css?v=89">
+    <link rel="stylesheet" href="achou-levou-v2.css?v=89">
 </head>
 <body>
     <div class="app-shell">
@@ -187,7 +187,7 @@
         <section class="saved-section card">
             <div class="saved-header">
                 <div>
-                    <p class="eyebrow">Fila local</p>
+                    <p class="eyebrow">Fila compartilhada</p>
                     <h2>Ofertas salvas</h2>
                     <small id="total-ofertas">0 salva(s)</small>
                 </div>
@@ -229,24 +229,25 @@
         </div>
     </div>
 
-    <script src="script.js?v=88"></script>
-    <script src="progress-loader.js?v=88"></script>
-    <script src="app-dialog.js?v=88"></script>
-    <script src="shopee-helper.js?v=88"></script>
-    <script src="magalu-helper.js?v=88"></script>
-    <script src="gemini-client.js?v=88"></script>
-    <script src="product-message-patch.js?v=88"></script>
-    <script src="bot-queue-integration.js?v=88"></script>
-    <script src="bot-queue-proxy.js?v=88"></script>
-    <script src="shared-offers-client.js?v=88"></script>
-    <script src="achou-levou-v2.js?v=88"></script>
+    <script src="script.js?v=89"></script>
+    <script src="progress-loader.js?v=89"></script>
+    <script src="app-dialog.js?v=89"></script>
+    <script src="shopee-helper.js?v=89"></script>
+    <script src="magalu-helper.js?v=89"></script>
+    <script src="gemini-client.js?v=89"></script>
+    <script src="product-message-patch.js?v=89"></script>
+    <script src="bot-queue-integration.js?v=89"></script>
+    <script src="bot-queue-proxy.js?v=89"></script>
+    <script src="shared-offers-client.js?v=89"></script>
+    <script src="achou-levou-v2.js?v=89"></script>
+    <script src="verified-bot-transfer.js?v=1"></script>
 
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=88', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=89', { updateViaCache: 'none' })
                     .then(reg => {
-                        console.log('PWA v87 ativado!', reg);
+                        console.log('PWA v89 ativado!', reg);
                         reg.update();
                     })
                     .catch(err => console.log('Falha no PWA:', err));
