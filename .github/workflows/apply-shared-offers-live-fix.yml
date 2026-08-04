@@ -1,0 +1,43 @@
+name: Aplicar correção da fila compartilhada
+
+on:
+  push:
+    branches:
+      - fix/shared-offers-alpha20-live
+    paths:
+      - .github/scripts/fix_shared_offers_live.py
+      - .github/workflows/apply-shared-offers-live-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+        with:
+          ref: fix/shared-offers-alpha20-live
+
+      - name: Aplicar patch
+        run: python .github/scripts/fix_shared_offers_live.py
+
+      - name: Validar scripts
+        run: |
+          node --check shared-offers-client.js
+          node --check sw.js
+          grep -q 'shared-offers-client.js?v=88' index.html
+
+      - name: Salvar arquivos corrigidos
+        run: |
+          if git diff --quiet; then
+            echo 'Nenhuma alteração necessária.'
+            exit 0
+          fi
+          git config user.name 'Radar IA Build'
+          git config user.email 'actions@github.com'
+          git add index.html sw.js
+          git commit -m 'Carregar fila compartilhada na interface v88 [skip ci]'
+          git push origin HEAD:fix/shared-offers-alpha20-live

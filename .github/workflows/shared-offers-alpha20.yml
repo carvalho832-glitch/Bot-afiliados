@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'agent/shared-offers-alpha20'
+      - 'fix/shared-offers-alpha20-live'
     paths:
       - 'api/shared-offers-preload.js'
       - 'api/package.json'
@@ -11,6 +12,7 @@ on:
       - 'shared-offers-client.js'
       - 'radar/modules/classic-achou-levou.js'
       - 'radar/classic-config.json'
+      - 'index.html'
       - 'sw.js'
       - '.github/workflows/shared-offers-alpha20.yml'
   pull_request:
@@ -21,6 +23,7 @@ on:
       - 'shared-offers-client.js'
       - 'radar/modules/classic-achou-levou.js'
       - 'radar/classic-config.json'
+      - 'index.html'
       - 'sw.js'
       - '.github/workflows/shared-offers-alpha20.yml'
   workflow_dispatch:
@@ -54,6 +57,8 @@ jobs:
           node --check shared-offers-client.js
           node --check radar/modules/classic-achou-levou.js
           node --check sw.js
+          grep -q 'shared-offers-client.js?v=88' index.html
+          grep -q 'classic-2026.08.04.3-shared-fix' radar/classic-config.json
 
       - name: Testar fila compartilhada
         working-directory: api
