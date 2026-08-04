@@ -1,5 +1,5 @@
-const CACHE = 'radar-ia-pwa-v2';
-const ASSETS = ['./','index.html','styles.css?v=1','app.js?v=1','manifest.webmanifest'];
+const CACHE = 'radar-ia-pwa-v3';
+const ASSETS = ['./','index.html','styles.css?v=3','app.js?v=3','manifest.webmanifest'];
 
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -26,6 +26,11 @@ self.addEventListener('fetch', event => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(async () => {
+        const cached = await caches.match(event.request, { ignoreSearch: false });
+        if (cached) return cached;
+        if (event.request.mode === 'navigate') return caches.match('./');
+        throw new Error('Recurso indisponível no cache do Radar IA.');
+      })
   );
 });
