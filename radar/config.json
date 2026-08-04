@@ -1,11 +1,12 @@
 {
   "schema": 1,
-  "release": "2026.08.04.3",
-  "uiVersion": "1.2.0",
+  "release": "2026.08.04.4",
+  "uiVersion": "1.3.0",
   "minimumShellVersion": 1801,
   "panelUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/",
+  "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json",
   "shopeeUrl": "https://affiliate.shopee.com.br/offer/product_offer",
-  "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/?v=87",
+  "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/?v=88",
   "modules": {
     "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/shopee.js?v=3",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/achou-levou.js?v=1"
@@ -23,6 +24,8 @@
     "remoteModules": true,
     "desktopToggle": true,
     "desktopViewport": "1440x25%",
-    "sharedQueueApi": false
+    "sharedQueueApi": true,
+    "verifiedSave": true,
+    "showClassicRelease": true
   }
 }
