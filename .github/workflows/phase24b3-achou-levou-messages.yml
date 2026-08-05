@@ -38,8 +38,8 @@ jobs:
       - name: Validar configuração remota
         run: |
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n 'classic-2026.08.05.7-phase24b3-messages' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b3-entry.js?v=1' radar/classic-config.json
+          grep -nE 'classic-2026\.08\.05\.(7-phase24b3-messages|8-phase24b4-review)' radar/classic-config.json
+          grep -nE 'classic-achou-levou-phase24b(3|4)-entry\.js\?v=1' radar/classic-config.json
           grep -n '"phase24SupervisedMessages": true' radar/classic-config.json
           grep -n '"phase24MessagesOneAtATime": true' radar/classic-config.json
           grep -n '"phase24VerifiedAchouLevouSave": true' radar/classic-config.json
