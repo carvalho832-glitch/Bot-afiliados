@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.05.7-phase24b3-messages",
+  "release": "classic-2026.08.05.8-phase24b4-review",
   "minimumClassicVersion": 1900,
   "classicModules": {
     "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-phase24b2.js?v=2",
-    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b3-entry.js?v=1"
+    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-entry.js?v=1"
   },
   "features": {
     "classicAsHome": true,
@@ -16,6 +16,7 @@
     "sharedOffersEndpoint": "https://bot-afiliados-1fwi.onrender.com/shared/offers",
     "phase24AssistedBatch": true,
     "phase24BatchesEndpoint": "https://bot-afiliados-1fwi.onrender.com/phase24/batches",
+    "phase24ReviewsEndpoint": "https://bot-afiliados-1fwi.onrender.com/phase24/reviews",
     "phase24DirectCaptureButton": true,
     "phase24SupervisedLinks": true,
     "phase24LinksOneAtATime": true,
@@ -24,9 +25,14 @@
     "phase24SupervisedMessages": true,
     "phase24MessagesOneAtATime": true,
     "phase24VerifiedAchouLevouSave": true,
+    "phase24PersistentReview": true,
+    "phase24ReviewBeforeBot": true,
+    "phase24VerifiedBotTransfer": true,
+    "phase24BotQueueStaysPaused": true,
     "phase24SendWhatsapp": false,
     "phase24AutoGenerateLinks": false,
     "phase24AutoGenerateMessages": false,
+    "phase24AutoTransfer": false,
     "phase24AutoStart": false
   }
 }
