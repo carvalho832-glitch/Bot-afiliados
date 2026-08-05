@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.05.2-phase24b-direct",
+  "release": "classic-2026.08.05.3-phase24b2-links",
   "minimumClassicVersion": 1900,
   "classicModules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee.js?v=5",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-phase24b2.js?v=1",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou.js?v=3"
   },
   "features": {
@@ -17,6 +17,9 @@
     "phase24AssistedBatch": true,
     "phase24BatchesEndpoint": "https://bot-afiliados-1fwi.onrender.com/phase24/batches",
     "phase24DirectCaptureButton": true,
+    "phase24SupervisedLinks": true,
+    "phase24LinksOneAtATime": true,
+    "phase24AutoGenerateLinks": false,
     "phase24AutoStart": false
   }
 }
