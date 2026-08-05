@@ -1,8 +1,9 @@
 (() => {
   'use strict';
 
-  const VERSION = '2.0.0';
+  const VERSION = '2.1.0';
   const API = 'https://bot-afiliados-1fwi.onrender.com';
+  const BUTTON_ID = 'radar-phase24-capture-button';
   const root = window.RadarClassicRemote = window.RadarClassicRemote || {};
   if (root.shopeeVersion === VERSION) return;
 
@@ -27,14 +28,14 @@
     box.id = 'radar-phase24-toast';
     box.textContent = message;
     box.style.cssText = [
-      'position:fixed', 'left:50%', 'bottom:132px', 'transform:translateX(-50%)',
+      'position:fixed', 'left:50%', 'bottom:188px', 'transform:translateX(-50%)',
       'z-index:2147483647', 'max-width:calc(100% - 28px)', 'padding:12px 16px',
       'border-radius:14px', 'font:700 13px system-ui', 'text-align:center',
       kind === 'error' ? 'background:#7f1d1d;color:#fee2e2' : 'background:#e6fff5;color:#052e21',
       'box-shadow:0 12px 36px #0008'
     ].join(';');
     document.documentElement.appendChild(box);
-    setTimeout(() => box.remove(), 5000);
+    setTimeout(() => box.remove(), 6000);
   }
 
   function parseLocalizedNumber(value) {
@@ -91,9 +92,7 @@
   }
 
   function titleFromCard(card, button) {
-    const candidates = [
-      ...card.querySelectorAll('h1,h2,h3,h4,[class*="title"],[class*="name"],a[href]')
-    ];
+    const candidates = [...card.querySelectorAll('h1,h2,h3,h4,[class*="title"],[class*="name"],a[href]')];
     for (const element of candidates) {
       if (element === button || element.contains(button)) continue;
       const value = clean(element.getAttribute('title') || element.innerText || element.textContent);
@@ -147,42 +146,86 @@
         stage: 'captured'
       });
     });
-
     return items;
   }
 
-  function uploadBatch(items) {
+  async function uploadBatch(items, button = null) {
     if (!items.length) {
       toast('Nenhum produto foi encontrado para a Fase 24B.', 'error');
-      return;
+      return false;
     }
-    fetch(`${API}/phase24/batches`, {
-      method: 'POST',
-      mode: 'cors',
-      cache: 'no-store',
-      keepalive: true,
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({
-        profile: 'julio',
-        source: 'radar-classic-shopee',
-        sourceUrl: location.href,
-        replaceCurrent: true,
-        filters: { maxItems: 15, minSold: 0, minRating: 0 },
-        items
-      })
-    })
-      .then(async response => {
-        const body = await response.json().catch(() => null);
-        if (!response.ok || !body?.ok) throw new Error(body?.error || `HTTP ${response.status}`);
-        toast(`Fase 24B: ${body.batch?.summary?.total || items.length} produtos enviados para revisão.`);
-        window.__radarClassicRemote = window.__radarClassicRemote || {};
-        window.__radarClassicRemote.phase24 = {
-          batchId: body.batch?.id,
-          total: body.batch?.summary?.total || items.length,
-          capturedAt: Date.now()
-        };
-      })
-      .catch(error => toast(`Fase 24B não salvou o lote: ${error.message}`, 'error'));
+
+    const originalLabel = button?.textContent;
+    if (button) {
+      button.disabled = true;
+      button.textContent = `⏳ Enviando ${items.length}...`;
+    }
+
+    try {
+      const response = await fetch(`${API}/phase24/batches`, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          profile: 'julio',
+          source: 'radar-classic-shopee-direct',
+          sourceUrl: location.href,
+          replaceCurrent: true,
+          filters: { maxItems: 15, minSold: 0, minRating: 0 },
+          items
+        })
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body?.ok) throw new Error(body?.error || `HTTP ${response.status}`);
+
+      const total = body.batch?.summary?.total || items.length;
+      toast(`✅ Fase 24B: ${total} produtos salvos. Volte ao Painel e toque em Buscar lote.`);
+      window.__radarClassicRemote = window.__radarClassicRemote || {};
+      window.__radarClassicRemote.phase24 = {
+        batchId: body.batch?.id,
+        total,
+        capturedAt: Date.now()
+      };
+      if (button) button.textContent = `✅ Lote salvo (${total})`;
+      return true;
+    } catch (error) {
+      toast(`Fase 24B não salvou o lote: ${error.message}`, 'error');
+      if (button) button.textContent = '⚠️ Tentar enviar à revisão';
+      return false;
+    } finally {
+      if (button) {
+        button.disabled = false;
+        setTimeout(() => {
+          if (button.isConnected) button.textContent = originalLabel || '📦 Enviar à revisão 24B';
+        }, 5000);
+      }
+    }
+  }
+
+  function hasProductGrid() {
+    return [...document.querySelectorAll('button, [role="button"], a')]
+      .some(element => /obter\s*link/i.test(clean(element.innerText || element.textContent)));
+  }
+
+  function mountCaptureButton() {
+    if (!document.body || document.getElementById(BUTTON_ID) || !hasProductGrid()) return;
+    const button = document.createElement('button');
+    button.id = BUTTON_ID;
+    button.type = 'button';
+    button.textContent = '📦 Enviar à revisão 24B';
+    button.style.cssText = [
+      'position:fixed', 'right:12px', 'bottom:182px', 'z-index:2147483646',
+      'border:1px solid #55e8ff99', 'border-radius:15px', 'padding:12px 15px',
+      'background:linear-gradient(135deg,#0e7490,#2563eb)', 'color:#fff',
+      'font:800 13px system-ui', 'box-shadow:0 12px 32px #0008'
+    ].join(';');
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      uploadBatch(extractProducts(), button);
+    });
+    document.documentElement.appendChild(button);
   }
 
   root.probeShopee = () => {
@@ -209,19 +252,16 @@
   root.beforeReadProducts = () => {
     const candidates = [...document.querySelectorAll('button, [role="button"], a')]
       .filter(element => /obter\s*link/i.test(clean(element.innerText || element.textContent)));
-
     candidates.forEach((button, index) => {
       button.dataset.radarObtainLink = String(index);
       const card = cardForButton(button);
       if (card) card.dataset.radarProductCard = String(index);
     });
-
-    const items = extractProducts();
-    uploadBatch(items);
     return {
       handled: true,
       taggedButtons: candidates.length,
-      phase24Captured: items.length,
+      phase24Captured: 0,
+      directCaptureButton: true,
       version: VERSION
     };
   };
@@ -230,23 +270,30 @@
     const title = clean(payload?.title).toLowerCase();
     const buttons = [...document.querySelectorAll('button, [role="button"], a')]
       .filter(element => /obter\s*link/i.test(clean(element.innerText || element.textContent)));
-
     const match = buttons.find(button => {
       const card = cardForButton(button);
       const cardText = clean(card?.innerText || card?.textContent).toLowerCase();
       return title && cardText.includes(title.slice(0, 36));
     });
-
     if (!match) return { handled: false };
     match.scrollIntoView({ block: 'center', inline: 'center' });
     return { handled: true, index: buttons.indexOf(match) };
   };
+
+  mountCaptureButton();
+  let mountTimer = 0;
+  const observer = new MutationObserver(() => {
+    clearTimeout(mountTimer);
+    mountTimer = setTimeout(mountCaptureButton, 250);
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
 
   window.__radarClassicRemote = window.__radarClassicRemote || {};
   window.__radarClassicRemote.shopee = {
     version: VERSION,
     ready: true,
     phase24: true,
+    directCaptureButton: true,
     loadedAt: Date.now()
   };
 })();
