@@ -59,7 +59,9 @@ jobs:
           node --check radar/modules/classic-achou-levou.js
           node --check sw.js
           grep -Eq 'shared-offers-client\.js\?v=[0-9]+' index.html
-          grep -q 'classic-2026.08.04.3-shared-fix' radar/classic-config.json
+          grep -Eq '"release": "classic-[^"]+"' radar/classic-config.json
+          grep -q '"sharedQueueApi": true' radar/classic-config.json
+          grep -q '"verifiedSave": true' radar/classic-config.json
 
       - name: Testar fila compartilhada
         working-directory: api

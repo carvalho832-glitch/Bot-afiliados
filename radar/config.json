@@ -1,14 +1,15 @@
 {
   "schema": 1,
-  "release": "2026.08.04.7",
-  "uiVersion": "1.3.3",
+  "release": "2026.08.05.1-phase24b",
+  "uiVersion": "1.4.0",
   "minimumShellVersion": 1801,
   "panelUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/",
   "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json",
   "shopeeUrl": "https://affiliate.shopee.com.br/offer/product_offer",
   "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/?v=90",
+  "phase24BatchesUrl": "https://bot-afiliados-1fwi.onrender.com/phase24/batches",
   "modules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/shopee.js?v=3",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/shopee.js?v=4",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/achou-levou.js?v=1"
   },
   "allowedHosts": [
@@ -32,6 +33,8 @@
     "botQueueAutoStart": false,
     "showClassicRelease": true,
     "cacheCompatibilityRepair": true,
-    "embeddedWhatsappPanel": true
+    "embeddedWhatsappPanel": true,
+    "phase24AssistedBatch": true,
+    "phase24AutoStart": false
   }
 }

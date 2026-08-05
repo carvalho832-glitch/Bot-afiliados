@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.04.3-shared-fix",
+  "release": "classic-2026.08.05.1-phase24b",
   "minimumClassicVersion": 1900,
   "classicModules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee.js?v=1",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee.js?v=4",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou.js?v=3"
   },
   "features": {
@@ -13,6 +13,9 @@
     "sharedQueueApi": true,
     "verifiedSave": true,
     "asyncVerifiedSave": true,
-    "sharedOffersEndpoint": "https://bot-afiliados-1fwi.onrender.com/shared/offers"
+    "sharedOffersEndpoint": "https://bot-afiliados-1fwi.onrender.com/shared/offers",
+    "phase24AssistedBatch": true,
+    "phase24BatchesEndpoint": "https://bot-afiliados-1fwi.onrender.com/phase24/batches",
+    "phase24AutoStart": false
   }
 }
