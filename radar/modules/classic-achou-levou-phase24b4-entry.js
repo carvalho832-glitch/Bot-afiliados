@@ -1,10 +1,10 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.0.0';
+  const VERSION = '2.0.0';
   const B3_ENTRY = 'https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b3-entry.js?v=1';
   const VERIFIED_TRANSFER = 'https://carvalho832-glitch.github.io/Bot-afiliados/verified-bot-transfer.js?v=2';
-  const B4_MODULE = 'https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4.js?v=1';
+  const B4_MODULE = 'https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-v2.js?v=2';
   const root = window.RadarClassicRemote = window.RadarClassicRemote || {};
 
   if (root.achouLevouPhase24B4EntryVersion === VERSION) return;
@@ -41,12 +41,13 @@
       if (!window.AchouLevouVerifiedBotTransfer?.transferOffers) {
         await loadScript(VERIFIED_TRANSFER, 'achou-levou-verified-transfer');
       }
-      await loadScript(B4_MODULE, 'achou-levou-phase24b4');
+      await loadScript(B4_MODULE, 'achou-levou-phase24b4-v2');
       root.achouLevouPhase24B4Entry = {
         version: VERSION,
         b3Preserved: true,
         verifiedTransferPreserved: true,
         persistentReview: true,
+        recoveredCompletedBatch: true,
         supervisedTransfer: true,
         loadedAt: Date.now()
       };
