@@ -7,6 +7,7 @@ on:
       - 'fix/phase24b-direct-capture-button'
       - 'feature/phase24b2-supervised-links'
       - 'fix/phase24b2-detail-page-resume'
+      - 'fix/phase24b2-back-remount'
     paths:
       - 'api/phase24-batches-preload.js'
       - 'api/package.json'
@@ -20,6 +21,7 @@ on:
       - 'radar/classic-config.json'
       - 'radar/modules/classic-shopee.js'
       - 'radar/modules/classic-shopee-phase24b2.js'
+      - 'radar/modules/classic-shopee-phase24b2-entry.js'
       - '.github/workflows/phase24b-assisted-batch.yml'
   pull_request:
     paths:
@@ -35,6 +37,7 @@ on:
       - 'radar/classic-config.json'
       - 'radar/modules/classic-shopee.js'
       - 'radar/modules/classic-shopee-phase24b2.js'
+      - 'radar/modules/classic-shopee-phase24b2-entry.js'
       - '.github/workflows/phase24b-assisted-batch.yml'
   workflow_dispatch:
 
@@ -68,6 +71,7 @@ jobs:
           node --check radar/sw.js
           node --check radar/modules/classic-shopee.js
           node --check radar/modules/classic-shopee-phase24b2.js
+          node --check radar/modules/classic-shopee-phase24b2-entry.js
 
       - name: Executar testes da Fase 24B
         working-directory: api
@@ -83,8 +87,9 @@ jobs:
           grep -q 'Fase 24' radar/index.html
           grep -q 'phase24AutoStart.*false' radar/config.json
           grep -q 'phase24AutoStart.*false' radar/classic-config.json
-          grep -q 'classic-shopee-phase24b2.js?v=2' radar/classic-config.json
+          grep -q 'classic-shopee-phase24b2-entry.js?v=1' radar/classic-config.json
           grep -q "VERSION='1.1.0'" radar/modules/classic-shopee-phase24b2.js
+          grep -q "const VERSION = '1.0.0'" radar/modules/classic-shopee-phase24b2-entry.js
           grep -q 'radar-phase24-capture-button' radar/modules/classic-shopee-phase24b2.js
           grep -q 'Enviar à revisão 24B' radar/modules/classic-shopee-phase24b2.js
           grep -q 'radar-phase24-link-button' radar/modules/classic-shopee-phase24b2.js
@@ -92,7 +97,10 @@ jobs:
           grep -q 'autoLoop:false' radar/modules/classic-shopee-phase24b2.js
           grep -q 'whatsappAutoStart:false' radar/modules/classic-shopee-phase24b2.js
           grep -q 'detailPageResume:true' radar/modules/classic-shopee-phase24b2.js
+          grep -q 'pageshowRestore: true' radar/modules/classic-shopee-phase24b2-entry.js
+          grep -q 'pollingFallback: true' radar/modules/classic-shopee-phase24b2-entry.js
           grep -q 'phase24DetailPageResume.*true' radar/classic-config.json
+          grep -q 'phase24BackRemount.*true' radar/classic-config.json
           grep -q 'phase24AutoGenerateLinks.*false' radar/classic-config.json
           ! grep -q 'document.createElement.*script' radar/modules/classic-shopee-phase24b2.js
           ! grep -q '/queue/start' radar/phase24b.js
