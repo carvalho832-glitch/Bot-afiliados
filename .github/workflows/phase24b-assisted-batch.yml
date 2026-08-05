@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'feature/phase24b-assisted-batch'
+      - 'fix/phase24b-direct-capture-button'
     paths:
       - 'api/phase24-batches-preload.js'
       - 'api/package.json'
@@ -77,10 +78,13 @@ jobs:
           grep -q 'Fase 24' radar/index.html
           grep -q 'phase24AutoStart.*false' radar/config.json
           grep -q 'phase24AutoStart.*false' radar/classic-config.json
-          grep -q 'classic-shopee.js?v=4' radar/classic-config.json
-          grep -q "const VERSION = '2.0.0'" radar/modules/classic-shopee.js
+          grep -q 'classic-shopee.js?v=5' radar/classic-config.json
+          grep -q "const VERSION = '2.1.0'" radar/modules/classic-shopee.js
+          grep -q 'radar-phase24-capture-button' radar/modules/classic-shopee.js
+          grep -q 'Enviar à revisão 24B' radar/modules/classic-shopee.js
           grep -q "profile: 'julio'" radar/modules/classic-shopee.js
           grep -q 'replaceCurrent: true' radar/modules/classic-shopee.js
+          grep -q 'phase24DirectCaptureButton.*true' radar/classic-config.json
           ! grep -q '/queue/start' radar/phase24b.js
           ! grep -q 'send-controlado' radar/phase24b.js
 
