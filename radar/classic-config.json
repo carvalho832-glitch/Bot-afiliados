@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.05.9-phase24b4-recovery",
+  "release": "classic-2026.08.05.10-phase24b4-rehydrate",
   "minimumClassicVersion": 1900,
   "classicModules": {
     "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-phase24b2.js?v=2",
-    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-entry.js?v=2"
+    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-entry.js?v=3"
   },
   "features": {
     "classicAsHome": true,
@@ -31,6 +31,7 @@
     "phase24BotQueueStaysPaused": true,
     "phase24RecoverCompletedBatch": true,
     "phase24RecoverFromSharedOffers": true,
+    "phase24RehydrateSharedOffersFromBatch": true,
     "phase24CompositeSourceIds": true,
     "phase24SendWhatsapp": false,
     "phase24AutoGenerateLinks": false,
