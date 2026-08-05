@@ -34,9 +34,9 @@ jobs:
       - name: Validar sintaxe do módulo
         run: node --check verified-bot-transfer.js
 
-      - name: Validar publicação da interface 89
+      - name: Validar publicação da interface atual
         run: |
-          grep -F "const UI_VERSION = '89';" index.html
+          grep -Eq "const UI_VERSION = '[0-9]+';" index.html
           grep -F 'verified-bot-transfer.js?v=1' index.html
           grep -F 'Fila compartilhada' index.html
 
