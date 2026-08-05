@@ -3,7 +3,6 @@
 
   const VERSION = '1.0.0';
   const API = 'https://bot-afiliados-1fwi.onrender.com';
-  const BASE_MODULE = 'https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee.js?v=5';
   const BUTTON_ID = 'radar-phase24-link-button';
   const root = window.RadarClassicRemote = window.RadarClassicRemote || {};
   if (root.shopeeLinksVersion === VERSION) return;
@@ -112,6 +111,112 @@
       if (text.length >= 25 && text.length <= 1800 && node.querySelectorAll?.('a[href]')?.length) return node;
     }
     return button.closest('[class*="card"], [class*="item"], li, article, section, div');
+  }
+
+  function parseLocalizedNumber(value) {
+    const match = clean(value).toLowerCase().match(/(\d+(?:[.,]\d+)?)\s*(mil|k|mi|m)?/i);
+    if (!match) return null;
+    let number = Number(match[1].replace(/\./g, '').replace(',', '.'));
+    if (match[2] === 'mil' || match[2] === 'k') number *= 1000;
+    if (match[2] === 'mi' || match[2] === 'm') number *= 1000000;
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function extractProducts() {
+    const seen = new Set();
+    const items = [];
+    obtainButtons().forEach((button, position) => {
+      if (items.length >= 40) return;
+      const card = cardForButton(button);
+      if (!card) return;
+      const anchors = [...card.querySelectorAll('a[href]')];
+      const preferred = anchors.find(anchor => /product|offer|item/i.test(anchor.href));
+      const url = (preferred || anchors[0])?.href || '';
+      const candidates = [...card.querySelectorAll('h1,h2,h3,h4,[class*="title"],[class*="name"],a[href]')];
+      let title = '';
+      for (const element of candidates) {
+        if (element === button || element.contains(button)) continue;
+        const value = clean(element.getAttribute('title') || element.innerText || element.textContent);
+        if (value.length >= 8 && value.length <= 300 && !/obter\s*link|comiss(?:ã|a)o/i.test(value)) {
+          title = value;
+          break;
+        }
+      }
+      if (!title) title = clean(card.innerText || card.textContent).replace(/obter\s*link/ig, '').split(/R\$|vendid|comiss/i)[0].slice(0, 300);
+      if (!title || !url || seen.has(url)) return;
+      seen.add(url);
+      const text = clean(card.innerText || card.textContent);
+      const priceMatch = text.match(/R\$\s*([\d.]+(?:,\d{1,2})?)/i);
+      const soldMatch = text.match(/([\d.,]+\s*(?:mil|k|mi|m)?)\s*(?:vendid[oa]s?|vendas?)/i);
+      const ratingMatch = normalize(text).match(/(?:nota|avaliacao|rating)\s*[:\-]?\s*([0-5](?:[.,]\d)?)/i);
+      const commissionMatch = text.match(/(?:comiss(?:ã|a)o|ganhe)\s*[:\-]?\s*(R\$\s*[\d.,]+|\d+(?:[.,]\d+)?%)/i);
+      const priceValue = priceMatch ? Number(priceMatch[1].replace(/\./g, '').replace(',', '.')) : null;
+      items.push({
+        sourceId: url.match(/(?:product|item|offer)[^\d]*(\d{4,})/i)?.[1] || '',
+        position,
+        title,
+        url,
+        image: card.querySelector('img')?.currentSrc || card.querySelector('img')?.src || '',
+        priceText: priceMatch ? `R$ ${priceMatch[1]}` : '',
+        priceValue: Number.isFinite(priceValue) ? priceValue : null,
+        soldText: soldMatch ? clean(soldMatch[0]) : '',
+        soldCount: soldMatch ? parseLocalizedNumber(soldMatch[1]) : null,
+        rating: ratingMatch ? Number(ratingMatch[1].replace(',', '.')) : null,
+        commissionText: commissionMatch ? clean(commissionMatch[1]) : '',
+        decision: 'pending',
+        stage: 'captured'
+      });
+    });
+    return items;
+  }
+
+  async function uploadBatch(button) {
+    const items = extractProducts();
+    if (!items.length) {
+      toast('Nenhum produto foi encontrado para a Fase 24B.', 'error');
+      return;
+    }
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = `⏳ Enviando ${items.length}...`;
+    try {
+      const body = await request('/phase24/batches', {
+        method: 'POST',
+        body: JSON.stringify({
+          profile: 'julio', source: 'radar-classic-shopee-direct', sourceUrl: location.href,
+          replaceCurrent: true, filters: { maxItems: 15, minSold: 0, minRating: 0 }, items
+        })
+      });
+      const total = body.batch?.summary?.total || items.length;
+      state.batch = body.batch || null;
+      toast(`✅ Fase 24B: ${total} produtos salvos. Volte ao Painel e toque em Buscar lote.`);
+    } catch (error) {
+      toast(`Fase 24B não salvou o lote: ${error.message}`, 'error');
+    } finally {
+      button.disabled = false;
+      button.textContent = label;
+      updateButton();
+    }
+  }
+
+  function mountCaptureButton() {
+    if (!document.body || document.getElementById('radar-phase24-capture-button') || !obtainButtons().length) return;
+    const button = document.createElement('button');
+    button.id = 'radar-phase24-capture-button';
+    button.type = 'button';
+    button.textContent = '📦 Enviar à revisão 24B';
+    button.style.cssText = [
+      'position:fixed', 'right:12px', 'bottom:182px', 'z-index:2147483646',
+      'border:1px solid #55e8ff99', 'border-radius:15px', 'padding:12px 15px',
+      'background:linear-gradient(135deg,#0e7490,#2563eb)', 'color:#fff',
+      'font:800 13px system-ui', 'box-shadow:0 12px 32px #0008'
+    ].join(';');
+    button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      uploadBatch(button);
+    });
+    document.documentElement.appendChild(button);
   }
 
   function scoreItem(item, button) {
@@ -338,21 +443,13 @@
     document.documentElement.appendChild(button);
   }
 
-  function loadBaseModule() {
-    if (root.shopeeVersion === '2.1.0' || document.querySelector(`script[src="${BASE_MODULE}"]`)) return;
-    const script = document.createElement('script');
-    script.src = BASE_MODULE;
-    script.async = true;
-    document.documentElement.appendChild(script);
-  }
-
   captureClipboardWrites();
-  loadBaseModule();
+  mountCaptureButton();
   mountButton();
   let timer = 0;
   const observer = new MutationObserver(() => {
     clearTimeout(timer);
-    timer = setTimeout(mountButton, 250);
+    timer = setTimeout(() => { mountCaptureButton(); mountButton(); }, 250);
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
@@ -362,6 +459,7 @@
     oneAtATime: true,
     autoLoop: false,
     whatsappAutoStart: false,
+    directCaptureButton: true,
     loadBatch: () => loadBatch(true),
     loadedAt: Date.now()
   };
