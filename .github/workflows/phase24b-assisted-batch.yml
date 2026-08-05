@@ -8,6 +8,7 @@ on:
       - 'api/phase24-batches-preload.js'
       - 'api/package.json'
       - 'api/test/phase24-batches.test.mjs'
+      - 'api/test/preload-composition.test.mjs'
       - 'radar/index.html'
       - 'radar/styles.css'
       - 'radar/phase24b.js'
@@ -21,6 +22,7 @@ on:
       - 'api/phase24-batches-preload.js'
       - 'api/package.json'
       - 'api/test/phase24-batches.test.mjs'
+      - 'api/test/preload-composition.test.mjs'
       - 'radar/index.html'
       - 'radar/styles.css'
       - 'radar/phase24b.js'
@@ -64,6 +66,10 @@ jobs:
       - name: Executar testes da Fase 24B
         working-directory: api
         run: node --test test/phase24-batches.test.mjs
+
+      - name: Validar convivência das APIs
+        working-directory: api
+        run: node --test test/preload-composition.test.mjs
 
       - name: Validar travas e versões
         run: |
