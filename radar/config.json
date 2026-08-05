@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "release": "2026.08.04.6",
-  "uiVersion": "1.3.2",
+  "release": "2026.08.04.7",
+  "uiVersion": "1.3.3",
   "minimumShellVersion": 1801,
   "panelUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/",
   "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json",
   "shopeeUrl": "https://affiliate.shopee.com.br/offer/product_offer",
-  "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/?v=89",
+  "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/?v=90",
   "modules": {
     "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/shopee.js?v=3",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/achou-levou.js?v=1"
@@ -16,7 +16,9 @@
     "affiliate.shopee.com.br",
     "shopee.com.br",
     "www.shopee.com.br",
-    "s.shopee.com.br"
+    "s.shopee.com.br",
+    "bot.achoulevoubot.uk",
+    "usuario2.achoulevoubot.uk"
   ],
   "features": {
     "remoteDashboard": true,
@@ -29,6 +31,7 @@
     "verifiedBotQueueTransfer": true,
     "botQueueAutoStart": false,
     "showClassicRelease": true,
-    "cacheCompatibilityRepair": true
+    "cacheCompatibilityRepair": true,
+    "embeddedWhatsappPanel": true
   }
 }
