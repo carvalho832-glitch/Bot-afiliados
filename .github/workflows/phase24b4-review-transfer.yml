@@ -42,12 +42,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
-          cache-dependency-path: api/package-lock.json
 
       - name: Instalar dependências
         working-directory: api
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts
 
       - name: Validar sintaxe
         run: |
@@ -65,9 +63,9 @@ jobs:
           grep -n 'phase24ReviewBeforeBot' radar/classic-config.json
           grep -n 'phase24VerifiedBotTransfer' radar/classic-config.json
           grep -n 'phase24BotQueueStaysPaused' radar/classic-config.json
-          grep -n 'AchouLevouVerifiedBotTransfer.transferOffers' radar/modules/classic-achou-levou-phase24b4.js
+          grep -n 'transfer.transferOffers' radar/modules/classic-achou-levou-phase24b4.js
           grep -n "statusFor(offer.sourceId) !== 'approved'" radar/modules/classic-achou-levou-phase24b4.js
-          grep -n "status: 'sent'" radar/modules/classic-achou-levou-phase24b4.js
+          grep -n "saveReview(offer.sourceId, 'sent'" radar/modules/classic-achou-levou-phase24b4.js
 
       - name: Garantir ausência de disparo automático
         run: |
