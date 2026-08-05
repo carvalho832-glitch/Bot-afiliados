@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.05.5-phase24b2-back-remount",
+  "release": "classic-2026.08.05.6-controls-recovery",
   "minimumClassicVersion": 1900,
   "classicModules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-phase24b2-entry.js?v=1",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-phase24b2.js?v=2",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou.js?v=3"
   },
   "features": {
@@ -20,7 +20,7 @@
     "phase24SupervisedLinks": true,
     "phase24LinksOneAtATime": true,
     "phase24DetailPageResume": true,
-    "phase24BackRemount": true,
+    "phase24BackRemount": false,
     "phase24AutoGenerateLinks": false,
     "phase24AutoStart": false
   }
