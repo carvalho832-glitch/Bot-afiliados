@@ -1,5 +1,12 @@
-const CACHE = 'radar-ia-pwa-v3';
-const ASSETS = ['./','index.html','styles.css?v=3','app.js?v=3','manifest.webmanifest'];
+const CACHE = 'radar-ia-pwa-v4-phase24b';
+const ASSETS = [
+  './',
+  'index.html',
+  'styles.css?v=4',
+  'app.js?v=4',
+  'phase24b.js?v=1',
+  'manifest.webmanifest'
+];
 
 self.addEventListener('install', event => {
   self.skipWaiting();
