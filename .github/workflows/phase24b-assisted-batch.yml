@@ -1,0 +1,83 @@
+name: Validar Fase 24B lote assistido
+
+on:
+  push:
+    branches:
+      - 'feature/phase24b-assisted-batch'
+    paths:
+      - 'api/phase24-batches-preload.js'
+      - 'api/package.json'
+      - 'api/test/phase24-batches.test.mjs'
+      - 'radar/index.html'
+      - 'radar/styles.css'
+      - 'radar/phase24b.js'
+      - 'radar/sw.js'
+      - 'radar/config.json'
+      - 'radar/classic-config.json'
+      - 'radar/modules/classic-shopee.js'
+      - '.github/workflows/phase24b-assisted-batch.yml'
+  pull_request:
+    paths:
+      - 'api/phase24-batches-preload.js'
+      - 'api/package.json'
+      - 'api/test/phase24-batches.test.mjs'
+      - 'radar/index.html'
+      - 'radar/styles.css'
+      - 'radar/phase24b.js'
+      - 'radar/sw.js'
+      - 'radar/config.json'
+      - 'radar/classic-config.json'
+      - 'radar/modules/classic-shopee.js'
+      - '.github/workflows/phase24b-assisted-batch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências da API sem baixar navegador
+        working-directory: api
+        run: npm install --ignore-scripts
+
+      - name: Validar sintaxe da API e do painel
+        run: |
+          cd api
+          npm run check
+          cd ..
+          node --check radar/app.js
+          node --check radar/phase24b.js
+          node --check radar/sw.js
+          node --check radar/modules/classic-shopee.js
+
+      - name: Executar testes da Fase 24B
+        working-directory: api
+        run: node --test test/phase24-batches.test.mjs
+
+      - name: Validar travas e versões
+        run: |
+          grep -q 'phase24b.js?v=1' radar/index.html
+          grep -q 'Fase 24' radar/index.html
+          grep -q 'phase24AutoStart.*false' radar/config.json
+          grep -q 'phase24AutoStart.*false' radar/classic-config.json
+          grep -q 'classic-shopee.js?v=4' radar/classic-config.json
+          grep -q "const VERSION = '2.0.0'" radar/modules/classic-shopee.js
+          grep -q "profile: 'julio'" radar/modules/classic-shopee.js
+          grep -q 'replaceCurrent: true' radar/modules/classic-shopee.js
+          ! grep -q '/queue/start' radar/phase24b.js
+          ! grep -q 'send-controlado' radar/phase24b.js
+
+      - name: Executar regressão da fila compartilhada
+        working-directory: api
+        run: node --test test/shared-offers.test.mjs
