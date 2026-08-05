@@ -1,9 +1,10 @@
 (() => {
   'use strict';
 
-  const VERSION = '2.0.0';
+  const VERSION = '3.0.0';
   const B3_ENTRY = 'https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b3-entry.js?v=1';
   const VERIFIED_TRANSFER = 'https://carvalho832-glitch.github.io/Bot-afiliados/verified-bot-transfer.js?v=2';
+  const REHYDRATE = 'https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-rehydrate.js?v=1';
   const B4_MODULE = 'https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-v2.js?v=2';
   const root = window.RadarClassicRemote = window.RadarClassicRemote || {};
 
@@ -41,6 +42,13 @@
       if (!window.AchouLevouVerifiedBotTransfer?.transferOffers) {
         await loadScript(VERIFIED_TRANSFER, 'achou-levou-verified-transfer');
       }
+
+      await loadScript(REHYDRATE, 'achou-levou-phase24b4-rehydrate');
+      const recovery = await root.phase24B4RestoreOffers?.();
+      if (recovery && !recovery.ok) {
+        console.warn('[FASE 24B.4] Recuperação parcial:', recovery);
+      }
+
       await loadScript(B4_MODULE, 'achou-levou-phase24b4-v2');
       root.achouLevouPhase24B4Entry = {
         version: VERSION,
@@ -48,6 +56,8 @@
         verifiedTransferPreserved: true,
         persistentReview: true,
         recoveredCompletedBatch: true,
+        restoredSharedOffers: true,
+        recovery: recovery || null,
         supervisedTransfer: true,
         loadedAt: Date.now()
       };
