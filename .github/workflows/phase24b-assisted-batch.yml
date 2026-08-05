@@ -83,12 +83,15 @@ jobs:
           grep -q 'phase24AutoStart.*false' radar/config.json
           grep -q 'phase24AutoStart.*false' radar/classic-config.json
           grep -q 'classic-shopee-phase24b2.js?v=1' radar/classic-config.json
-          grep -q 'classic-shopee.js?v=5' radar/modules/classic-shopee-phase24b2.js
           grep -q "const VERSION = '1.0.0'" radar/modules/classic-shopee-phase24b2.js
+          grep -q 'radar-phase24-capture-button' radar/modules/classic-shopee-phase24b2.js
+          grep -q 'Enviar à revisão 24B' radar/modules/classic-shopee-phase24b2.js
+          grep -q 'radar-phase24-link-button' radar/modules/classic-shopee-phase24b2.js
           grep -q 'oneAtATime: true' radar/modules/classic-shopee-phase24b2.js
           grep -q 'autoLoop: false' radar/modules/classic-shopee-phase24b2.js
           grep -q 'whatsappAutoStart: false' radar/modules/classic-shopee-phase24b2.js
           grep -q 'phase24AutoGenerateLinks.*false' radar/classic-config.json
+          ! grep -q 'document.createElement.*script' radar/modules/classic-shopee-phase24b2.js
           ! grep -q '/queue/start' radar/phase24b.js
           ! grep -q 'send-controlado' radar/phase24b.js
 
