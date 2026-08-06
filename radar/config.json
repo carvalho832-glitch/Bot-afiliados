@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "release": "2026.08.05.3-phase24b4-direct-v7",
-  "uiVersion": "1.4.2",
+  "release": "2026.08.05.4-phase24b4-bot-queue-v8",
+  "uiVersion": "1.4.3",
   "minimumShellVersion": 1801,
   "panelUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/",
-  "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json?v=14",
+  "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json?v=15",
   "shopeeUrl": "https://affiliate.shopee.com.br/offer/product_offer",
-  "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/achou-levou-direct-v7.html?v=2&safe=1",
+  "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/achou-levou-direct-v7.html?v=3&safe=1",
   "phase24BatchesUrl": "https://bot-afiliados-1fwi.onrender.com/phase24/batches",
   "modules": {
     "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/shopee.js?v=4",
@@ -38,6 +38,8 @@
     "phase24BootstrapV6": false,
     "phase24DirectTopLevelV7": true,
     "phase24SharedQueueFallback": true,
+    "phase24BotQueueRecoveryV8": true,
+    "phase24DuplicateProtection": true,
     "phase24AutoStart": false
   }
 }
