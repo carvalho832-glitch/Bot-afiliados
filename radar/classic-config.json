@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.06.8-autopilot-link-bridge-v8",
+  "release": "classic-2026.08.06.9-autopilot-server-link-v9",
   "minimumClassicVersion": 1900,
   "classicModules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-link-v8.js?v=1",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-server-v9.js?v=1",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-autopilot-v1.js?v=1"
   },
   "features": {
@@ -29,11 +29,9 @@
     "phase24ScrollDuringHarvest": false,
     "phase24ReloadDuringHarvest": false,
     "phase24OpenSyntheticProductUrl": false,
-    "phase24LinkBridgeV8": true,
-    "phase24LongTrackedLinkCapture": true,
-    "phase24ClipboardCapture": true,
-    "phase24ShadowDomCapture": true,
-    "phase24RealisticClickSequence": true,
+    "phase24OfficialServerAffiliateLink": true,
+    "phase24ClickShopeeLinkButton": false,
+    "phase24ShopeeAffiliateApiV9": true,
     "phase24AutoGenerateLinks": true,
     "phase24AutoPullProduct": true,
     "phase24AutoGenerateMessages": true,
