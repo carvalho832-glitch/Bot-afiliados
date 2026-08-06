@@ -3,18 +3,11 @@ name: Fase 24B.3 Mensagens no Achou Levou
 on:
   push:
     branches:
-      - 'agent/phase24b3-achou-levou-messages'
-      - 'agent/phase24b4-queue-repair'
-      - 'fix/phase24b4-bootstrap-v6'
-      - 'fix/phase24b4-direct-top-level'
-      - 'fix/phase24b4-bot-queue-recovery-v8'
+      - 'fix/phase24b4-direct-queue-v9'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b3.js'
-      - 'radar/modules/classic-achou-levou-phase24b3-entry.js'
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v8.js'
-      - 'radar/achou-levou-direct-v7.html'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v9.js'
+      - 'radar/achou-levou-direct-v9.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b3-achou-levou-messages.yml'
@@ -23,11 +16,8 @@ on:
       - main
     paths:
       - 'radar/modules/classic-achou-levou-phase24b3.js'
-      - 'radar/modules/classic-achou-levou-phase24b3-entry.js'
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v8.js'
-      - 'radar/achou-levou-direct-v7.html'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v9.js'
+      - 'radar/achou-levou-direct-v9.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b3-achou-levou-messages.yml'
@@ -44,32 +34,23 @@ jobs:
       - name: Baixar código
         uses: actions/checkout@v4
 
-      - name: Validar sintaxe JavaScript
+      - name: Validar sintaxe e configuração
         run: |
           node --check radar/modules/classic-achou-levou-phase24b3.js
-          node --check radar/modules/classic-achou-levou-phase24b3-entry.js
-          node --check radar/modules/classic-achou-levou-phase24b4-entry-v5.js
-          node --check radar/modules/classic-achou-levou-phase24b4-entry-v6.js
-          node --check radar/modules/classic-achou-levou-phase24b4-entry-v8.js
-
-      - name: Validar configuração remota
-        run: |
+          node --check radar/modules/classic-achou-levou-phase24b4-entry-v9.js
           python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n '2026.08.05.4-phase24b4-bot-queue-v8' radar/config.json
-          grep -n 'classic-2026.08.05.15-phase24b4-bot-queue-v8' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v8.js?v=1' radar/classic-config.json
-          grep -n 'achou-levou-direct-v7.html?v=3' radar/config.json
+          grep -n '2026.08.05.5-phase24b4-direct-queue-v9' radar/config.json
+          grep -n 'classic-2026.08.05.16-phase24b4-direct-queue-v9' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v9.js?v=1' radar/classic-config.json
+          grep -n 'achou-levou-direct-v9.html?v=1' radar/config.json
           grep -n '"phase24SupervisedMessages": true' radar/classic-config.json
-          grep -n '"phase24MessagesOneAtATime": true' radar/classic-config.json
-          grep -n '"phase24VerifiedAchouLevouSave": true' radar/classic-config.json
-          grep -n '"phase24BotQueueRecoveryV8": true' radar/classic-config.json
           grep -n '"phase24SendWhatsapp": false' radar/classic-config.json
 
-      - name: Validar salvamento confirmado
+      - name: Validar salvamento e recuperação
         run: |
           MODULE=radar/modules/classic-achou-levou-phase24b3.js
-          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v8.js
+          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v9.js
           grep -n '/gerar-mensagem' "$MODULE"
           grep -n '/phase24/batches' "$MODULE"
           grep -n '/shared/offers' "$MODULE"
@@ -77,14 +58,15 @@ jobs:
           grep -n 'sourceId' "$MODULE"
           grep -n 'verified.offer' "$MODULE"
           grep -n 'Nada será enviado ao WhatsApp' "$MODULE"
+          grep -n '/bot/queue' "$RECOVERY"
           grep -n 'persistRecoveredOffer' "$RECOVERY"
           grep -n "status: 'sent'" "$RECOVERY"
-          grep -n 'phase24b4-direct-v8' radar/achou-levou-direct-v7.html
+          grep -n 'recoverThenLoad' "$RECOVERY"
 
       - name: Garantir operação supervisionada
         run: |
           MODULE=radar/modules/classic-achou-levou-phase24b3.js
-          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v8.js
+          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v9.js
           grep -n 'window.confirm' "$MODULE"
           grep -n 'pending\[0\]' "$MODULE"
           grep -n 'supervised: true' "$MODULE"
