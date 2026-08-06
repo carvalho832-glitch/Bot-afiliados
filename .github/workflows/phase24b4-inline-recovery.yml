@@ -6,11 +6,12 @@ on:
       - 'fix/phase24b4-inline-recovery'
       - 'agent/phase24b4-queue-repair'
       - 'fix/phase24b4-bootstrap-v6'
+      - 'fix/phase24b4-direct-top-level'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v4.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
-      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/achou-levou-direct-v7.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b4-inline-recovery.yml'
@@ -21,7 +22,7 @@ on:
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v4.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
-      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/achou-levou-direct-v7.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b4-inline-recovery.yml'
@@ -48,12 +49,13 @@ jobs:
         run: |
           python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n '2026.08.05.2-phase24b4-bootstrap-v6' radar/config.json
-          grep -n 'classic-2026.08.05.13-phase24b4-bootstrap-v6' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=1' radar/classic-config.json
-          grep -n 'achou-levou-bootstrap-v6.html?v=1' radar/config.json
+          grep -n '2026.08.05.3-phase24b4-direct-v7' radar/config.json
+          grep -n 'classic-2026.08.05.14-phase24b4-direct-v7' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=2' radar/classic-config.json
+          grep -n 'achou-levou-direct-v7.html?v=2' radar/config.json
           grep -n '"phase24InlineRecovery": true' radar/classic-config.json
           grep -n '"phase24SharedQueueFallback": true' radar/classic-config.json
+          grep -n '"phase24DirectTopLevelV7": true' radar/classic-config.json
 
       - name: Validar fontes de recuperação
         run: |
@@ -67,6 +69,8 @@ jobs:
           grep -n 'syntheticSourceId' "$MODULE6"
           grep -n 'annotateSharedOffers' "$MODULE6"
           grep -n 'phase24B4V6Diagnostics' "$MODULE6"
+          grep -n 'phase24b4-direct-v7' radar/achou-levou-direct-v7.html
+          ! grep -n '<iframe' radar/achou-levou-direct-v7.html
 
       - name: Garantir operação supervisionada
         run: |
