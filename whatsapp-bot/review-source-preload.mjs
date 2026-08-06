@@ -23,29 +23,36 @@ function safeItem(item = {}, index = 0) {
   };
 }
 
+function isPending(item = {}) {
+  return !['sent', 'enviado', 'completed', 'concluido', 'concluído', 'done']
+    .includes(clean(item.status).toLowerCase());
+}
+
 function installRoute(app) {
   if (app.locals.__phase24ReviewSourceInstalled) return;
   app.locals.__phase24ReviewSourceInstalled = true;
-  originalGet.call(app, ROUTE, (_req, res) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
+
+  app.route(ROUTE).get((_req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     const queue = getQueue();
-    const items = queue
-      .map(safeItem)
-      .filter(Boolean)
-      .filter(item => !['sent', 'enviado', 'completed', 'concluido', 'concluído', 'done'].includes(item.status.toLowerCase()));
+    const safeItems = queue.map(safeItem).filter(Boolean);
+    const pendingItems = safeItems.filter(isPending);
+    const items = pendingItems.length ? pendingItems : safeItems.slice(-1);
 
     res.json({
       ok: true,
       source: 'whatsapp-bot-queue-file',
-      total: queue.length,
-      pending: items.length,
+      total: safeItems.length,
+      pending: pendingItems.length,
       items,
+      fallbackToLatest: pendingItems.length === 0 && items.length > 0,
       generatedAt: new Date().toISOString()
     });
   });
+
   console.log('[REVIEW-SOURCE] Rota segura registrada.', { route: ROUTE });
 }
 
