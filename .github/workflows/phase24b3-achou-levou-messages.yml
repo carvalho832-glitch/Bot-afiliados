@@ -5,10 +5,14 @@ on:
     branches:
       - 'agent/phase24b3-achou-levou-messages'
       - 'agent/phase24b4-queue-repair'
+      - 'fix/phase24b4-bootstrap-v6'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b3.js'
       - 'radar/modules/classic-achou-levou-phase24b3-entry.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b3-achou-levou-messages.yml'
   pull_request:
@@ -18,6 +22,9 @@ on:
       - 'radar/modules/classic-achou-levou-phase24b3.js'
       - 'radar/modules/classic-achou-levou-phase24b3-entry.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b3-achou-levou-messages.yml'
   workflow_dispatch:
@@ -38,12 +45,16 @@ jobs:
           node --check radar/modules/classic-achou-levou-phase24b3.js
           node --check radar/modules/classic-achou-levou-phase24b3-entry.js
           node --check radar/modules/classic-achou-levou-phase24b4-entry-v5.js
+          node --check radar/modules/classic-achou-levou-phase24b4-entry-v6.js
 
       - name: Validar configuração remota
         run: |
+          python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n 'classic-2026.08.05.12-phase24b4-queue-repair' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v5.js?v=1' radar/classic-config.json
+          grep -n '2026.08.05.2-phase24b4-bootstrap-v6' radar/config.json
+          grep -n 'classic-2026.08.05.13-phase24b4-bootstrap-v6' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=1' radar/classic-config.json
+          grep -n 'achou-levou-bootstrap-v6.html?v=1' radar/config.json
           grep -n '"phase24SupervisedMessages": true' radar/classic-config.json
           grep -n '"phase24MessagesOneAtATime": true' radar/classic-config.json
           grep -n '"phase24VerifiedAchouLevouSave": true' radar/classic-config.json
