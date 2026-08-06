@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'fix/phase24b4-review-source-v10'
+      - 'fix/review-source-direct-v12'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v10.js'
       - 'radar/achou-levou-direct-v10.html'
@@ -11,7 +12,7 @@ on:
       - 'radar/classic-config.json'
       - 'api/bot-review-source-preload.js'
       - 'api/package.json'
-      - 'whatsapp-bot/review-source-preload.mjs'
+      - 'whatsapp-bot/server.js'
       - 'whatsapp-bot/start-production.sh'
       - 'whatsapp-bot/package.json'
       - '.github/workflows/phase24b4-queue-repair.yml'
@@ -25,7 +26,7 @@ on:
       - 'radar/classic-config.json'
       - 'api/bot-review-source-preload.js'
       - 'api/package.json'
-      - 'whatsapp-bot/review-source-preload.mjs'
+      - 'whatsapp-bot/server.js'
       - 'whatsapp-bot/start-production.sh'
       - 'whatsapp-bot/package.json'
       - '.github/workflows/phase24b4-queue-repair.yml'
@@ -46,7 +47,7 @@ jobs:
         run: |
           node --check radar/modules/classic-achou-levou-phase24b4-entry-v10.js
           node --check api/bot-review-source-preload.js
-          node --check whatsapp-bot/review-source-preload.mjs
+          node --check whatsapp-bot/server.js
           bash -n whatsapp-bot/start-production.sh
           python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
@@ -67,8 +68,10 @@ jobs:
           grep -n 'stopImmediatePropagation' "$MODULE"
           grep -n 'phase24b4-review-source-v10' "$MODULE"
           grep -n "status: 'sent'" "$MODULE"
-          grep -n 'review-source-preload.mjs' whatsapp-bot/start-production.sh
-          grep -n '/queue/review-source' whatsapp-bot/review-source-preload.mjs
+          grep -n "app.get('/queue/review-source'" whatsapp-bot/server.js
+          grep -n 'fallbackToLatest' whatsapp-bot/server.js
+          grep -n 'exec node server.js' whatsapp-bot/start-production.sh
+          ! grep -n -- '--import ./review-source-preload.mjs' whatsapp-bot/start-production.sh
           grep -n '/bot/queue/review-source' api/bot-review-source-preload.js
 
       - name: Garantir operação supervisionada

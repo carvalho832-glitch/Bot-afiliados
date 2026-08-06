@@ -91,6 +91,29 @@ function preencherGruposNasOfertasPendentes() {
   return queue;
 }
 
+function cleanReviewValue(value = '', max = 20000) {
+  return String(value ?? '').replace(/\r\n/g, '\n').trim().slice(0, max);
+}
+
+function safeReviewItem(item = {}, index = 0) {
+  const message = cleanReviewValue(item.message || item.text || item.content || item.body, 20000);
+  if (!message) return null;
+  return {
+    id: cleanReviewValue(item.id || item.offerId || item.queueId || `queue-${index + 1}`, 160),
+    status: cleanReviewValue(item.status || item.state || 'pending', 40),
+    message,
+    category: cleanReviewValue(item.category || item.categoria || 'geral', 80),
+    createdAt: cleanReviewValue(item.createdAt || item.criadoEm, 100),
+    updatedAt: cleanReviewValue(item.updatedAt || item.atualizadoEm, 100),
+    error: cleanReviewValue(item.error, 500) || null
+  };
+}
+
+function isReviewPending(item = {}) {
+  return !['sent', 'enviado', 'completed', 'concluido', 'concluído', 'done']
+    .includes(cleanReviewValue(item.status).toLowerCase());
+}
+
 app.use(cors());
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -105,10 +128,10 @@ app.get('/', (req, res) => {
   res.json({
     ok: true,
     service: 'Achou Levou WhatsApp Bot',
-    version: '2.1.1',
+    version: '2.3.1',
     ...getConnectionState(),
     serverTime: horaServidor(),
-    routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/qr-page']
+    routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/review-source', '/qr-page']
   });
 });
 
@@ -211,6 +234,23 @@ app.get('/queue', (req, res) => {
   res.json({ ok: true, queue: getQueueSummary() });
 });
 
+app.get('/queue/review-source', (req, res) => {
+  const queue = getQueue();
+  const safeItems = queue.map(safeReviewItem).filter(Boolean);
+  const pendingItems = safeItems.filter(isReviewPending);
+  const items = pendingItems.length ? pendingItems : safeItems.slice(-1);
+
+  res.json({
+    ok: true,
+    source: 'whatsapp-bot-queue-file-direct-v12',
+    total: safeItems.length,
+    pending: pendingItems.length,
+    items,
+    fallbackToLatest: pendingItems.length === 0 && items.length > 0,
+    generatedAt: new Date().toISOString()
+  });
+});
+
 app.post('/queue/add', (req, res) => {
   const text = String(req.body?.text || '').trim();
   if (!text) return res.status(400).json({ ok: false, error: 'Texto vazio.' });
@@ -290,6 +330,6 @@ initializeBot();
 startQueueWatchdog();
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[SERVIDOR] Bot v2.1.1 rodando em http://localhost:${PORT}`);
+  console.log(`[SERVIDOR] Bot v2.3.1 rodando em http://localhost:${PORT}`);
   console.log('[DADOS]', { settings: SETTINGS_FILE, queue: QUEUE_FILE, runtime: RUNTIME_FILE });
 });
