@@ -3,21 +3,25 @@ name: Fase 24B.4 Recuperação Inline
 on:
   push:
     branches:
-      - 'fix/phase24b4-direct-queue-v9'
+      - 'fix/phase24b4-review-source-v10'
     paths:
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v9.js'
-      - 'radar/achou-levou-direct-v9.html'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v10.js'
+      - 'radar/achou-levou-direct-v10.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
+      - 'api/bot-review-source-preload.js'
+      - 'whatsapp-bot/review-source-preload.mjs'
       - '.github/workflows/phase24b4-inline-recovery.yml'
   pull_request:
     branches:
       - main
     paths:
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v9.js'
-      - 'radar/achou-levou-direct-v9.html'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v10.js'
+      - 'radar/achou-levou-direct-v10.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
+      - 'api/bot-review-source-preload.js'
+      - 'whatsapp-bot/review-source-preload.mjs'
       - '.github/workflows/phase24b4-inline-recovery.yml'
   workflow_dispatch:
 
@@ -34,33 +38,36 @@ jobs:
 
       - name: Validar arquivos
         run: |
-          node --check radar/modules/classic-achou-levou-phase24b4-entry-v9.js
+          node --check radar/modules/classic-achou-levou-phase24b4-entry-v10.js
+          node --check api/bot-review-source-preload.js
+          node --check whatsapp-bot/review-source-preload.mjs
           python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n '2026.08.05.5-phase24b4-direct-queue-v9' radar/config.json
-          grep -n 'classic-2026.08.05.16-phase24b4-direct-queue-v9' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v9.js?v=1' radar/classic-config.json
-          grep -n 'achou-levou-direct-v9.html?v=1' radar/config.json
-          grep -n '"phase24DirectBotQueueV9": true' radar/classic-config.json
+          grep -n '2026.08.05.6-phase24b4-review-source-v10' radar/config.json
+          grep -n 'classic-2026.08.05.17-phase24b4-review-source-v10' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v10.js?v=1' radar/classic-config.json
+          grep -n 'achou-levou-direct-v10.html?v=1' radar/config.json
+          grep -n '"phase24SecureReviewSourceV10": true' radar/classic-config.json
           grep -n '"phase24RecoverBeforeReview": true' radar/classic-config.json
 
       - name: Validar leitura e recuperação
         run: |
-          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v9.js
-          grep -n '/bot/queue' "$MODULE"
+          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v10.js
+          grep -n '/bot/queue/review-source' "$MODULE"
           grep -n 'requestJson' "$MODULE"
-          grep -n 'candidateArrays' "$MODULE"
-          grep -n 'queueItemsFromPayload' "$MODULE"
-          grep -n 'writeRecoveredLocally' "$MODULE"
-          grep -n 'installRecoveredFetchBridge' "$MODULE"
-          grep -n 'persistRecoveredOffer' "$MODULE"
-          grep -n 'recoverThenLoad' "$MODULE"
-          grep -n 'installButtonRecovery' "$MODULE"
-          grep -n 'phase24b4-direct-v9' radar/achou-levou-direct-v9.html
+          grep -n 'sourceItems' "$MODULE"
+          grep -n 'writeLocal' "$MODULE"
+          grep -n 'installFetchBridge' "$MODULE"
+          grep -n 'persistOffer' "$MODULE"
+          grep -n 'recoverThenReview' "$MODULE"
+          grep -n 'installButtonHandler' "$MODULE"
+          grep -n 'phase24b4-review-source-v10' radar/achou-levou-direct-v10.html
+          grep -n '/queue/review-source' whatsapp-bot/review-source-preload.mjs
+          grep -n '/bot/queue/review-source' api/bot-review-source-preload.js
 
       - name: Garantir segurança
         run: |
-          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v9.js
+          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v10.js
           grep -n 'supervised: true' "$MODULE"
           grep -n 'autoStart: false' "$MODULE"
           grep -n 'whatsappSend: false' "$MODULE"
