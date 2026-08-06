@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.06.9-autopilot-server-link-v9",
+  "release": "classic-2026.08.06.9.1-autopilot-server-link-v9",
   "minimumClassicVersion": 1900,
   "classicModules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-server-v9.js?v=1",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-server-v9.js?v=2",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-autopilot-v1.js?v=1"
   },
   "features": {
@@ -29,6 +29,7 @@
     "phase24ScrollDuringHarvest": false,
     "phase24ReloadDuringHarvest": false,
     "phase24OpenSyntheticProductUrl": false,
+    "phase24RecoverProductIds": true,
     "phase24OfficialServerAffiliateLink": true,
     "phase24ClickShopeeLinkButton": false,
     "phase24ShopeeAffiliateApiV9": true,
