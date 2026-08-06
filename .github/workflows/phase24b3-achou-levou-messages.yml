@@ -6,12 +6,13 @@ on:
       - 'agent/phase24b3-achou-levou-messages'
       - 'agent/phase24b4-queue-repair'
       - 'fix/phase24b4-bootstrap-v6'
+      - 'fix/phase24b4-direct-top-level'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b3.js'
       - 'radar/modules/classic-achou-levou-phase24b3-entry.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
-      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/achou-levou-direct-v7.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b3-achou-levou-messages.yml'
@@ -23,7 +24,7 @@ on:
       - 'radar/modules/classic-achou-levou-phase24b3-entry.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
-      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/achou-levou-direct-v7.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b3-achou-levou-messages.yml'
@@ -51,10 +52,10 @@ jobs:
         run: |
           python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n '2026.08.05.2-phase24b4-bootstrap-v6' radar/config.json
-          grep -n 'classic-2026.08.05.13-phase24b4-bootstrap-v6' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=1' radar/classic-config.json
-          grep -n 'achou-levou-bootstrap-v6.html?v=1' radar/config.json
+          grep -n '2026.08.05.3-phase24b4-direct-v7' radar/config.json
+          grep -n 'classic-2026.08.05.14-phase24b4-direct-v7' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=2' radar/classic-config.json
+          grep -n 'achou-levou-direct-v7.html?v=2' radar/config.json
           grep -n '"phase24SupervisedMessages": true' radar/classic-config.json
           grep -n '"phase24MessagesOneAtATime": true' radar/classic-config.json
           grep -n '"phase24VerifiedAchouLevouSave": true' radar/classic-config.json
@@ -70,6 +71,7 @@ jobs:
           grep -n 'sourceId' "$MODULE"
           grep -n 'verified.offer' "$MODULE"
           grep -n 'Nada será enviado ao WhatsApp' "$MODULE"
+          grep -n 'phase24b4-direct-v7' radar/achou-levou-direct-v7.html
 
       - name: Garantir operação supervisionada
         run: |
