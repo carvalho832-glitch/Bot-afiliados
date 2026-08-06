@@ -1,0 +1,43 @@
+name: Phase 24 Autopilot
+
+on:
+  pull_request:
+    paths:
+      - 'api/phase24-autopilot-preload.js'
+      - 'api/test/phase24-autopilot.test.mjs'
+      - 'api/package.json'
+      - 'radar/phase24b.js'
+      - 'radar/index.html'
+      - 'radar/config.json'
+      - 'radar/classic-config.json'
+      - 'radar/achou-levou-direct-v11.html'
+      - 'radar/modules/classic-shopee-autopilot-v1.js'
+      - 'radar/modules/classic-achou-levou-autopilot-v1.js'
+      - '.github/workflows/phase24-autopilot.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install API dependencies without browsers
+        working-directory: api
+        run: npm install --ignore-scripts
+      - name: Check API and run tests
+        working-directory: api
+        run: |
+          npm run check
+          npm test
+      - name: Check Radar JavaScript
+        run: |
+          node --check radar/phase24b.js
+          node --check radar/modules/classic-shopee-autopilot-v1.js
+          node --check radar/modules/classic-achou-levou-autopilot-v1.js
+      - name: Validate JSON configuration
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('radar/config.json'))"
+          node -e "JSON.parse(require('fs').readFileSync('radar/classic-config.json'))"
