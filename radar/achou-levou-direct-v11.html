@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Achou Levou Bot</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#06111f;color:#e5f4ff;font-family:system-ui,sans-serif}
+    .boot{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
+    .boot strong{font-size:20px}.boot p{color:#aab8cb;line-height:1.5}
+  </style>
+</head>
+<body>
+  <main class="boot"><div><strong>Abrindo a produção automática…</strong><p>Conectando o Radar ao Achou Levou sem enviar nada ao WhatsApp.</p></div></main>
+  <script>
+    (() => {
+      'use strict';
+      const SOURCE = `achou-levou-direct-v7.html?v=5&t=${Date.now()}`;
+      fetch(SOURCE, { cache: 'no-store', credentials: 'omit' })
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(html => html
+          .replaceAll('phase24b4-direct-v8', 'phase24-autopilot-v1')
+          .replace(/<sup[^>]*>2\.0<\/sup>/i, '')
+          .replace('Monte, revise e envie suas ofertas para a fila do robô.', 'O Radar produz as ofertas. O envio ao robô continua manual.')
+          .replace('Cole o link, gere a mensagem com IA, salve na fila e envie para o robô.', 'O Radar gera o link, puxa os dados, cria a mensagem e salva com verificação.')
+          .replace(
+            /radar\/modules\/classic-achou-levou-phase24b4-entry-v8\.js\?v=1/g,
+            'radar/modules/classic-achou-levou-autopilot-v1.js?v=1'
+          )
+        )
+        .then(html => {
+          document.open();
+          document.write(html);
+          document.close();
+        })
+        .catch(error => {
+          document.body.innerHTML = `<main class="boot"><div><strong>Não foi possível abrir o Achou Levou.</strong><p>${String(error.message || error)}</p></div></main>`;
+        });
+    })();
+  </script>
+</body>
+</html>

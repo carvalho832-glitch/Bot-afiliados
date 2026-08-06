@@ -1,16 +1,16 @@
 {
   "schema": 1,
-  "release": "2026.08.05.6-phase24b4-review-source-v10",
-  "uiVersion": "1.4.5",
+  "release": "2026.08.06.1-autopilot-offers-v1",
+  "uiVersion": "1.5.0",
   "minimumShellVersion": 1801,
   "panelUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/",
-  "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json?v=17",
+  "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json?v=18",
   "shopeeUrl": "https://affiliate.shopee.com.br/offer/product_offer",
-  "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/achou-levou-direct-v10.html?v=1&safe=1",
-  "phase24BatchesUrl": "https://bot-afiliados-1fwi.onrender.com/phase24/batches",
+  "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/achou-levou-direct-v11.html?v=1&safe=1",
+  "phase24AutopilotUrl": "https://bot-afiliados-1fwi.onrender.com/phase24/autopilot/runs",
   "modules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/shopee.js?v=4",
-    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/achou-levou.js?v=1"
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-v1.js?v=1",
+    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-autopilot-v1.js?v=1"
   },
   "allowedHosts": [
     "carvalho832-glitch.github.io",
@@ -34,18 +34,13 @@
     "showClassicRelease": true,
     "cacheCompatibilityRepair": true,
     "embeddedWhatsappPanel": true,
-    "phase24AssistedBatch": true,
-    "phase24BootstrapV6": false,
-    "phase24DirectTopLevelV7": false,
-    "phase24DirectTopLevelV9": false,
-    "phase24DirectTopLevelV10": true,
-    "phase24SharedQueueFallback": true,
-    "phase24BotQueueRecoveryV8": false,
-    "phase24DirectBotQueueV9": false,
-    "phase24SecureReviewSourceV10": true,
-    "phase24RecoverBeforeReview": true,
-    "phase24AlreadyQueuedMarkedSent": true,
-    "phase24DuplicateProtection": true,
-    "phase24AutoStart": false
+    "phase24Autopilot": true,
+    "phase24AutoStart": true,
+    "phase24VerifiedSuccessOnly": true,
+    "phase24ContinueAfterFailure": true,
+    "phase24StopAtTarget": true,
+    "phase24SendWhatsapp": false,
+    "phase24AutoTransfer": false,
+    "phase24ManualBotScheduling": true
   }
 }
