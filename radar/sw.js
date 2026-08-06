@@ -1,10 +1,11 @@
-const CACHE = 'radar-ia-pwa-v4-phase24b';
+const CACHE = 'radar-ia-pwa-v5-navigation';
 const ASSETS = [
   './',
   'index.html',
-  'styles.css?v=4',
-  'app.js?v=4',
-  'phase24b.js?v=1',
+  'styles.css?v=5',
+  'app.js?v=5',
+  'phase24b.js?v=3',
+  'phase24-navigation-v5.js?v=1',
   'manifest.webmanifest'
 ];
 
