@@ -1,0 +1,53 @@
+name: Validar fonte de revisão V12
+
+on:
+  push:
+    branches:
+      - 'fix/review-source-direct-v12'
+    paths:
+      - 'whatsapp-bot/server.js'
+      - 'whatsapp-bot/package.json'
+      - 'whatsapp-bot/start-production.sh'
+      - '.github/workflows/review-source-direct-v12.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'whatsapp-bot/server.js'
+      - 'whatsapp-bot/package.json'
+      - 'whatsapp-bot/start-production.sh'
+      - '.github/workflows/review-source-direct-v12.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Validar sintaxe
+        run: |
+          node --check whatsapp-bot/server.js
+          bash -n whatsapp-bot/start-production.sh
+          python3 -m json.tool whatsapp-bot/package.json >/dev/null
+
+      - name: Validar rota direta
+        run: |
+          grep -n "app.get('/queue/review-source'" whatsapp-bot/server.js
+          grep -n 'safeReviewItem' whatsapp-bot/server.js
+          grep -n 'fallbackToLatest' whatsapp-bot/server.js
+          grep -n "exec node server.js" whatsapp-bot/start-production.sh
+          grep -n '"start:raw": "node apply-phase22-panel.cjs && node server.js"' whatsapp-bot/package.json
+          ! grep -n -- '--import ./review-source-preload.mjs' whatsapp-bot/start-production.sh
+          ! grep -n -- '--import ./review-source-preload.mjs' whatsapp-bot/package.json
+
+      - name: Garantir somente leitura
+        run: |
+          awk "/app.get\('\/queue\/review-source'/,/^\}\);/" whatsapp-bot/server.js > /tmp/review-route.txt
+          grep -n 'getQueue()' /tmp/review-route.txt
+          ! grep -nE 'saveQueue|startQueue|sendMessage|clearQueue|createQueueItem' /tmp/review-route.txt
