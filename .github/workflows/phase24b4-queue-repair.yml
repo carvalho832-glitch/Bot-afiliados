@@ -6,9 +6,11 @@ on:
       - 'agent/phase24b4-queue-repair'
       - 'fix/phase24b4-bootstrap-v6'
       - 'fix/phase24b4-direct-top-level'
+      - 'fix/phase24b4-bot-queue-recovery-v8'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v8.js'
       - 'radar/achou-levou-direct-v7.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
@@ -19,6 +21,7 @@ on:
     paths:
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v8.js'
       - 'radar/achou-levou-direct-v7.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
@@ -40,33 +43,35 @@ jobs:
         run: |
           node --check radar/modules/classic-achou-levou-phase24b4-entry-v5.js
           node --check radar/modules/classic-achou-levou-phase24b4-entry-v6.js
+          node --check radar/modules/classic-achou-levou-phase24b4-entry-v8.js
           python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n '2026.08.05.3-phase24b4-direct-v7' radar/config.json
-          grep -n 'classic-2026.08.05.14-phase24b4-direct-v7' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=2' radar/classic-config.json
-          grep -n 'achou-levou-direct-v7.html?v=2' radar/config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=2' radar/achou-levou-direct-v7.html
+          grep -n '2026.08.05.4-phase24b4-bot-queue-v8' radar/config.json
+          grep -n 'classic-2026.08.05.15-phase24b4-bot-queue-v8' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v8.js?v=1' radar/classic-config.json
+          grep -n 'achou-levou-direct-v7.html?v=3' radar/config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v8.js?v=1' radar/achou-levou-direct-v7.html
 
-      - name: Validar abertura direta e recuperação
+      - name: Validar recuperação pela fila do robô
         run: |
-          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v6.js
+          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v8.js
           DIRECT=radar/achou-levou-direct-v7.html
-          grep -n '/shared/offers' "$MODULE"
-          grep -n 'syntheticSourceId' "$MODULE"
-          grep -n 'shared-fallback' "$MODULE"
-          grep -n 'annotateSharedOffers' "$MODULE"
-          grep -n 'phase24B4V6Diagnostics' "$MODULE"
-          grep -n 'phase24B4Review' "$MODULE"
-          grep -n '<base href="../">' "$DIRECT"
-          grep -n 'phase24b4-direct-v7' "$DIRECT"
+          grep -n 'getOverview' "$MODULE"
+          grep -n 'queueItemsFromOverview' "$MODULE"
+          grep -n 'extractLink' "$MODULE"
+          grep -n 'phase24b4-recovered-from-bot-queue' "$MODULE"
+          grep -n 'installRecoveredFetchBridge' "$MODULE"
+          grep -n "status: 'sent'" "$MODULE"
+          grep -n 'duplicateProtection: true' "$MODULE"
+          grep -n 'phase24b4-direct-v8' "$DIRECT"
           ! grep -n '<iframe' "$DIRECT"
 
       - name: Garantir operação supervisionada
         run: |
-          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v6.js
+          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v8.js
           grep -n 'autoStart: false' "$MODULE"
           grep -n 'whatsappSend: false' "$MODULE"
           grep -n '"phase24AutoStart": false' radar/classic-config.json
           grep -n '"phase24AutoTransfer": false' radar/classic-config.json
-          ! grep -nE '/(queue/start|fila/iniciar|bot/start|send-controlado)' "$MODULE"
+          ! grep -nE '/(queue/add|queue/start|fila/iniciar|bot/start|send-controlado)' "$MODULE"
+          ! grep -n 'transferOffers' "$MODULE"
