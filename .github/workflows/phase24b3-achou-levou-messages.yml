@@ -7,11 +7,13 @@ on:
       - 'agent/phase24b4-queue-repair'
       - 'fix/phase24b4-bootstrap-v6'
       - 'fix/phase24b4-direct-top-level'
+      - 'fix/phase24b4-bot-queue-recovery-v8'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b3.js'
       - 'radar/modules/classic-achou-levou-phase24b3-entry.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v8.js'
       - 'radar/achou-levou-direct-v7.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
@@ -24,6 +26,7 @@ on:
       - 'radar/modules/classic-achou-levou-phase24b3-entry.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v8.js'
       - 'radar/achou-levou-direct-v7.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
@@ -47,23 +50,26 @@ jobs:
           node --check radar/modules/classic-achou-levou-phase24b3-entry.js
           node --check radar/modules/classic-achou-levou-phase24b4-entry-v5.js
           node --check radar/modules/classic-achou-levou-phase24b4-entry-v6.js
+          node --check radar/modules/classic-achou-levou-phase24b4-entry-v8.js
 
       - name: Validar configuração remota
         run: |
           python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n '2026.08.05.3-phase24b4-direct-v7' radar/config.json
-          grep -n 'classic-2026.08.05.14-phase24b4-direct-v7' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=2' radar/classic-config.json
-          grep -n 'achou-levou-direct-v7.html?v=2' radar/config.json
+          grep -n '2026.08.05.4-phase24b4-bot-queue-v8' radar/config.json
+          grep -n 'classic-2026.08.05.15-phase24b4-bot-queue-v8' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v8.js?v=1' radar/classic-config.json
+          grep -n 'achou-levou-direct-v7.html?v=3' radar/config.json
           grep -n '"phase24SupervisedMessages": true' radar/classic-config.json
           grep -n '"phase24MessagesOneAtATime": true' radar/classic-config.json
           grep -n '"phase24VerifiedAchouLevouSave": true' radar/classic-config.json
+          grep -n '"phase24BotQueueRecoveryV8": true' radar/classic-config.json
           grep -n '"phase24SendWhatsapp": false' radar/classic-config.json
 
       - name: Validar salvamento confirmado
         run: |
           MODULE=radar/modules/classic-achou-levou-phase24b3.js
+          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v8.js
           grep -n '/gerar-mensagem' "$MODULE"
           grep -n '/phase24/batches' "$MODULE"
           grep -n '/shared/offers' "$MODULE"
@@ -71,14 +77,18 @@ jobs:
           grep -n 'sourceId' "$MODULE"
           grep -n 'verified.offer' "$MODULE"
           grep -n 'Nada será enviado ao WhatsApp' "$MODULE"
-          grep -n 'phase24b4-direct-v7' radar/achou-levou-direct-v7.html
+          grep -n 'persistRecoveredOffer' "$RECOVERY"
+          grep -n "status: 'sent'" "$RECOVERY"
+          grep -n 'phase24b4-direct-v8' radar/achou-levou-direct-v7.html
 
       - name: Garantir operação supervisionada
         run: |
           MODULE=radar/modules/classic-achou-levou-phase24b3.js
+          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v8.js
           grep -n 'window.confirm' "$MODULE"
           grep -n 'pending\[0\]' "$MODULE"
           grep -n 'supervised: true' "$MODULE"
           grep -n 'autoStart: false' "$MODULE"
           grep -n 'sendsWhatsapp: false' "$MODULE"
-          ! grep -nE '/(queue/start|fila/iniciar|bot/start|send-controlado)' "$MODULE"
+          grep -n 'duplicateProtection: true' "$RECOVERY"
+          ! grep -nE '/(queue/add|queue/start|fila/iniciar|bot/start|send-controlado)' "$RECOVERY"
