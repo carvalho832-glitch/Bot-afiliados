@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.06.3-autopilot-product-reader-v3",
+  "release": "classic-2026.08.06.4-autopilot-loop-guard-v4",
   "minimumClassicVersion": 1900,
   "classicModules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-desktop-v2.js?v=2",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-desktop-v4.js?v=1",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-autopilot-v1.js?v=1"
   },
   "features": {
@@ -20,6 +20,7 @@
     "phase24AutoDesktop": true,
     "phase24DesktopWidth": 1440,
     "desktopModeDefault": true,
+    "phase24DesktopReloadLoopGuard": true,
     "phase24ProductCardCompatibility": true,
     "phase24AutoGenerateLinks": true,
     "phase24AutoPullProduct": true,
