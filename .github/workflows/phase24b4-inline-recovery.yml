@@ -1,0 +1,58 @@
+name: Fase 24B.4 Recuperação Inline
+
+on:
+  push:
+    branches:
+      - 'fix/phase24b4-inline-recovery'
+    paths:
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v4.js'
+      - 'radar/classic-config.json'
+      - '.github/workflows/phase24b4-inline-recovery.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v4.js'
+      - 'radar/classic-config.json'
+      - '.github/workflows/phase24b4-inline-recovery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Validar sintaxe JavaScript
+        run: node --check radar/modules/classic-achou-levou-phase24b4-entry-v4.js
+
+      - name: Validar configuração remota
+        run: |
+          python3 -m json.tool radar/classic-config.json >/dev/null
+          grep -n 'classic-2026.08.05.11-phase24b4-inline-recovery' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v4.js?v=1' radar/classic-config.json
+          grep -n '"phase24InlineRecovery": true' radar/classic-config.json
+          grep -n '"phase24ScanLocalStorage": true' radar/classic-config.json
+
+      - name: Validar fontes de recuperação
+        run: |
+          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v4.js
+          grep -n '/phase24/batches' "$MODULE"
+          grep -n '/shared/offers' "$MODULE"
+          grep -n 'scanStorage(localStorage' "$MODULE"
+          grep -n 'scanStorage(sessionStorage' "$MODULE"
+          grep -n 'phase24b3:' "$MODULE"
+          grep -n 'phase24B4InlineRecovery' "$MODULE"
+
+      - name: Garantir operação supervisionada
+        run: |
+          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v4.js
+          grep -n 'verifiedTransferPreserved: true' "$MODULE"
+          grep -n 'autoStart: false' "$MODULE"
+          grep -n 'whatsappSend: false' "$MODULE"
+          ! grep -nE '/(start|iniciar|queue/start|fila/iniciar|bot/start)' "$MODULE"
