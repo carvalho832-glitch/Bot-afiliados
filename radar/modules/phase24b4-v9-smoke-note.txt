@@ -1,1 +1,0 @@
-V9: leitura direta de /bot/queue, recuperação antes da revisão e proteção contra duplicação.
