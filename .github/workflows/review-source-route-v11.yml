@@ -1,0 +1,44 @@
+name: Validar rota de revisão V11
+
+on:
+  push:
+    branches:
+      - 'fix/review-source-route-v11'
+    paths:
+      - 'whatsapp-bot/review-source-preload.mjs'
+      - '.github/workflows/review-source-route-v11.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'whatsapp-bot/review-source-preload.mjs'
+      - '.github/workflows/review-source-route-v11.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Validar sintaxe
+        run: node --check whatsapp-bot/review-source-preload.mjs
+
+      - name: Validar registro direto da rota
+        run: |
+          FILE=whatsapp-bot/review-source-preload.mjs
+          grep -n "app.route(ROUTE).get" "$FILE"
+          grep -n "res.setHeader('Cache-Control'" "$FILE"
+          grep -n "fallbackToLatest" "$FILE"
+          ! grep -n "originalGet.call(app, ROUTE" "$FILE"
+
+      - name: Validar operação somente leitura
+        run: |
+          FILE=whatsapp-bot/review-source-preload.mjs
+          grep -n "getQueue" "$FILE"
+          ! grep -nE "saveQueue|queue/add|queue/start|send-controlado" "$FILE"
