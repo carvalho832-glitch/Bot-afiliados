@@ -5,9 +5,13 @@ on:
     branches:
       - 'fix/phase24b4-inline-recovery'
       - 'agent/phase24b4-queue-repair'
+      - 'fix/phase24b4-bootstrap-v6'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v4.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b4-inline-recovery.yml'
   pull_request:
@@ -16,6 +20,9 @@ on:
     paths:
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v4.js'
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b4-inline-recovery.yml'
   workflow_dispatch:
@@ -35,31 +42,36 @@ jobs:
         run: |
           node --check radar/modules/classic-achou-levou-phase24b4-entry-v4.js
           node --check radar/modules/classic-achou-levou-phase24b4-entry-v5.js
+          node --check radar/modules/classic-achou-levou-phase24b4-entry-v6.js
 
       - name: Validar configuração remota
         run: |
+          python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n 'classic-2026.08.05.12-phase24b4-queue-repair' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v5.js?v=1' radar/classic-config.json
+          grep -n '2026.08.05.2-phase24b4-bootstrap-v6' radar/config.json
+          grep -n 'classic-2026.08.05.13-phase24b4-bootstrap-v6' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=1' radar/classic-config.json
+          grep -n 'achou-levou-bootstrap-v6.html?v=1' radar/config.json
           grep -n '"phase24InlineRecovery": true' radar/classic-config.json
-          grep -n '"phase24ScanLocalStorage": true' radar/classic-config.json
-          grep -n '"phase24QueueRepair": true' radar/classic-config.json
+          grep -n '"phase24SharedQueueFallback": true' radar/classic-config.json
 
       - name: Validar fontes de recuperação
         run: |
-          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v5.js
-          grep -n '/phase24/batches' "$MODULE"
-          grep -n '/shared/offers' "$MODULE"
-          grep -n 'scanStorage(localStorage' "$MODULE"
-          grep -n 'scanStorage(sessionStorage' "$MODULE"
-          grep -n 'phase24b3:' "$MODULE"
-          grep -n 'phase24B4QueueRepair' "$MODULE"
-          grep -n 'installSharedOffersBridge' "$MODULE"
+          MODULE5=radar/modules/classic-achou-levou-phase24b4-entry-v5.js
+          MODULE6=radar/modules/classic-achou-levou-phase24b4-entry-v6.js
+          grep -n '/phase24/batches' "$MODULE5"
+          grep -n '/shared/offers' "$MODULE5"
+          grep -n 'scanStorage(localStorage' "$MODULE5"
+          grep -n 'scanStorage(sessionStorage' "$MODULE5"
+          grep -n 'installSharedOffersBridge' "$MODULE5"
+          grep -n 'syntheticSourceId' "$MODULE6"
+          grep -n 'annotateSharedOffers' "$MODULE6"
+          grep -n 'phase24B4V6Diagnostics' "$MODULE6"
 
       - name: Garantir operação supervisionada
         run: |
-          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v5.js
-          grep -n 'verifiedTransferPreserved: true' "$MODULE"
+          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v6.js
+          grep -n 'supervised: true' "$MODULE"
           grep -n 'autoStart: false' "$MODULE"
           grep -n 'whatsappSend: false' "$MODULE"
           ! grep -nE '/(queue/start|fila/iniciar|bot/start|send-controlado)' "$MODULE"

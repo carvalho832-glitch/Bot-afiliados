@@ -4,8 +4,12 @@ on:
   push:
     branches:
       - 'agent/phase24b4-queue-repair'
+      - 'fix/phase24b4-bootstrap-v6'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b4-queue-repair.yml'
   pull_request:
@@ -13,6 +17,9 @@ on:
       - main
     paths:
       - 'radar/modules/classic-achou-levou-phase24b4-entry-v5.js'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v6.js'
+      - 'radar/achou-levou-bootstrap-v6.html'
+      - 'radar/config.json'
       - 'radar/classic-config.json'
       - '.github/workflows/phase24b4-queue-repair.yml'
   workflow_dispatch:
@@ -31,25 +38,29 @@ jobs:
       - name: Validar sintaxe e configuração
         run: |
           node --check radar/modules/classic-achou-levou-phase24b4-entry-v5.js
+          node --check radar/modules/classic-achou-levou-phase24b4-entry-v6.js
+          python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n 'classic-2026.08.05.12-phase24b4-queue-repair' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v5.js?v=1' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-v2.js?v=5' radar/modules/classic-achou-levou-phase24b4-entry-v5.js
+          grep -n '2026.08.05.2-phase24b4-bootstrap-v6' radar/config.json
+          grep -n 'classic-2026.08.05.13-phase24b4-bootstrap-v6' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v6.js?v=1' radar/classic-config.json
+          grep -n 'achou-levou-bootstrap-v6.html?v=1' radar/config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v5.js?v=2' radar/modules/classic-achou-levou-phase24b4-entry-v6.js
 
-      - name: Validar recuperação e mesclagem
+      - name: Validar recuperação e fallback
         run: |
-          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v5.js
-          grep -n '/phase24/batches' "$MODULE"
+          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v6.js
           grep -n '/shared/offers' "$MODULE"
-          grep -n 'scanStorage(localStorage' "$MODULE"
-          grep -n 'scanStorage(sessionStorage' "$MODULE"
-          grep -n 'installSharedOffersBridge' "$MODULE"
-          grep -n 'mergeOffers' "$MODULE"
-          grep -n 'phase24B4QueueRepair' "$MODULE"
+          grep -n 'syntheticSourceId' "$MODULE"
+          grep -n 'shared-fallback' "$MODULE"
+          grep -n 'annotateSharedOffers' "$MODULE"
+          grep -n 'phase24B4V6Diagnostics' "$MODULE"
+          grep -n 'phase24B4Review' "$MODULE"
+          grep -n "radarBootstrap = 'phase24b4-v6'" radar/achou-levou-bootstrap-v6.html
 
       - name: Garantir operação supervisionada
         run: |
-          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v5.js
+          MODULE=radar/modules/classic-achou-levou-phase24b4-entry-v6.js
           grep -n 'autoStart: false' "$MODULE"
           grep -n 'whatsappSend: false' "$MODULE"
           grep -n '"phase24AutoStart": false' radar/classic-config.json
