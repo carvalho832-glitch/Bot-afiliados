@@ -3,23 +3,27 @@ name: Fase 24B.3 Mensagens no Achou Levou
 on:
   push:
     branches:
-      - 'fix/phase24b4-direct-queue-v9'
+      - 'fix/phase24b4-review-source-v10'
     paths:
       - 'radar/modules/classic-achou-levou-phase24b3.js'
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v9.js'
-      - 'radar/achou-levou-direct-v9.html'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v10.js'
+      - 'radar/achou-levou-direct-v10.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
+      - 'api/bot-review-source-preload.js'
+      - 'whatsapp-bot/review-source-preload.mjs'
       - '.github/workflows/phase24b3-achou-levou-messages.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'radar/modules/classic-achou-levou-phase24b3.js'
-      - 'radar/modules/classic-achou-levou-phase24b4-entry-v9.js'
-      - 'radar/achou-levou-direct-v9.html'
+      - 'radar/modules/classic-achou-levou-phase24b4-entry-v10.js'
+      - 'radar/achou-levou-direct-v10.html'
       - 'radar/config.json'
       - 'radar/classic-config.json'
+      - 'api/bot-review-source-preload.js'
+      - 'whatsapp-bot/review-source-preload.mjs'
       - '.github/workflows/phase24b3-achou-levou-messages.yml'
   workflow_dispatch:
 
@@ -37,20 +41,22 @@ jobs:
       - name: Validar sintaxe e configuração
         run: |
           node --check radar/modules/classic-achou-levou-phase24b3.js
-          node --check radar/modules/classic-achou-levou-phase24b4-entry-v9.js
+          node --check radar/modules/classic-achou-levou-phase24b4-entry-v10.js
+          node --check api/bot-review-source-preload.js
+          node --check whatsapp-bot/review-source-preload.mjs
           python3 -m json.tool radar/config.json >/dev/null
           python3 -m json.tool radar/classic-config.json >/dev/null
-          grep -n '2026.08.05.5-phase24b4-direct-queue-v9' radar/config.json
-          grep -n 'classic-2026.08.05.16-phase24b4-direct-queue-v9' radar/classic-config.json
-          grep -n 'classic-achou-levou-phase24b4-entry-v9.js?v=1' radar/classic-config.json
-          grep -n 'achou-levou-direct-v9.html?v=1' radar/config.json
+          grep -n '2026.08.05.6-phase24b4-review-source-v10' radar/config.json
+          grep -n 'classic-2026.08.05.17-phase24b4-review-source-v10' radar/classic-config.json
+          grep -n 'classic-achou-levou-phase24b4-entry-v10.js?v=1' radar/classic-config.json
+          grep -n 'achou-levou-direct-v10.html?v=1' radar/config.json
           grep -n '"phase24SupervisedMessages": true' radar/classic-config.json
           grep -n '"phase24SendWhatsapp": false' radar/classic-config.json
 
       - name: Validar salvamento e recuperação
         run: |
           MODULE=radar/modules/classic-achou-levou-phase24b3.js
-          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v9.js
+          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v10.js
           grep -n '/gerar-mensagem' "$MODULE"
           grep -n '/phase24/batches' "$MODULE"
           grep -n '/shared/offers' "$MODULE"
@@ -58,15 +64,16 @@ jobs:
           grep -n 'sourceId' "$MODULE"
           grep -n 'verified.offer' "$MODULE"
           grep -n 'Nada será enviado ao WhatsApp' "$MODULE"
-          grep -n '/bot/queue' "$RECOVERY"
-          grep -n 'persistRecoveredOffer' "$RECOVERY"
+          grep -n '/bot/queue/review-source' "$RECOVERY"
+          grep -n 'persistOffer' "$RECOVERY"
           grep -n "status: 'sent'" "$RECOVERY"
-          grep -n 'recoverThenLoad' "$RECOVERY"
+          grep -n 'recoverThenReview' "$RECOVERY"
+          grep -n '/queue/review-source' whatsapp-bot/review-source-preload.mjs
 
       - name: Garantir operação supervisionada
         run: |
           MODULE=radar/modules/classic-achou-levou-phase24b3.js
-          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v9.js
+          RECOVERY=radar/modules/classic-achou-levou-phase24b4-entry-v10.js
           grep -n 'window.confirm' "$MODULE"
           grep -n 'pending\[0\]' "$MODULE"
           grep -n 'supervised: true' "$MODULE"
