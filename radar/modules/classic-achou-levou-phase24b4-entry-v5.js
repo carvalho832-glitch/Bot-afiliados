@@ -150,10 +150,13 @@
     for (const offer of candidates.values()) addCandidate(merged, offer, 'phase24b4-memory-recovery');
     for (const offer of Array.isArray(serverOffers) ? serverOffers : []) {
       const normalized = normalizeCandidate(offer, clean(offer?.source) || 'shared-server');
-      if (normalized) {
-        const key = candidateKey(normalized);
-        merged.set(key, { ...(merged.get(key) || {}), ...offer, ...normalized });
-      }
+      const key = normalized
+        ? candidateKey(normalized)
+        : `server:${candidateKey(offer) || `${clean(offer?.link)}:${merged.size}`}`;
+      merged.set(key, normalized
+        ? { ...(merged.get(key) || {}), ...offer, ...normalized }
+        : offer
+      );
     }
     return [...merged.values()];
   }
