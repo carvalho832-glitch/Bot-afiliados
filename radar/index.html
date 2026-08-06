@@ -6,113 +6,60 @@
   <meta name="theme-color" content="#07111f">
   <meta name="description" content="Painel atualizável do Radar IA Mobile">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
   <title>Radar IA</title>
 </head>
 <body>
   <header class="topbar">
-    <div>
-      <span class="eyebrow">OFERTA BRUTA</span>
-      <h1>Radar IA</h1>
-    </div>
+    <div><span class="eyebrow">OFERTA BRUTA</span><h1>Radar IA</h1></div>
     <button id="refresh" class="icon-button" aria-label="Atualizar">↻</button>
   </header>
 
   <main>
     <section class="hero card">
       <div class="orb">◉</div>
-      <div>
-        <h2>Central de automação</h2>
-        <p id="status">Conectando ao aplicativo...</p>
-      </div>
-      <div class="release-badges">
-        <span id="version" class="badge">painel carregando</span>
-        <span id="classic-version" class="badge classic-badge">clássico carregando</span>
-      </div>
+      <div><h2>Central de automação</h2><p id="status">Conectando ao aplicativo...</p></div>
+      <div class="release-badges"><span id="version" class="badge">painel carregando</span><span id="classic-version" class="badge classic-badge">clássico carregando</span></div>
     </section>
 
     <section class="grid">
-      <button class="action primary" data-action="shopee">
-        <span class="action-icon">🛒</span>
-        <strong>Shopee Afiliados</strong>
-        <small>Abrir garimpo e ferramentas remotas</small>
-      </button>
-      <button class="action" data-action="achou">
-        <span class="action-icon">📦</span>
-        <strong>Achou Levou</strong>
-        <small>Criar, revisar e acompanhar ofertas</small>
-      </button>
-      <button class="action" data-action="classic">
-        <span class="action-icon">🧰</span>
-        <strong>Modo clássico</strong>
-        <small>Usar as funções já aprovadas no APK</small>
-      </button>
-      <button class="action" data-action="sync">
-        <span class="action-icon">☁️</span>
-        <strong>Buscar atualização</strong>
-        <small>Baixar configurações do painel e do clássico</small>
-      </button>
+      <button class="action primary" data-action="shopee"><span class="action-icon">🛒</span><strong>Shopee Afiliados</strong><small>Abrir garimpo e acompanhar o piloto automático</small></button>
+      <button class="action" data-action="achou"><span class="action-icon">📦</span><strong>Achou Levou</strong><small>Conferir ofertas salvas e enviar manualmente ao robô</small></button>
+      <button class="action" data-action="classic"><span class="action-icon">🧰</span><strong>Modo clássico</strong><small>Usar as funções já aprovadas no APK</small></button>
+      <button class="action" data-action="sync"><span class="action-icon">☁️</span><strong>Buscar atualização</strong><small>Baixar configurações do painel e do clássico</small></button>
     </section>
 
     <section id="phase24-card" class="card phase24-card">
       <div class="section-title phase24-title">
-        <div>
-          <span class="eyebrow">GARIMPO SEMIAUTOMÁTICO</span>
-          <h2>🧭 Revisão do lote</h2>
-        </div>
-        <span id="phase24-version" class="badge">Fase 24</span>
+        <div><span class="eyebrow">AUTOMAÇÃO DE OFERTAS</span><h2>🤖 Produção automática</h2></div>
+        <span id="phase24-version" class="badge">Fase 24 Auto</span>
       </div>
-      <p class="muted">Leia os produtos na Shopee, aplique regras e aprove somente o lote que seguirá para a geração dos links. Nada é enviado ao WhatsApp nesta tela.</p>
+      <p class="muted">Defina a meta e os filtros. O Radar garimpa, gera o link afiliado, puxa o produto, cria a mensagem com IA e salva na fila. Só uma oferta salva e verificada entra no contador. Nada é enviado automaticamente ao WhatsApp.</p>
 
       <div class="phase24-toolbar">
-        <label>Perfil
-          <select id="phase24-profile">
-            <option value="julio">Júlio</option>
-            <option value="renata">Renata</option>
-          </select>
-        </label>
-        <label>Quantidade máxima
-          <input id="phase24-max-items" type="number" min="1" max="80" value="15">
-        </label>
-        <label class="phase24-wide">Palavras ou nichos, separados por vírgula
-          <input id="phase24-keywords" type="text" placeholder="casa, eletrônicos, fitness">
-        </label>
-        <label>Preço mínimo
-          <input id="phase24-min-price" type="number" min="0" step="0.01" placeholder="0">
-        </label>
-        <label>Preço máximo
-          <input id="phase24-max-price" type="number" min="0" step="0.01" placeholder="sem limite">
-        </label>
-        <label>Vendas mínimas
-          <input id="phase24-min-sold" type="number" min="0" step="1" value="0">
-        </label>
-        <label>Avaliação mínima
-          <input id="phase24-min-rating" type="number" min="0" max="5" step="0.1" value="0">
-        </label>
+        <label>Perfil<select id="phase24-profile"><option value="julio">Júlio</option><option value="renata">Renata</option></select></label>
+        <label>Quantidade de ofertas concluídas<input id="phase24-max-items" type="number" min="1" max="200" value="15"></label>
+        <label class="phase24-wide">Palavras ou nichos, separados por vírgula<input id="phase24-keywords" type="text" placeholder="casa, eletrônicos, fitness"></label>
+        <label>Preço mínimo<input id="phase24-min-price" type="number" min="0" step="0.01" placeholder="0"></label>
+        <label>Preço máximo<input id="phase24-max-price" type="number" min="0" step="0.01" placeholder="sem limite"></label>
+        <label>Vendas mínimas<input id="phase24-min-sold" type="number" min="0" step="1" value="0"></label>
+        <label>Avaliação mínima<input id="phase24-min-rating" type="number" min="0" max="5" step="0.1" value="0"></label>
       </div>
 
       <div class="phase24-actions">
-        <button id="phase24-refresh" type="button">🔄 Buscar lote</button>
-        <button id="phase24-apply" type="button" class="phase24-primary">🧪 Aplicar regras</button>
-        <button id="phase24-save" type="button">💾 Salvar revisão</button>
-        <button id="phase24-clear" type="button">🧹 Limpar decisões</button>
-        <button id="phase24-confirm" type="button" class="phase24-confirm">✅ Confirmar lote</button>
+        <button id="phase24-refresh" type="button">🔄 Atualizar progresso</button>
+        <button id="phase24-confirm" type="button" class="phase24-confirm">▶️ Iniciar produção automática</button>
+        <button id="phase24-clear" type="button">⏹️ Cancelar produção</button>
       </div>
 
-      <div class="phase24-summary-line">
-        <strong id="phase24-summary">0 produtos</strong>
-        <span>Próxima etapa: gerar links de afiliado</span>
-      </div>
-      <div id="phase24-status" class="phase24-status">Carregando a Fase 24B...</div>
-      <div id="phase24-list" class="phase24-list empty">Nenhum lote carregado.</div>
+      <div class="phase24-summary-line"><strong id="phase24-summary">0 ofertas concluídas</strong><span>Conta somente oferta salva e verificada</span></div>
+      <div id="phase24-status" class="phase24-status">Aguardando uma produção automática.</div>
+      <div id="phase24-list" class="phase24-list empty">Nenhuma produção automática iniciada.</div>
     </section>
 
     <section class="card">
-      <div class="section-title">
-        <h2>Fila do Radar</h2>
-        <span id="queue-count" class="badge">0</span>
-      </div>
-      <p class="muted">Esta fila visual ainda pertence ao painel. As ofertas salvas no Achou Levou usam a fila compartilhada verificada.</p>
+      <div class="section-title"><h2>Fila do Radar</h2><span id="queue-count" class="badge">0</span></div>
+      <p class="muted">Esta fila visual pertence ao painel. As ofertas concluídas ficam na fila compartilhada do Achou Levou até você enviá-las manualmente ao robô.</p>
       <div id="queue" class="queue empty">Nenhum produto na fila remota.</div>
     </section>
 
@@ -125,7 +72,7 @@
   </main>
 
   <div id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=4" defer></script>
-  <script src="phase24b.js?v=1" defer></script>
+  <script src="app.js?v=5" defer></script>
+  <script src="phase24b.js?v=2" defer></script>
 </body>
 </html>
