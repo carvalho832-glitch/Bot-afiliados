@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.05.16-phase24b4-direct-queue-v9",
+  "release": "classic-2026.08.05.17-phase24b4-review-source-v10",
   "minimumClassicVersion": 1900,
   "classicModules": {
     "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-phase24b2.js?v=2",
-    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-entry-v9.js?v=1"
+    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-entry-v10.js?v=1"
   },
   "features": {
     "classicAsHome": true,
@@ -17,6 +17,7 @@
     "phase24AssistedBatch": true,
     "phase24BatchesEndpoint": "https://bot-afiliados-1fwi.onrender.com/phase24/batches",
     "phase24ReviewsEndpoint": "https://bot-afiliados-1fwi.onrender.com/phase24/reviews",
+    "phase24ReviewSourceEndpoint": "https://bot-afiliados-1fwi.onrender.com/bot/queue/review-source",
     "phase24DirectCaptureButton": true,
     "phase24SupervisedLinks": true,
     "phase24LinksOneAtATime": true,
@@ -38,13 +39,13 @@
     "phase24QueueRepair": true,
     "phase24MergeSharedAndRecoveredOffers": true,
     "phase24BootstrapV6": false,
-    "phase24DirectTopLevelV7": true,
+    "phase24DirectTopLevelV7": false,
     "phase24SharedQueueFallback": true,
     "phase24NativeCacheBypass": true,
     "phase24BotQueueRecoveryV8": false,
-    "phase24DirectBotQueueV9": true,
+    "phase24DirectBotQueueV9": false,
+    "phase24SecureReviewSourceV10": true,
     "phase24RecoverBeforeReview": true,
-    "phase24NormalizedQueueShapes": true,
     "phase24AlreadyQueuedMarkedSent": true,
     "phase24DuplicateProtection": true,
     "phase24SendWhatsapp": false,
