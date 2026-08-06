@@ -1,17 +1,17 @@
 {
   "name": "achou-levou-whatsapp-bot",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Bot WhatsApp Achou Levou com fila persistente, grupos ativos, revisão segura e preparação guiada supervisionada.",
   "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "bash start-production.sh",
-    "start:raw": "node apply-phase22-panel.cjs && node --import ./review-source-preload.mjs server.js",
+    "start:raw": "node apply-phase22-panel.cjs && node server.js",
     "setup:production": "bash setup-server.sh",
-    "check": "node --check server.js && node --check bot-store.mjs && node --check bot-engine.mjs && node --check frame-recovery.mjs && node --check shopee-tracking.mjs && node --check phase22-control.js && node --check review-source-preload.mjs && node --check apply-phase22-panel.cjs && bash -n start-production.sh && bash -n setup-server.sh",
+    "check": "node --check server.js && node --check bot-store.mjs && node --check bot-engine.mjs && node --check frame-recovery.mjs && node --check shopee-tracking.mjs && node --check phase22-control.js && node --check apply-phase22-panel.cjs && bash -n start-production.sh && bash -n setup-server.sh",
     "test": "node --test test/*.test.mjs",
     "doctor": "bash bot-doctor.sh",
-    "dev": "node --watch --import ./review-source-preload.mjs server.js"
+    "dev": "node --watch server.js"
   },
   "dependencies": {
     "cors": "2.8.5",
