@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.06.6-autopilot-stable-shopee-v6",
+  "release": "classic-2026.08.06.7-autopilot-clean-reader-v7",
   "minimumClassicVersion": 1900,
   "classicModules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-stable-v6.js?v=1",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-clean-v7.js?v=1",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-autopilot-v1.js?v=1"
   },
   "features": {
@@ -19,13 +19,16 @@
     "phase24AutoGarimpo": true,
     "phase24DesktopBeforeNavigation": true,
     "phase24ToggleDesktopOnShopee": false,
-    "phase24ShopeeBlankReloadOnce": true,
+    "phase24ShopeeBlankReloadOnce": false,
     "phase24NavigationFallback": true,
     "phase24NavigationTargetSelf": true,
     "phase24AutoDesktop": true,
     "phase24DesktopWidth": 1440,
     "desktopModeDefault": true,
-    "phase24ProductCardCompatibility": true,
+    "phase24ReadVisibleProductsOnly": true,
+    "phase24ScrollDuringHarvest": false,
+    "phase24ReloadDuringHarvest": false,
+    "phase24OpenSyntheticProductUrl": false,
     "phase24AutoGenerateLinks": true,
     "phase24AutoPullProduct": true,
     "phase24AutoGenerateMessages": true,
