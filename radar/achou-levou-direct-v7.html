@@ -12,7 +12,7 @@
   <script>
     (() => {
       'use strict';
-      const RELEASE = 'phase24b4-direct-v7';
+      const RELEASE = 'phase24b4-direct-v8';
       window.__ACHOU_LEVOU_DIRECT_RELEASE__ = RELEASE;
       try {
         sessionStorage.setItem('achou_levou_direct_release', RELEASE);
@@ -25,16 +25,16 @@
             .catch(() => {});
         }
       } catch (error) {
-        console.warn('[ACHOU LEVOU V7] Limpeza de compatibilidade ignorada:', error);
+        console.warn('[ACHOU LEVOU V8] Limpeza de compatibilidade ignorada:', error);
       }
     })();
   </script>
 
-  <link rel="stylesheet" href="style.css?v=92">
-  <link rel="stylesheet" href="progress-style.css?v=92">
-  <link rel="stylesheet" href="robot-realistic.css?v=92">
-  <link rel="stylesheet" href="ui-fix-v38.css?v=92">
-  <link rel="stylesheet" href="achou-levou-v2.css?v=92">
+  <link rel="stylesheet" href="style.css?v=93">
+  <link rel="stylesheet" href="progress-style.css?v=93">
+  <link rel="stylesheet" href="robot-realistic.css?v=93">
+  <link rel="stylesheet" href="ui-fix-v38.css?v=93">
+  <link rel="stylesheet" href="achou-levou-v2.css?v=93">
 </head>
 <body>
   <div class="app-shell">
@@ -181,25 +181,25 @@
     </div>
   </div>
 
-  <script src="script.js?v=92"></script>
-  <script src="progress-loader.js?v=92"></script>
-  <script src="app-dialog.js?v=92"></script>
-  <script src="shopee-helper.js?v=92"></script>
-  <script src="magalu-helper.js?v=92"></script>
-  <script src="gemini-client.js?v=92"></script>
-  <script src="product-message-patch.js?v=92"></script>
-  <script src="bot-queue-integration.js?v=92"></script>
-  <script src="embedded-panel-navigation.js?v=92"></script>
-  <script src="bot-queue-proxy.js?v=92"></script>
-  <script src="shared-offers-client.js?v=92"></script>
-  <script src="achou-levou-v2.js?v=92"></script>
-  <script src="verified-bot-transfer.js?v=2"></script>
-  <script src="radar/modules/classic-achou-levou-phase24b4-entry-v6.js?v=2"></script>
+  <script src="script.js?v=93"></script>
+  <script src="progress-loader.js?v=93"></script>
+  <script src="app-dialog.js?v=93"></script>
+  <script src="shopee-helper.js?v=93"></script>
+  <script src="magalu-helper.js?v=93"></script>
+  <script src="gemini-client.js?v=93"></script>
+  <script src="product-message-patch.js?v=93"></script>
+  <script src="bot-queue-integration.js?v=93"></script>
+  <script src="embedded-panel-navigation.js?v=93"></script>
+  <script src="bot-queue-proxy.js?v=93"></script>
+  <script src="shared-offers-client.js?v=93"></script>
+  <script src="achou-levou-v2.js?v=93"></script>
+  <script src="verified-bot-transfer.js?v=3"></script>
+  <script src="radar/modules/classic-achou-levou-phase24b4-entry-v8.js?v=1"></script>
 
   <script>
     window.addEventListener('load', () => {
       document.getElementById('loader-global')?.style.setProperty('display', 'none');
-      window.dispatchEvent(new CustomEvent('achoulevou:direct-v7-ready', {
+      window.dispatchEvent(new CustomEvent('achoulevou:direct-v8-ready', {
         detail: { release: window.__ACHOU_LEVOU_DIRECT_RELEASE__ }
       }));
     });
