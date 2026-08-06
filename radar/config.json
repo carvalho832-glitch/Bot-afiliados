@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "release": "2026.08.06.1-autopilot-offers-v1",
-  "uiVersion": "1.5.0",
+  "release": "2026.08.06.2-autopilot-desktop-v2",
+  "uiVersion": "1.5.1",
   "minimumShellVersion": 1801,
   "panelUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/",
-  "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json?v=18",
+  "classicConfigUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/classic-config.json?v=19",
   "shopeeUrl": "https://affiliate.shopee.com.br/offer/product_offer",
   "achouLevouUrl": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/achou-levou-direct-v11.html?v=1&safe=1",
   "phase24AutopilotUrl": "https://bot-afiliados-1fwi.onrender.com/phase24/autopilot/runs",
   "modules": {
-    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-v1.js?v=1",
+    "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-autopilot-desktop-v2.js?v=1",
     "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-autopilot-v1.js?v=1"
   },
   "allowedHosts": [
@@ -27,6 +27,10 @@
     "remoteModules": true,
     "desktopToggle": true,
     "desktopViewport": "1440x25%",
+    "desktopModeDefault": true,
+    "desktopHosts": [
+      "affiliate.shopee.com.br"
+    ],
     "sharedQueueApi": true,
     "verifiedSave": true,
     "verifiedBotQueueTransfer": true,
@@ -36,6 +40,8 @@
     "embeddedWhatsappPanel": true,
     "phase24Autopilot": true,
     "phase24AutoStart": true,
+    "phase24AutoDesktop": true,
+    "phase24DesktopWidth": 1440,
     "phase24VerifiedSuccessOnly": true,
     "phase24ContinueAfterFailure": true,
     "phase24StopAtTarget": true,
