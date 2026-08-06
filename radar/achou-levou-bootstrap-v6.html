@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Achou Levou Bot</title>
+  <style>
+    html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#07111f; }
+    #achou-app { width:100%; height:100%; border:0; display:block; background:#07111f; }
+    #boot-status {
+      position:fixed; inset:0; z-index:10; display:grid; place-items:center;
+      background:linear-gradient(160deg,#07111f,#0b1d34); color:#e5f4ff;
+      font:800 15px/1.5 system-ui,sans-serif; text-align:center; padding:28px;
+    }
+    #boot-status[hidden] { display:none; }
+    .boot-card { max-width:360px; padding:22px; border-radius:20px; border:1px solid rgba(45,212,191,.35); background:rgba(3,15,30,.86); box-shadow:0 18px 48px rgba(0,0,0,.38); }
+    .boot-spinner { width:38px; height:38px; margin:0 auto 14px; border-radius:50%; border:4px solid rgba(94,234,212,.2); border-top-color:#5eead4; animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="boot-status">
+    <div class="boot-card">
+      <div class="boot-spinner"></div>
+      Corrigindo a fila e abrindo o Achou Levou…
+    </div>
+  </div>
+  <iframe
+    id="achou-app"
+    title="Achou Levou Bot"
+    src="../?v=90&safe=1&phase24b4=v6"
+    allow="clipboard-read; clipboard-write"
+  ></iframe>
+
+  <script>
+    (() => {
+      'use strict';
+      const MODULE = 'https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-entry-v6.js?v=1';
+      const frame = document.getElementById('achou-app');
+      const status = document.getElementById('boot-status');
+      let injectedFor = '';
+
+      function inject() {
+        try {
+          const win = frame.contentWindow;
+          const doc = frame.contentDocument;
+          if (!win || !doc) throw new Error('A tela interna ainda não terminou de abrir.');
+          const locationKey = String(win.location.href || '');
+          if (injectedFor === locationKey && win.RadarClassicRemote?.achouLevouPhase24B4EntryV6Version) {
+            status.hidden = true;
+            return;
+          }
+          injectedFor = locationKey;
+
+          const existing = doc.querySelector('script[data-radar-bootstrap="phase24b4-v6"]');
+          if (existing) {
+            status.hidden = true;
+            win.RadarClassicRemote?.phase24B4Review?.loadState?.(false).catch(() => {});
+            return;
+          }
+
+          const script = doc.createElement('script');
+          script.src = MODULE;
+          script.async = true;
+          script.dataset.radarBootstrap = 'phase24b4-v6';
+          script.addEventListener('load', () => {
+            status.hidden = true;
+            setTimeout(() => win.RadarClassicRemote?.phase24B4Review?.loadState?.(false).catch(() => {}), 700);
+          }, { once:true });
+          script.addEventListener('error', () => {
+            status.querySelector('.boot-card').textContent = 'Não foi possível carregar a correção. Feche e abra o Achou Levou novamente.';
+          }, { once:true });
+          (doc.head || doc.documentElement).appendChild(script);
+        } catch (error) {
+          console.warn('[BOOTSTRAP V6] Aguardando tela interna:', error.message);
+          setTimeout(inject, 500);
+        }
+      }
+
+      frame.addEventListener('load', () => {
+        setTimeout(inject, 150);
+      });
+
+      setTimeout(inject, 1800);
+    })();
+  </script>
+</body>
+</html>
