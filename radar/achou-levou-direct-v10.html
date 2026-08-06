@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Achou Levou Bot</title>
+  <style>
+    html,body{margin:0;min-height:100%;background:#06111f;color:#e5f4ff;font-family:system-ui,sans-serif}
+    .boot{min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center}
+    .boot strong{font-size:20px}.boot p{color:#aab8cb;line-height:1.5}
+  </style>
+</head>
+<body>
+  <main class="boot"><div><strong>Abrindo a revisão segura…</strong><p>Conectando a V10 à fila real do robô.</p></div></main>
+  <script>
+    (() => {
+      'use strict';
+      const SOURCE = `achou-levou-direct-v7.html?v=5&t=${Date.now()}`;
+      fetch(SOURCE, { cache: 'no-store', credentials: 'omit' })
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then(html => html
+          .replaceAll('phase24b4-direct-v7', 'phase24b4-review-source-v10')
+          .replace(/<sup[^>]*>2\.0<\/sup>/i, '')
+          .replace(
+            /radar\/modules\/classic-achou-levou-phase24b4-entry-v8\.js\?v=1/g,
+            'radar/modules/classic-achou-levou-phase24b4-entry-v10.js?v=1'
+          )
+        )
+        .then(html => {
+          document.open();
+          document.write(html);
+          document.close();
+        })
+        .catch(error => {
+          document.body.innerHTML = `<main class="boot"><div><strong>Não foi possível abrir o Achou Levou.</strong><p>${String(error.message || error)}</p></div></main>`;
+        });
+    })();
+  </script>
+</body>
+</html>
