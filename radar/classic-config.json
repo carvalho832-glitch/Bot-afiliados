@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "release": "classic-2026.08.05.13-phase24b4-bootstrap-v6",
+  "release": "classic-2026.08.05.14-phase24b4-direct-v7",
   "minimumClassicVersion": 1900,
   "classicModules": {
     "shopee": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-shopee-phase24b2.js?v=2",
-    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-entry-v6.js?v=1"
+    "achouLevou": "https://carvalho832-glitch.github.io/Bot-afiliados/radar/modules/classic-achou-levou-phase24b4-entry-v6.js?v=2"
   },
   "features": {
     "classicAsHome": true,
@@ -37,7 +37,8 @@
     "phase24CompositeSourceIds": true,
     "phase24QueueRepair": true,
     "phase24MergeSharedAndRecoveredOffers": true,
-    "phase24BootstrapV6": true,
+    "phase24BootstrapV6": false,
+    "phase24DirectTopLevelV7": true,
     "phase24SharedQueueFallback": true,
     "phase24NativeCacheBypass": true,
     "phase24SendWhatsapp": false,
