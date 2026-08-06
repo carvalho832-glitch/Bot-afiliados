@@ -15,7 +15,6 @@ node --check bot-store.mjs
 node --check bot-engine.mjs
 node --check shopee-tracking.mjs
 node --check phase22-control.js
-node --check review-source-preload.mjs
 node --check apply-phase22-panel.cjs
 node apply-phase22-panel.cjs
 
@@ -49,4 +48,4 @@ if [[ "$CHROME_READY" != true ]]; then
   npx puppeteer browsers install chrome
 fi
 
-exec node --import ./review-source-preload.mjs server.js
+exec node server.js
