@@ -56,7 +56,7 @@ jobs:
           grep -n 'annotateSharedOffers' "$MODULE"
           grep -n 'phase24B4V6Diagnostics' "$MODULE"
           grep -n 'phase24B4Review' "$MODULE"
-          grep -n 'data-radar-bootstrap="phase24b4-v6"' radar/achou-levou-bootstrap-v6.html
+          grep -n "radarBootstrap = 'phase24b4-v6'" radar/achou-levou-bootstrap-v6.html
 
       - name: Garantir operação supervisionada
         run: |
