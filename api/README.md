@@ -1,6 +1,6 @@
 # Achou Levou API
 
-Backend seguro para gerar mensagens de venda usando Gemini.
+Backend seguro para gerar mensagens de venda com a Clara pela OpenAI.
 
 ## Deploy no Render
 
@@ -17,8 +17,8 @@ Backend seguro para gerar mensagens de venda usando Gemini.
 6. Em **Environment Variables**, adicione:
 
 ```txt
-GEMINI_API_KEY=sua_chave_gemini
-GEMINI_MODEL=gemini-3.6-flash
+OPENAI_API_KEY=sua_chave_openai
+OPENAI_MODEL=gpt-5.6-luna
 SHOPEE_APP_ID=seu_app_id
 SHOPEE_SECRET=seu_app_secret
 SHOPEE_TRACKING_TOKEN=um_token_longo_e_exclusivo
