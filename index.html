@@ -234,7 +234,7 @@
     <script src="app-dialog.js?v=90"></script>
     <script src="shopee-helper.js?v=90"></script>
     <script src="magalu-helper.js?v=90"></script>
-    <script src="gemini-client.js?v=90"></script>
+    <script src="openai-client.js?v=91"></script>
     <script src="product-message-patch.js?v=90"></script>
     <script src="bot-queue-integration.js?v=90"></script>
     <script src="embedded-panel-navigation.js?v=90"></script>
@@ -246,9 +246,9 @@
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=90', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=91', { updateViaCache: 'none' })
                     .then(reg => {
-                        console.log('PWA v90 ativado!', reg);
+                        console.log('PWA v91 ativado!', reg);
                         reg.update();
                     })
                     .catch(err => console.log('Falha no PWA:', err));

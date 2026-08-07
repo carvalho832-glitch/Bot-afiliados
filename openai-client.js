@@ -84,10 +84,10 @@
   }
 
   function avisarFallbackUmaVez(aviso) {
-    const chave = 'achou_levou_aviso_gemini_fallback';
+    const chave = 'achou_levou_aviso_openai_fallback';
     if (sessionStorage.getItem(chave)) return;
     sessionStorage.setItem(chave, '1');
-    alert(`${aviso || 'O Gemini não respondeu. Uma mensagem local segura foi criada.'}\n\nA oferta pode ser revisada normalmente antes de salvar.`);
+    alert(`${aviso || 'A Clara não respondeu. Uma mensagem local segura foi criada.'}\n\nA oferta pode ser revisada normalmente antes de salvar.`);
   }
 
   async function gerarMensagem() {
@@ -105,12 +105,12 @@
 
     const textoOriginal = '🤖 Gerar mensagem com IA';
     btnGerar.disabled = true;
-    btnGerar.innerText = '✨ Gemini criando...';
+    btnGerar.innerText = '✨ Clara criando...';
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     const avisoEspera = setTimeout(() => {
-      if (btnGerar.disabled) btnGerar.innerText = '⏳ Aguardando limite do Gemini...';
+      if (btnGerar.disabled) btnGerar.innerText = '⏳ Aguardando a Clara...';
     }, 18000);
 
     geracaoEmAndamento = (async () => {
@@ -138,7 +138,7 @@
           restaurarBotao(textoOriginal, '⚠️ Mensagem local', 1700);
           avisarFallbackUmaVez(json.warning);
         } else {
-          restaurarBotao(textoOriginal, '✅ Criada com Gemini');
+          restaurarBotao(textoOriginal, '✅ Criada pela Clara');
         }
 
         return json;
@@ -146,7 +146,7 @@
         btnGerar.disabled = false;
         btnGerar.innerText = textoOriginal;
         const detalhe = error?.name === 'AbortError'
-          ? 'O Gemini demorou mais de 100 segundos para responder.'
+          ? 'A Clara/OpenAI demorou mais de 100 segundos para responder.'
           : String(error?.message || error);
         alert(`Não foi possível gerar a mensagem com IA.\n\n${detalhe}`);
         throw error;
@@ -180,11 +180,11 @@
   btnGerar.addEventListener('click', event => {
     event.preventDefault();
     event.stopImmediatePropagation();
-    gerarMensagem().catch(error => console.error('[GEMINI] Falha na geração:', error));
+    gerarMensagem().catch(error => console.error('[OPENAI] Falha na geração:', error));
   }, true);
 
   // O salvamento antigo esperava uma mensagem síncrona. Quando a tela estiver
-  // vazia, aguardamos o Gemini e repetimos o clique já com a mensagem pronta.
+  // vazia, aguardamos a Clara e repetimos o clique já com a mensagem pronta.
   btnSalvar?.addEventListener('click', event => {
     if (mensagemAtual() || salvandoDepoisDaGeracao) return;
 
@@ -196,7 +196,7 @@
       .then(resultado => {
         if (resultado?.mensagem && mensagemAtual()) btnSalvar.click();
       })
-      .catch(error => console.error('[GEMINI] Não foi possível gerar antes de salvar:', error))
+      .catch(error => console.error('[OPENAI] Não foi possível gerar antes de salvar:', error))
       .finally(() => {
         salvandoDepoisDaGeracao = false;
       });
@@ -208,7 +208,7 @@
     copiar(mensagemAtual() || window.__ultimaMensagemAchouLevou || '');
   }, true);
 
-  window.AchouLevouGemini = {
+  window.AchouLevouOpenAI = {
     gerarMensagem,
     dadosDaTela,
     apiUrl: API_URL

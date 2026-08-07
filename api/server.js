@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
+import { gerarMensagemComOpenAI } from './openai-service.mjs';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -422,9 +423,15 @@ app.get('/gerar-mensagem', (req, res) => {
   res.json({ ok: false, message: 'Use POST /gerar-mensagem.' });
 });
 
-app.post('/gerar-mensagem', (req, res) => {
-  const dados = req.body || {};
-  return res.json({ ok: true, model: 'local', mensagem: montarMensagem(dados) });
+app.post('/gerar-mensagem', async (req, res) => {
+  try {
+    const resultado = await gerarMensagemComOpenAI(req.body || {}, { clientId: req.ip });
+    return res.json({ ok: true, ...resultado });
+  } catch (error) {
+    const status = Number(error?.statusCode || 500);
+    console.error('[OPENAI] Falha ao gerar mensagem:', error?.stack || error);
+    return res.status(status).json({ ok: false, error: String(error?.message || error) });
+  }
 });
 
 app.use((req, res) => {
