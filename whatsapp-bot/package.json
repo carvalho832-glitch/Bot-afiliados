@@ -1,6 +1,6 @@
 {
   "name": "achou-levou-whatsapp-bot",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "Bot WhatsApp Achou Levou com fila persistente, grupos ativos, revisão segura e preparação guiada supervisionada.",
   "type": "module",
   "main": "server.js",

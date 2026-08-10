@@ -27,12 +27,16 @@ import {
 } from './shopee-tracking.mjs';
 import {
   createBrowserRestartGate,
-  isRecoverableBrowserContextError
+  isBrowserOperationTimeout,
+  isRecoverableBrowserContextError,
+  withBrowserOperationTimeout
 } from './frame-recovery.mjs';
 
 const { Client, LocalAuth } = pkg;
 const SEND_DELAY_MS = Math.max(800, Number(process.env.SEND_DELAY_MS || 1500));
 const RETRY_DELAY_MS = Math.max(30000, Number(process.env.RETRY_DELAY_MS || 60000));
+const GROUPS_READ_TIMEOUT_MS = Math.max(5000, Number(process.env.GROUPS_READ_TIMEOUT_MS || 15000));
+const MESSAGE_SEND_TIMEOUT_MS = Math.max(10000, Number(process.env.MESSAGE_SEND_TIMEOUT_MS || 45000));
 
 let status = 'iniciando';
 let qrDataUrl = null;
@@ -83,24 +87,28 @@ function scheduleBrowserRecovery(error, { source, pauseQueue = false } = {}) {
 }
 
 async function readGroupsFromWhatsAppPage() {
-  return client.pupPage.evaluate(() => {
-    let chatCollection = null;
-    try { chatCollection = window.require?.('WAWebCollections')?.Chat || null; } catch {}
-    chatCollection = chatCollection || window.Store?.Chat || null;
-    if (!chatCollection) throw new Error('Coleção de chats indisponível no WhatsApp Web.');
-    const chats = typeof chatCollection.getModelsArray === 'function'
-      ? chatCollection.getModelsArray()
-      : Array.from(chatCollection.models || []);
-    return chats.map(chat => {
-      const id = chat?.id?._serialized || chat?.id?.toString?.() || '';
-      const isGroup = chat?.id?.isGroup?.() || chat?.id?.server === 'g.us' || id.endsWith('@g.us');
-      if (!isGroup || !id) return null;
-      return {
-        id,
-        name: String(chat?.name || chat?.formattedTitle || chat?.groupMetadata?.subject || chat?.contact?.pushname || 'Grupo sem nome')
-      };
-    }).filter(Boolean);
-  });
+  return withBrowserOperationTimeout(
+    client.pupPage.evaluate(() => {
+      let chatCollection = null;
+      try { chatCollection = window.require?.('WAWebCollections')?.Chat || null; } catch {}
+      chatCollection = chatCollection || window.Store?.Chat || null;
+      if (!chatCollection) throw new Error('Coleção de chats indisponível no WhatsApp Web.');
+      const chats = typeof chatCollection.getModelsArray === 'function'
+        ? chatCollection.getModelsArray()
+        : Array.from(chatCollection.models || []);
+      return chats.map(chat => {
+        const id = chat?.id?._serialized || chat?.id?.toString?.() || '';
+        const isGroup = chat?.id?.isGroup?.() || chat?.id?.server === 'g.us' || id.endsWith('@g.us');
+        if (!isGroup || !id) return null;
+        return {
+          id,
+          name: String(chat?.name || chat?.formattedTitle || chat?.groupMetadata?.subject || chat?.contact?.pushname || 'Grupo sem nome')
+        };
+      }).filter(Boolean);
+    }),
+    GROUPS_READ_TIMEOUT_MS,
+    'leitura dos grupos'
+  );
 }
 
 export async function fetchLiveGroups({ force = false } = {}) {
@@ -114,6 +122,10 @@ export async function fetchLiveGroups({ force = false } = {}) {
     groups = await readGroupsFromWhatsAppPage();
   } catch (error) {
     if (!isRecoverableBrowserContextError(error)) throw error;
+    if (isBrowserOperationTimeout(error)) {
+      scheduleBrowserRecovery(error, { source: 'carregamento dos grupos' });
+      throw error;
+    }
     await sleep(900);
     try {
       groups = await readGroupsFromWhatsAppPage();
@@ -252,7 +264,11 @@ async function sendDirect(message, target, trackingContext = {}) {
   });
 
   try {
-    await client.sendMessage(target.id, preparada.message);
+    await withBrowserOperationTimeout(
+      client.sendMessage(target.id, preparada.message),
+      MESSAGE_SEND_TIMEOUT_MS,
+      `envio para ${target.name || target.id}`
+    );
   } catch (error) {
     const wrapped = new Error(String(error?.message || error || 'Falha ao enviar no WhatsApp'));
     wrapped.cause = error;
@@ -487,7 +503,7 @@ export async function sendMessageToConfiguredGroups(message, category = null) {
 export function getDiagnostics() {
   const settings = getSettings();
   return {
-    version: '2.1.1',
+    version: '2.3.2',
     status,
     serverTime: horaServidor(),
     uptimeSeconds: Math.round(process.uptime()),
