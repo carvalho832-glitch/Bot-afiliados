@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  BrowserOperationTimeoutError,
   createBrowserRestartGate,
-  isRecoverableBrowserContextError
+  isBrowserOperationTimeout,
+  isRecoverableBrowserContextError,
+  withBrowserOperationTimeout
 } from '../frame-recovery.mjs';
 
 test('reconhece erros de frame e contexto do Puppeteer', () => {
@@ -28,6 +31,27 @@ test('reconhece erro recuperável dentro de cause', () => {
 test('não reinicia para falhas comuns de negócio ou API', () => {
   assert.equal(isRecoverableBrowserContextError(new Error('Nenhum grupo selecionado.')), false);
   assert.equal(isRecoverableBrowserContextError(new Error('Shopee indisponível.')), false);
+});
+
+test('encerra operação travada e classifica o timeout como recuperável', async () => {
+  let error = null;
+
+  try {
+    await withBrowserOperationTimeout(new Promise(() => {}), 5, 'leitura dos grupos');
+  } catch (caught) {
+    error = caught;
+  }
+
+  assert.ok(error instanceof BrowserOperationTimeoutError);
+  assert.equal(error.code, 'BROWSER_OPERATION_TIMEOUT');
+  assert.equal(isBrowserOperationTimeout(error), true);
+  assert.equal(isRecoverableBrowserContextError(error), true);
+  assert.match(error.message, /leitura dos grupos/);
+});
+
+test('mantém o resultado quando a operação termina antes do limite', async () => {
+  const result = await withBrowserOperationTimeout(Promise.resolve('grupos-ok'), 50, 'leitura dos grupos');
+  assert.equal(result, 'grupos-ok');
 });
 
 test('agenda somente um reinício e usa código de saída 1', () => {

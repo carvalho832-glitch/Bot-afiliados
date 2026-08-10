@@ -13,6 +13,7 @@ mkdir -p "$PUPPETEER_CACHE_DIR"
 node --check server.js
 node --check bot-store.mjs
 node --check bot-engine.mjs
+node --check frame-recovery.mjs
 node --check shopee-tracking.mjs
 node --check phase22-control.js
 node --check apply-phase22-panel.cjs
