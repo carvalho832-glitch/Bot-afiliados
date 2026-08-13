@@ -8,6 +8,57 @@ function ehDominioShopee(hostname = '') {
   return /(^|\.)(?:shopee\.com\.br|s\.shopee\.com\.br|shp\.ee|collshp\.com)$/i.test(String(hostname || ''));
 }
 
+function extrairUrls(message = '') {
+  return (String(message || '').match(/https?:\/\/[^\s<>"']+/gi) || [])
+    .map(url => url.replace(/[\])},.;!?*]+$/, ''));
+}
+
+function ehPaginaIntermediariaAchouLevou(url = '') {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname === 'achoulevoubrasil.com.br' || hostname.endsWith('.achoulevoubrasil.com.br');
+  } catch {
+    return false;
+  }
+}
+
+function extrairLinkShopeeDaPagina(html = '') {
+  const candidatos = extrairUrls(String(html || '').replace(/&amp;/gi, '&'));
+  return candidatos.find(url => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol === 'https:' && ehDominioShopee(parsed.hostname);
+    } catch {
+      return false;
+    }
+  }) || '';
+}
+
+async function substituirPaginasIntermediarias(message, fetchImpl, timeoutMs) {
+  let resultado = String(message || '');
+  const intermediarias = [...new Set(extrairUrls(resultado).filter(ehPaginaIntermediariaAchouLevou))];
+
+  for (const urlIntermediaria of intermediarias) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const resposta = await fetchImpl(urlIntermediaria, {
+        headers: { Accept: 'text/html,application/xhtml+xml' },
+        redirect: 'follow',
+        signal: controller.signal
+      });
+      if (!resposta.ok) throw new Error(`A página intermediária respondeu HTTP ${resposta.status}.`);
+      const linkShopee = extrairLinkShopeeDaPagina(await resposta.text());
+      if (!linkShopee) throw new Error('A página intermediária não contém um link oficial da Shopee.');
+      resultado = resultado.split(urlIntermediaria).join(linkShopee);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return resultado;
+}
+
 function normalizarMarcador(valor = '', fallback = 'na', limite = 50) {
   const limpar = entrada => String(entrada || '')
     .normalize('NFD')
@@ -40,7 +91,7 @@ function dataHoraNoFuso(date = new Date(), timeZone = TRACKING_TIME_ZONE) {
 }
 
 export function extrairLinksShopee(message = '') {
-  const urls = String(message || '').match(/https?:\/\/[^\s<>"']+/gi) || [];
+  const urls = extrairUrls(message);
   const encontrados = [];
 
   for (const bruto of urls) {
@@ -141,20 +192,20 @@ export async function prepararMensagemRastreada({
   endpoint = process.env.SHOPEE_TRACKING_API_URL || DEFAULT_TRACKING_URL,
   timeoutMs = REQUEST_TIMEOUT_MS
 } = {}) {
-  const originalMessage = String(message || '').trim();
+  const mensagemBase = String(message || '').trim();
+  if (typeof fetchImpl !== 'function') throw new Error('Cliente HTTP indisponível.');
+
+  // Nunca enviar ao grupo a página do catálogo: ela é convertida antes para o
+  // anúncio oficial e, depois, para o link curto rastreado da Shopee.
+  const originalMessage = await substituirPaginasIntermediarias(
+    mensagemBase,
+    fetchImpl,
+    Math.max(8000, Number(timeoutMs || REQUEST_TIMEOUT_MS))
+  );
   const linksOriginais = extrairLinksShopee(originalMessage);
 
   if (!linksOriginais.length) {
-    return {
-      message: originalMessage,
-      record: {
-        status: 'not_applicable',
-        links: [],
-        subIds: [],
-        generatedAt: new Date(now).toISOString(),
-        error: null
-      }
-    };
+    throw new Error('Oferta sem link oficial da Shopee: envio bloqueado para preservar o rastreamento de afiliado.');
   }
 
   if (registroEmCacheValido(existing, linksOriginais)) {
@@ -164,7 +215,6 @@ export async function prepararMensagemRastreada({
   const subIds = criarSubIdsRastreamento({ target, offerId, category, now });
 
   try {
-    if (typeof fetchImpl !== 'function') throw new Error('Cliente HTTP indisponível.');
     const trackedLinks = [];
     for (const originalUrl of linksOriginais) {
       const shortLink = await chamarGerador({
@@ -189,16 +239,7 @@ export async function prepararMensagemRastreada({
     const detalhe = error?.name === 'AbortError'
       ? 'Tempo limite ao solicitar o link oficial.'
       : String(error?.message || error);
-    return {
-      message: originalMessage,
-      record: {
-        status: 'fallback',
-        links: linksOriginais.map(originalUrl => ({ originalUrl, shortLink: '' })),
-        subIds,
-        generatedAt: new Date(now).toISOString(),
-        error: detalhe.slice(0, 300)
-      }
-    };
+    throw new Error(`Link de afiliado não gerado; envio bloqueado. ${detalhe}`);
   }
 }
 

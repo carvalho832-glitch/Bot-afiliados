@@ -108,9 +108,9 @@ test('reutiliza o link salvo ao tentar reenviar para o mesmo grupo', async () =>
   assert.match(resultado.message, /cache123/);
 });
 
-test('mantém o link original quando o serviço está indisponível', async () => {
+test('bloqueia o envio quando o serviço de afiliado está indisponível', async () => {
   const message = 'Oferta https://s.shopee.com.br/original';
-  const resultado = await prepararMensagemRastreada({
+  const promessa = prepararMensagemRastreada({
     message,
     target: { id: '111@g.us', name: 'Grupo' },
     offerId: 'oferta-50',
@@ -119,20 +119,39 @@ test('mantém o link original quando o serviço está indisponível', async () =
     fetchImpl: async () => responseJson(503, { ok: false, error: 'temporariamente indisponível' })
   });
 
-  assert.equal(resultado.record.status, 'fallback');
-  assert.equal(resultado.message, message);
-  assert.match(resultado.record.error, /temporariamente indisponível/);
+  await assert.rejects(promessa, /Link de afiliado não gerado; envio bloqueado.*temporariamente indisponível/);
 });
 
-test('não chama o serviço para ofertas de outras plataformas', async () => {
+test('bloqueia ofertas sem link da Shopee', async () => {
   let chamadas = 0;
   const message = 'Oferta https://produto.mercadolivre.com.br/exemplo';
-  const resultado = await prepararMensagemRastreada({
+  const promessa = prepararMensagemRastreada({
     message,
     fetchImpl: async () => { chamadas += 1; }
   });
 
   assert.equal(chamadas, 0);
-  assert.equal(resultado.record.status, 'not_applicable');
-  assert.equal(resultado.message, message);
+  await assert.rejects(promessa, /Oferta sem link oficial da Shopee/);
+});
+
+test('troca página do catálogo pelo link oficial e depois pelo afiliado', async () => {
+  const resultado = await prepararMensagemRastreada({
+    message: 'Oferta https://achoulevoubrasil.com.br/produto/fone--22792809253.html',
+    target: { id: '111@g.us', name: 'Grupo' },
+    offerId: 'oferta-60',
+    endpoint: 'https://api.example/shopee/rastrear',
+    fetchImpl: async (url, options = {}) => {
+      if (options.method === 'POST') return responseJson(200, { ok: true, shortLink: 'https://s.shopee.com.br/afiliado60' });
+      assert.equal(url, 'https://achoulevoubrasil.com.br/produto/fone--22792809253.html');
+      return {
+        ok: true,
+        status: 200,
+        text: async () => '<a href="https://shopee.com.br/universal-link/product/1/22792809253?utm_source=an_123&amp;utm_medium=affiliates">Abrir</a>'
+      };
+    }
+  });
+
+  assert.equal(resultado.record.status, 'tracked');
+  assert.match(resultado.message, /https:\/\/s\.shopee\.com\.br\/afiliado60/);
+  assert.doesNotMatch(resultado.message, /achoulevoubrasil/);
 });
