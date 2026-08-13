@@ -353,7 +353,9 @@
 
   function openPanel() {
     const config = loadConfig();
-    window.open(`${config.botUrl}/painel`, '_blank');
+    // No Chrome do celular, window.open pode ser bloqueado silenciosamente.
+    // Abrir na mesma guia é mais confiável e mantém o perfil selecionado.
+    window.location.assign(`${config.botUrl}/painel`);
   }
 
   function mountProfileSelector() {

@@ -435,7 +435,12 @@ btnAbrirPainelBot?.addEventListener('click', () => {
         return;
     }
 
-    alert('Painel do bot ainda está carregando. Tente novamente em alguns segundos.');
+    // Fallback para celular: não depender de script assíncrono nem de pop-up.
+    const perfil = new URLSearchParams(window.location.search).get('perfil');
+    const botUrl = String(perfil || '').toLowerCase() === 'renata'
+        ? 'https://usuario2.achoulevoubot.uk'
+        : 'https://bot.achoulevoubot.uk';
+    window.location.assign(`${botUrl}/painel`);
 });
 
 btnLimparOfertas?.addEventListener('click', () => {
