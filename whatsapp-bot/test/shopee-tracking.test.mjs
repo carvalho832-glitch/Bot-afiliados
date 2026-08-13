@@ -39,7 +39,7 @@ test('gera cinco Sub_ids estáveis e exclusivos por ID real do grupo', () => {
 test('troca o link original pelo oficial rastreado e envia os Sub_ids do grupo', async () => {
   let requestBody = null;
   const resultado = await prepararMensagemRastreada({
-    message: '🔥 Oferta\nhttps://s.shopee.com.br/original',
+    message: '🔥 Oferta\nhttps://shopee.com.br/product/100/200',
     target: { id: '111@g.us', name: 'Grupo Biritiba Mirim' },
     offerId: 'oferta-20',
     category: 'geral',
@@ -53,8 +53,8 @@ test('troca o link original pelo oficial rastreado e envia os Sub_ids do grupo',
 
   assert.equal(resultado.record.status, 'tracked');
   assert.match(resultado.message, /https:\/\/s\.shopee\.com\.br\/rastreadoA/);
-  assert.doesNotMatch(resultado.message, /\/original/);
-  assert.equal(requestBody.originUrl, 'https://s.shopee.com.br/original');
+  assert.doesNotMatch(resultado.message, /product\/100\/200/);
+  assert.equal(requestBody.originUrl, 'https://shopee.com.br/product/100/200');
   assert.deepEqual(requestBody.subIds, resultado.record.subIds);
   assert.match(requestBody.subIds[0], /^ggrupobiritibamirim[a-f0-9]{6}$/);
 });
@@ -68,7 +68,7 @@ test('a mesma oferta recebe marcador diferente em cada grupo', async () => {
     return responseJson(200, { ok: true, shortLink: `https://s.shopee.com.br/${suffix}` });
   };
   const base = {
-    message: 'Oferta https://s.shopee.com.br/original',
+    message: 'Oferta https://shopee.com.br/product/100/200',
     offerId: 'oferta-30',
     category: 'geral',
     now: NOW,
@@ -88,7 +88,7 @@ test('reutiliza o link salvo ao tentar reenviar para o mesmo grupo', async () =>
   const existing = {
     status: 'tracked',
     links: [{
-      originalUrl: 'https://s.shopee.com.br/original',
+      originalUrl: 'https://shopee.com.br/product/100/200',
       shortLink: 'https://s.shopee.com.br/cache123'
     }],
     subIds: ['ggrupoabc123'],
@@ -97,7 +97,7 @@ test('reutiliza o link salvo ao tentar reenviar para o mesmo grupo', async () =>
   };
 
   const resultado = await prepararMensagemRastreada({
-    message: 'Oferta https://s.shopee.com.br/original',
+    message: 'Oferta https://shopee.com.br/product/100/200',
     target: { id: '111@g.us', name: 'Grupo' },
     offerId: 'oferta-40',
     existing,
@@ -109,7 +109,7 @@ test('reutiliza o link salvo ao tentar reenviar para o mesmo grupo', async () =>
 });
 
 test('bloqueia o envio quando o serviço de afiliado está indisponível', async () => {
-  const message = 'Oferta https://s.shopee.com.br/original';
+  const message = 'Oferta https://shopee.com.br/product/100/200';
   const promessa = prepararMensagemRastreada({
     message,
     target: { id: '111@g.us', name: 'Grupo' },
@@ -134,24 +134,18 @@ test('bloqueia ofertas sem link da Shopee', async () => {
   await assert.rejects(promessa, /Oferta sem link oficial da Shopee/);
 });
 
-test('troca página do catálogo pelo link oficial e depois pelo afiliado', async () => {
+test('preserva o mesmo link copiado do painel de afiliados', async () => {
+  let chamadas = 0;
+  const linkAfiliado = 'https://shopee.com.br/universal-link/product/1/22792809253?utm_source=an_123&utm_medium=affiliates';
   const resultado = await prepararMensagemRastreada({
-    message: 'Oferta https://achoulevoubrasil.com.br/produto/fone--22792809253.html',
+    message: `Oferta ${linkAfiliado}`,
     target: { id: '111@g.us', name: 'Grupo' },
     offerId: 'oferta-60',
     endpoint: 'https://api.example/shopee/rastrear',
-    fetchImpl: async (url, options = {}) => {
-      if (options.method === 'POST') return responseJson(200, { ok: true, shortLink: 'https://s.shopee.com.br/afiliado60' });
-      assert.equal(url, 'https://achoulevoubrasil.com.br/produto/fone--22792809253.html');
-      return {
-        ok: true,
-        status: 200,
-        text: async () => '<a href="https://shopee.com.br/universal-link/product/1/22792809253?utm_source=an_123&amp;utm_medium=affiliates">Abrir</a>'
-      };
-    }
+    fetchImpl: async () => { chamadas += 1; }
   });
 
-  assert.equal(resultado.record.status, 'tracked');
-  assert.match(resultado.message, /https:\/\/s\.shopee\.com\.br\/afiliado60/);
-  assert.doesNotMatch(resultado.message, /achoulevoubrasil/);
+  assert.equal(resultado.record.status, 'preserved');
+  assert.equal(resultado.message, `Oferta ${linkAfiliado}`);
+  assert.equal(chamadas, 0);
 });

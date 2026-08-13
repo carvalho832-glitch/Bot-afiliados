@@ -13,50 +13,16 @@ function extrairUrls(message = '') {
     .map(url => url.replace(/[\])},.;!?*]+$/, ''));
 }
 
-function ehPaginaIntermediariaAchouLevou(url = '') {
+function ehLinkAfiliadoShopee(url = '') {
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    return hostname === 'achoulevoubrasil.com.br' || hostname.endsWith('.achoulevoubrasil.com.br');
+    const parsed = new URL(url);
+    if (!ehDominioShopee(parsed.hostname)) return false;
+    if (parsed.hostname.toLowerCase() === 's.shopee.com.br') return true;
+    const rastreamento = `${parsed.pathname}?${parsed.searchParams}`.toLowerCase();
+    return /affiliate|uls_trackid|share_channel|an_[a-z0-9]|utm_(source|medium|campaign)|smtt=|af_siteid|sub[_-]?id|tracking|click_id/.test(rastreamento);
   } catch {
     return false;
   }
-}
-
-function extrairLinkShopeeDaPagina(html = '') {
-  const candidatos = extrairUrls(String(html || '').replace(/&amp;/gi, '&'));
-  return candidatos.find(url => {
-    try {
-      const parsed = new URL(url);
-      return parsed.protocol === 'https:' && ehDominioShopee(parsed.hostname);
-    } catch {
-      return false;
-    }
-  }) || '';
-}
-
-async function substituirPaginasIntermediarias(message, fetchImpl, timeoutMs) {
-  let resultado = String(message || '');
-  const intermediarias = [...new Set(extrairUrls(resultado).filter(ehPaginaIntermediariaAchouLevou))];
-
-  for (const urlIntermediaria of intermediarias) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const resposta = await fetchImpl(urlIntermediaria, {
-        headers: { Accept: 'text/html,application/xhtml+xml' },
-        redirect: 'follow',
-        signal: controller.signal
-      });
-      if (!resposta.ok) throw new Error(`A página intermediária respondeu HTTP ${resposta.status}.`);
-      const linkShopee = extrairLinkShopeeDaPagina(await resposta.text());
-      if (!linkShopee) throw new Error('A página intermediária não contém um link oficial da Shopee.');
-      resultado = resultado.split(urlIntermediaria).join(linkShopee);
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  return resultado;
 }
 
 function normalizarMarcador(valor = '', fallback = 'na', limite = 50) {
@@ -192,20 +158,32 @@ export async function prepararMensagemRastreada({
   endpoint = process.env.SHOPEE_TRACKING_API_URL || DEFAULT_TRACKING_URL,
   timeoutMs = REQUEST_TIMEOUT_MS
 } = {}) {
-  const mensagemBase = String(message || '').trim();
+  const originalMessage = String(message || '').trim();
   if (typeof fetchImpl !== 'function') throw new Error('Cliente HTTP indisponível.');
-
-  // Nunca enviar ao grupo a página do catálogo: ela é convertida antes para o
-  // anúncio oficial e, depois, para o link curto rastreado da Shopee.
-  const originalMessage = await substituirPaginasIntermediarias(
-    mensagemBase,
-    fetchImpl,
-    Math.max(8000, Number(timeoutMs || REQUEST_TIMEOUT_MS))
-  );
   const linksOriginais = extrairLinksShopee(originalMessage);
 
   if (!linksOriginais.length) {
     throw new Error('Oferta sem link oficial da Shopee: envio bloqueado para preservar o rastreamento de afiliado.');
+  }
+
+  const todosOsLinks = extrairUrls(originalMessage);
+  if (todosOsLinks.some(url => !linksOriginais.includes(url))) {
+    throw new Error('Oferta contém link fora da Shopee: envio bloqueado para preservar somente o link de afiliado.');
+  }
+
+  // O link copiado do painel de Afiliados é a fonte de verdade. Não o
+  // reenviamos ao gerador, pois isso trocaria o URL salvo por outro link.
+  if (linksOriginais.every(ehLinkAfiliadoShopee)) {
+    return {
+      message: originalMessage,
+      record: {
+        status: 'preserved',
+        links: linksOriginais.map(originalUrl => ({ originalUrl, shortLink: originalUrl })),
+        subIds: [],
+        generatedAt: new Date(now).toISOString(),
+        error: null
+      }
+    };
   }
 
   if (registroEmCacheValido(existing, linksOriginais)) {
