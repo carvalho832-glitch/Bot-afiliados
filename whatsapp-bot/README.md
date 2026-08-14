@@ -27,10 +27,15 @@ No `.env` deste servidor:
 
 ```txt
 SHOPEE_TRACKING_API_URL=https://bot-afiliados-1fwi.onrender.com/shopee/rastrear
-SHOPEE_TRACKING_TOKEN=mesmo_token_configurado_no_render
+SHOPEE_TRACKING_TOKEN=token_exclusivo_deste_bot_configurado_no_render
 SHOPEE_TRACKING_TIMEOUT_MS=45000
 SHOPEE_TRACKING_TIME_ZONE=America/Sao_Paulo
 ```
+
+Use o token do perfil correto: o robô do Júlio recebe o valor de
+`SHOPEE_TRACKING_TOKEN_JULIO` e o robô da Renata recebe o valor de
+`SHOPEE_TRACKING_TOKEN_RENATA`. As chaves da API Shopee permanecem somente no
+Render.
 
 Depois de atualizar o código, execute `npm run check`, `npm test` e o processo
 normal de instalação/reinício (`bash setup-server.sh`).
