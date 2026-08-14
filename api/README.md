@@ -19,9 +19,14 @@ Backend seguro para gerar mensagens de venda com a Clara pela OpenAI.
 ```txt
 OPENAI_API_KEY=sua_chave_openai
 OPENAI_MODEL=gpt-5.6-luna
-SHOPEE_APP_ID=seu_app_id
-SHOPEE_SECRET=seu_app_secret
-SHOPEE_TRACKING_TOKEN=um_token_longo_e_exclusivo
+SHOPEE_APP_ID=app_id_usado_nas_consultas_gerais
+SHOPEE_SECRET=secret_usado_nas_consultas_gerais
+SHOPEE_JULIO_APP_ID=app_id_do_julio
+SHOPEE_JULIO_SECRET=secret_do_julio
+SHOPEE_TRACKING_TOKEN_JULIO=token_exclusivo_do_bot_julio
+SHOPEE_RENATA_APP_ID=app_id_da_renata
+SHOPEE_RENATA_SECRET=secret_da_renata
+SHOPEE_TRACKING_TOKEN_RENATA=token_exclusivo_do_bot_renata
 ```
 
 7. Faça o deploy.
@@ -46,12 +51,15 @@ A API está funcionando.
 
 O endpoint protegido `POST /shopee/rastrear` usa a API oficial de Afiliados da
 Shopee para gerar um endereço `https://s.shopee.com.br/...` com até cinco
-Sub_ids. As credenciais `SHOPEE_APP_ID` e `SHOPEE_SECRET` ficam somente no
-Render e nunca são enviadas ao navegador ou ao WhatsApp.
+Sub_ids. Cada robô envia seu próprio token; o servidor usa esse token para
+selecionar as credenciais de Júlio ou Renata. APP_ID e SECRET ficam somente no
+Render e nunca são enviados ao navegador ou ao WhatsApp.
 
 O robô chama essa rota automaticamente no momento de entregar a oferta a cada
-grupo. Configure o mesmo `SHOPEE_TRACKING_TOKEN` no Render e no `.env` do robô.
-Se a API estiver indisponível, o robô mantém o link original e continua a fila.
+grupo. No `.env` do robô do Júlio, configure o valor de
+`SHOPEE_TRACKING_TOKEN_JULIO` como `SHOPEE_TRACKING_TOKEN`. No robô da Renata,
+use o valor de `SHOPEE_TRACKING_TOKEN_RENATA`. Assim cada conta recebe seus
+próprios Sub_ids, mesmo usando o mesmo serviço no Render.
 
 ## Endpoint
 

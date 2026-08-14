@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { spawn } from 'node:child_process';
-import crypto from 'node:crypto';
+import { resolverContaShopee } from './shopee-tracking-accounts.js';
 
 process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
 const { buscarProdutoMagalu, fecharMagaluBrowser } = await import('./magalu-service.js');
@@ -16,9 +16,8 @@ const GATEWAY_URL = `http://127.0.0.1:${GATEWAY_PORT}`;
 const BOT_URL = String(process.env.BOT_PANEL_URL || 'https://bot.achoulevoubot.uk').replace(/\/+$/, '');
 const BOT_USER = process.env.BOT_PANEL_USER || 'julio';
 const BOT_PASSWORD = process.env.BOT_PANEL_PASSWORD || 'AchouLevou2026';
-const SHOPEE_TRACKING_TOKEN = String(process.env.SHOPEE_TRACKING_TOKEN || '').trim();
 const SHOPEE_TRACKING_LIMIT = Math.max(20, Number(process.env.SHOPEE_TRACKING_LIMIT_PER_10_MIN || 120));
-const trackingRequests = [];
+const trackingRequestsByProfile = new Map();
 
 app.use(cors({
   origin: '*',
@@ -44,26 +43,14 @@ function authHeader() {
   return `Basic ${Buffer.from(`${BOT_USER}:${BOT_PASSWORD}`).toString('base64')}`;
 }
 
-function comparacaoSegura(recebido = '', esperado = '') {
-  const a = Buffer.from(String(recebido || ''));
-  const b = Buffer.from(String(esperado || ''));
-  return a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b);
-}
-
-function rastreamentoAutorizado(req) {
-  const recebido = String(req.get('authorization') || '').trim();
-  if (SHOPEE_TRACKING_TOKEN) {
-    return comparacaoSegura(recebido, `Bearer ${SHOPEE_TRACKING_TOKEN}`);
-  }
-  return comparacaoSegura(recebido, authHeader());
-}
-
-function dentroDoLimiteDeRastreamento() {
+function dentroDoLimiteDeRastreamento(perfil = 'desconhecido') {
+  const trackingRequests = trackingRequestsByProfile.get(perfil) || [];
   const agora = Date.now();
   const inicio = agora - 10 * 60 * 1000;
   while (trackingRequests.length && trackingRequests[0] < inicio) trackingRequests.shift();
   if (trackingRequests.length >= SHOPEE_TRACKING_LIMIT) return false;
   trackingRequests.push(agora);
+  trackingRequestsByProfile.set(perfil, trackingRequests);
   return true;
 }
 
@@ -158,10 +145,20 @@ app.post('/shopee/rastrear', async (req, res) => {
   res.set('Pragma', 'no-cache');
   res.set('Expires', '0');
 
-  if (!rastreamentoAutorizado(req)) {
+  const contaShopee = resolverContaShopee({
+    authorization: req.get('authorization'),
+    basicAuthorization: authHeader()
+  });
+  if (!contaShopee) {
     return res.status(401).json({ ok: false, error: 'Rastreamento não autorizado.' });
   }
-  if (!dentroDoLimiteDeRastreamento()) {
+  if (!contaShopee.configurada) {
+    return res.status(503).json({
+      ok: false,
+      error: `Credenciais Shopee do perfil ${contaShopee.perfil} não configuradas.`
+    });
+  }
+  if (!dentroDoLimiteDeRastreamento(contaShopee.perfil)) {
     return res.status(429).json({ ok: false, error: 'Limite temporário de geração de links atingido.' });
   }
 
@@ -182,11 +179,17 @@ app.post('/shopee/rastrear', async (req, res) => {
       }
     }
 
-    const resultado = await gerarLinkRastreadoShopee({ originUrl: linkDestino, subIds });
+    const resultado = await gerarLinkRastreadoShopee({
+      originUrl: linkDestino,
+      subIds,
+      appId: contaShopee.appId,
+      secret: contaShopee.secret
+    });
     return res.json({
       ok: true,
       shortLink: resultado.shortLink,
       subIds: resultado.subIds,
+      perfil: contaShopee.perfil,
       resolucao
     });
   } catch (error) {
