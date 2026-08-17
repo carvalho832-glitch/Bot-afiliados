@@ -9,7 +9,7 @@
     "start:render": "bash start-render-free.sh",
     "start:raw": "node apply-phase22-panel.cjs && node server.js",
     "setup:production": "bash setup-server.sh",
-    "check": "node --check server.js && node --check bot-store.mjs && node --check bot-engine.mjs && node --check frame-recovery.mjs && node --check shopee-tracking.mjs && node --check phase22-control.js && node --check apply-phase22-panel.cjs && node --check apply-render-profile.cjs && node --check cleanup-restored-chrome-profile.cjs && node --check render-cloud-backup.mjs && node render-cloud-backup.mjs backup && bash -n start-production.sh && bash -n start-render-free.sh && bash -n setup-server.sh",
+    "check": "node --check server.js && node --check bot-store.mjs && node --check bot-engine.mjs && node --check frame-recovery.mjs && node --check shopee-tracking.mjs && node --check phase22-control.js && node --check apply-phase22-panel.cjs && node --check apply-render-profile.cjs && node --check cleanup-restored-chrome-profile.cjs && node --check render-cloud-backup.mjs && node render-cloud-backup.mjs backup && bash -n build-render-free.sh && bash -n start-production.sh && bash -n start-render-free.sh && bash -n setup-server.sh",
     "test": "node --test test/*.test.mjs",
     "doctor": "bash bot-doctor.sh",
     "dev": "node --watch server.js"
@@ -24,6 +24,6 @@
     "whatsapp-web.js": "1.34.7"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.0.0 <23.0.0"
   }
 }
