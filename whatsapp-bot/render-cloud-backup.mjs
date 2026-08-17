@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { S3Client, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import tar from 'tar';
+import * as tar from 'tar';
 
 const __filename = fileURLToPath(import.meta.url);
 const APP_DIR = path.dirname(__filename);
