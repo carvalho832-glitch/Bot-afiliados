@@ -6,7 +6,7 @@ services:
     region: virginia
     branch: feat/render-free-dual-bot
     rootDir: whatsapp-bot
-    buildCommand: rm -rf .cache/puppeteer/chrome && export PUPPETEER_CACHE_DIR=.cache/puppeteer && npm install && npx puppeteer browsers install chrome
+    buildCommand: bash build-render-free.sh
     startCommand: npm run start:render
     healthCheckPath: /
     autoDeployTrigger: checksPass
@@ -17,8 +17,10 @@ services:
         value: achou-levou-julio
       - key: TZ
         value: America/Sao_Paulo
+      - key: NODE_VERSION
+        value: "22.22.0"
       - key: PUPPETEER_CACHE_DIR
-        value: .cache/puppeteer
+        value: node_modules/.puppeteer_cache
       - key: CLOUD_BACKUP_INTERVAL_SECONDS
         value: "600"
       - key: R2_ACCOUNT_ID
