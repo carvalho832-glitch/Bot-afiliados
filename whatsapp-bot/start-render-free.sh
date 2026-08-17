@@ -9,6 +9,7 @@ export PORT="${PORT:-3010}"
 export BOT_PROFILE="${BOT_PROFILE:-julio}"
 export WHATSAPP_CLIENT_ID="${WHATSAPP_CLIENT_ID:-achou-levou-${BOT_PROFILE}}"
 export CLOUD_BACKUP_INTERVAL_SECONDS="${CLOUD_BACKUP_INTERVAL_SECONDS:-600}"
+export CLOUD_BACKUP_FIRST_SECONDS="${CLOUD_BACKUP_FIRST_SECONDS:-120}"
 
 if [[ -n "${R2_ACCOUNT_ID:-}" && -n "${R2_BUCKET:-}" && -n "${R2_ACCESS_KEY_ID:-}" && -n "${R2_SECRET_ACCESS_KEY:-}" ]]; then
   echo "☁️ Restaurando sessão e dados do perfil ${BOT_PROFILE}..."
@@ -36,6 +37,15 @@ backup_now() {
 }
 
 backup_loop() {
+  # Um snapshot cedo protege o QR/login inicial contra reinícios antes do
+  # primeiro ciclo normal de 10 minutos.
+  if [[ "$CLOUD_BACKUP_FIRST_SECONDS" -gt 0 ]]; then
+    sleep "$CLOUD_BACKUP_FIRST_SECONDS" || return 0
+    kill -0 "$SERVER_PID" 2>/dev/null || return 0
+    echo "☁️ Snapshot inicial rápido do perfil ${BOT_PROFILE}..."
+    backup_now
+  fi
+
   while kill -0 "$SERVER_PID" 2>/dev/null; do
     sleep "$CLOUD_BACKUP_INTERVAL_SECONDS" || break
     kill -0 "$SERVER_PID" 2>/dev/null || break
