@@ -9,7 +9,7 @@ services:
     buildCommand: bash build-render-free.sh
     startCommand: npm run start:render
     healthCheckPath: /
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: off
     envVars:
       - key: BOT_PROFILE
         value: renata
@@ -21,6 +21,8 @@ services:
         value: "22.22.0"
       - key: PUPPETEER_CACHE_DIR
         value: node_modules/.puppeteer_cache
+      - key: CLOUD_BACKUP_FIRST_SECONDS
+        value: "120"
       - key: CLOUD_BACKUP_INTERVAL_SECONDS
         value: "600"
       - key: R2_ACCOUNT_ID
