@@ -11,6 +11,11 @@ export WHATSAPP_CLIENT_ID="${WHATSAPP_CLIENT_ID:-achou-levou-${BOT_PROFILE}}"
 export CLOUD_BACKUP_INTERVAL_SECONDS="${CLOUD_BACKUP_INTERVAL_SECONDS:-600}"
 export CLOUD_BACKUP_FIRST_SECONDS="${CLOUD_BACKUP_FIRST_SECONDS:-120}"
 
+# Render Free tem 512 MB. Mantemos o heap do Node contido e reduzimos
+# fragmentação de memória para deixar mais espaço ao Chromium/WhatsApp Web.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=160}"
+export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
+
 if [[ -n "${R2_ACCOUNT_ID:-}" && -n "${R2_BUCKET:-}" && -n "${R2_ACCESS_KEY_ID:-}" && -n "${R2_SECRET_ACCESS_KEY:-}" ]]; then
   echo "☁️ Restaurando sessão e dados do perfil ${BOT_PROFILE}..."
   node render-cloud-backup.mjs restore || {
@@ -25,6 +30,8 @@ fi
 # nova instância, removemos somente arquivos de trava transitórios do Chrome.
 node cleanup-restored-chrome-profile.cjs
 node apply-render-profile.cjs
+node --check apply-render-low-memory.cjs
+node apply-render-low-memory.cjs
 
 bash start-production.sh &
 SERVER_PID=$!
