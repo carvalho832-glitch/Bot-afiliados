@@ -45,8 +45,17 @@ if [[ "$CHROME_READY" != true ]]; then
     echo "Disponível: $((AVAILABLE_KB / 1024)) MB. Libere pelo menos 900 MB."
     exit 1
   fi
+
+  echo "🧹 Chrome ausente ou cache incompleto; limpando somente o cache do Chrome..."
+  rm -rf "$PUPPETEER_CACHE_DIR/chrome"
+
   echo "🌐 Instalando o Chrome compatível com o Puppeteer..."
   npx puppeteer browsers install chrome
+
+  if ! find "$PUPPETEER_CACHE_DIR" -type f -name chrome -perm -u+x -print -quit 2>/dev/null | grep -q .; then
+    echo "❌ A instalação terminou sem encontrar um executável Chrome válido."
+    exit 1
+  fi
 fi
 
 exec node server.js
