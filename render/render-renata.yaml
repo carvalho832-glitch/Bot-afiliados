@@ -6,7 +6,7 @@ services:
     region: virginia
     branch: feat/render-free-dual-bot
     rootDir: whatsapp-bot
-    buildCommand: npm install && PUPPETEER_CACHE_DIR=.cache/puppeteer npx puppeteer browsers install chrome
+    buildCommand: rm -rf .cache/puppeteer/chrome && export PUPPETEER_CACHE_DIR=.cache/puppeteer && npm install && npx puppeteer browsers install chrome
     startCommand: npm run start:render
     healthCheckPath: /
     autoDeployTrigger: checksPass
