@@ -20,6 +20,9 @@ else
   echo "⚠️ R2 não configurado. O Render Free perderá sessão/dados ao reiniciar."
 fi
 
+# Backups são feitos enquanto o Chromium pode estar ativo. Ao restaurar em uma
+# nova instância, removemos somente arquivos de trava transitórios do Chrome.
+node cleanup-restored-chrome-profile.cjs
 node apply-render-profile.cjs
 
 bash start-production.sh &
