@@ -160,13 +160,30 @@ export async function prepararMensagemRastreada({
 } = {}) {
   const originalMessage = String(message || '').trim();
   if (typeof fetchImpl !== 'function') throw new Error('Cliente HTTP indisponível.');
-  const linksOriginais = extrairLinksShopee(originalMessage);
-
-  if (!linksOriginais.length) {
-    throw new Error('Oferta sem link oficial da Shopee: envio bloqueado para preservar o rastreamento de afiliado.');
-  }
 
   const todosOsLinks = extrairUrls(originalMessage);
+  const linksOriginais = extrairLinksShopee(originalMessage);
+
+  // O rastreador deste módulo é exclusivo da Shopee. Ofertas de Mercado Livre,
+  // Amazon ou outras plataformas devem seguir com os links originais preservados,
+  // sem tentar gerar Sub IDs da Shopee e sem bloquear a fila.
+  if (!linksOriginais.length) {
+    if (!todosOsLinks.length) {
+      throw new Error('Oferta sem link: envio bloqueado porque nenhuma URL foi encontrada na mensagem.');
+    }
+
+    return {
+      message: originalMessage,
+      record: {
+        status: 'not_applicable',
+        links: todosOsLinks.map(originalUrl => ({ originalUrl, shortLink: originalUrl })),
+        subIds: [],
+        generatedAt: new Date(now).toISOString(),
+        error: null
+      }
+    };
+  }
+
   if (todosOsLinks.some(url => !linksOriginais.includes(url))) {
     throw new Error('Oferta contém link fora da Shopee: envio bloqueado para preservar somente o link de afiliado.');
   }
