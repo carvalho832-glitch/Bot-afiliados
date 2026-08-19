@@ -1,10 +1,10 @@
 (() => {
   'use strict';
 
-  const VERSION = '93.0.0';
+  const VERSION = '93.1.0';
   const PANEL_URLS = Object.freeze({
-    julio: 'https://bot.achoulevoubot.uk',
-    renata: 'https://usuario2.achoulevoubot.uk'
+    julio: 'https://bot.achoulevoubot.uk/painel',
+    renata: 'https://usuario2.achoulevoubot.uk/painel'
   });
 
   function normalizeProfile(value) {
@@ -34,37 +34,44 @@
   }
 
   function panelUrl() {
-    const profile = currentProfile();
-    const base = PANEL_URLS[profile] || PANEL_URLS.julio;
-    return `${base}/painel`;
+    return PANEL_URLS[currentProfile()] || PANEL_URLS.julio;
   }
 
-  function openInsideCurrentWebView() {
-    const target = panelUrl();
-    window.location.assign(target);
+  function openPanel() {
+    window.location.assign(panelUrl());
   }
 
-  function install() {
+  function syncApi() {
     if (window.AchouLevouBotQueue) {
-      window.AchouLevouBotQueue.openPanel = openInsideCurrentWebView;
+      window.AchouLevouBotQueue.openPanel = openPanel;
     }
+  }
 
+  function markButton() {
     const button = document.getElementById('btn-abrir-painel-bot');
-    if (!button || button.dataset.embeddedPanelVersion === VERSION) return;
-
+    if (!button) return;
     button.dataset.embeddedPanelVersion = VERSION;
     button.title = 'Abrir Painel WhatsApp do perfil selecionado';
-    button.addEventListener('click', event => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
+  }
 
-      try {
-        openInsideCurrentWebView();
-      } catch (error) {
-        console.error('[PAINEL EMBUTIDO]', error);
-        alert(error?.message || 'Não foi possível abrir o Painel WhatsApp.');
-      }
-    }, true);
+  document.addEventListener('click', event => {
+    const button = event.target?.closest?.('#btn-abrir-painel-bot');
+    if (!button) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openPanel();
+  }, true);
+
+  const observer = new MutationObserver(() => {
+    syncApi();
+    markButton();
+  });
+
+  function install() {
+    syncApi();
+    markButton();
+    observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 
   if (document.readyState === 'loading') {
@@ -73,10 +80,14 @@
     install();
   }
 
-  window.addEventListener('achoulevou:bot-profile', install);
+  window.addEventListener('achoulevou:bot-profile', () => {
+    syncApi();
+    markButton();
+  });
+
   window.AchouLevouEmbeddedPanel = {
     version: VERSION,
-    open: openInsideCurrentWebView,
+    open: openPanel,
     panelUrl,
     currentProfile,
     install
