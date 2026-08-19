@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const API_BASE = 'https://bot-afiliados-1fwi.onrender.com';
   const ENDPOINT = `${API_BASE}/shared/offers`;
   const STORAGE_KEY = 'ofertas_achou_levou';
@@ -12,6 +12,85 @@
 
   const clean = (value = '') => String(value || '').replace(/\r\n/g, '\n').trim();
   const byId = id => document.getElementById(id);
+
+  function affiliateProfileId() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const requested = clean(params.get('perfil') || params.get('bot') || params.get('usuario') || '');
+      const saved = clean(localStorage.getItem('achou_levou_bot_profile') || '');
+      const value = (requested || saved || 'julio').toLowerCase();
+      return ['renata', 'usuario2', 'user2', '2'].includes(value) ? 'renata' : 'julio';
+    } catch {
+      return 'julio';
+    }
+  }
+
+  function affiliateProfileLabel(profileId = affiliateProfileId()) {
+    return profileId === 'renata' ? 'Renata' : 'Júlio';
+  }
+
+  function ensureAffiliateStatusCard() {
+    let card = byId('affiliate-bot-status-card');
+    if (card) return card;
+
+    const whatsappStatus = document.querySelector('.status-card');
+    if (!whatsappStatus?.parentNode) return null;
+
+    card = document.createElement('section');
+    card.className = 'status-card';
+    card.id = 'affiliate-bot-status-card';
+    card.innerHTML = `
+      <div>
+        <span class="status-label">Bot Afiliado</span>
+        <strong id="affiliate-bot-status-text">${affiliateProfileLabel()}</strong>
+      </div>
+      <span id="affiliate-bot-status-pill" class="status-pill" data-state="idle">Aguardando produto</span>`;
+    whatsappStatus.insertAdjacentElement('afterend', card);
+    return card;
+  }
+
+  function setAffiliateStatus(detail = {}) {
+    ensureAffiliateStatusCard();
+    const profileId = detail.profile === 'renata' ? 'renata' : affiliateProfileId();
+    const label = affiliateProfileLabel(profileId);
+    const text = byId('affiliate-bot-status-text');
+    const pill = byId('affiliate-bot-status-pill');
+
+    if (text) text.textContent = label;
+    if (!pill) return;
+
+    if (detail.source === 'local') {
+      pill.textContent = detail.status >= 200 && detail.status < 500 ? 'Local conectado' : `Local HTTP ${detail.status}`;
+      pill.dataset.state = detail.status >= 200 && detail.status < 500 ? 'ok' : 'error';
+      pill.title = detail.baseUrl ? `Usando ${detail.baseUrl}` : 'Bot afiliado local';
+      return;
+    }
+
+    if (detail.source === 'cloud-fallback') {
+      pill.textContent = 'Fallback nuvem';
+      pill.dataset.state = 'loading';
+      pill.title = 'O bot local não respondeu. O Achou Levou usou o servidor em nuvem.';
+      return;
+    }
+
+    pill.textContent = 'Aguardando produto';
+    pill.dataset.state = 'idle';
+  }
+
+  function installAffiliateStatus() {
+    ensureAffiliateStatusCard();
+
+    if (navigator.serviceWorker && !window.__achouLevouAffiliateStatusListener) {
+      window.__achouLevouAffiliateStatusListener = true;
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data?.type === 'AFFILIATE_BOT_SOURCE') {
+          setAffiliateStatus(event.data);
+        }
+      });
+    }
+
+    window.addEventListener('achoulevou:bot-profile', () => setAffiliateStatus({}));
+  }
 
   function messageFromScreen() {
     const value = clean(byId('msg-preview')?.innerText || window.__ultimaMensagemAchouLevou || '');
@@ -162,6 +241,8 @@
   }
 
   async function initialSync() {
+    installAffiliateStatus();
+
     try {
       const before = signature(localOffers());
       const remote = await load({ apply: true });
@@ -218,7 +299,8 @@
     remove,
     clear,
     writeLocal,
-    offerFromScreen
+    offerFromScreen,
+    affiliateStatus: setAffiliateStatus
   };
 
   if (document.readyState === 'loading') {
