@@ -1,29 +1,65 @@
-const CACHE_VERSION = 'achou-levou-v91-openai';
+const CACHE_VERSION = 'achou-levou-v92-local-affiliate';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const SHOPEE_PRODUCT_PATH = '/shopee/produto';
 const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
 
+const LOCAL_AFFILIATE_PROFILES = Object.freeze({
+    julio: 'http://127.0.0.1:3000',
+    renata: 'http://127.0.0.1:3200'
+});
+
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v91 instalada.');
+    console.log('Achou Levou interface v92 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v91 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v92 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '91' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '92' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
 });
+
+function normalizarPerfil(valor = '') {
+    const perfil = String(valor || '').trim().toLowerCase();
+    return ['renata', 'usuario2', 'user2', '2'].includes(perfil) ? 'renata' : 'julio';
+}
+
+async function perfilDoCliente(clientId) {
+    if (!clientId) return 'julio';
+
+    try {
+        const client = await self.clients.get(clientId);
+        if (!client?.url) return 'julio';
+
+        const url = new URL(client.url);
+        const solicitado = url.searchParams.get('perfil') ||
+            url.searchParams.get('bot') ||
+            url.searchParams.get('usuario') ||
+            'julio';
+        return normalizarPerfil(solicitado);
+    } catch {
+        return 'julio';
+    }
+}
+
+async function avisarCliente(clientId, mensagem) {
+    if (!clientId) return;
+    try {
+        const client = await self.clients.get(clientId);
+        client?.postMessage?.(mensagem);
+    } catch {}
+}
 
 async function consultarShopee(url, originalSignal) {
     if (originalSignal?.aborted) throw new DOMException('Consulta cancelada.', 'AbortError');
@@ -36,6 +72,39 @@ async function consultarShopee(url, originalSignal) {
         cache: 'no-store',
         signal: originalSignal
     });
+}
+
+async function consultarBotAfiliadoLocal(event, originalUrl) {
+    const perfil = await perfilDoCliente(event.clientId);
+    const baseUrl = LOCAL_AFFILIATE_PROFILES[perfil] || LOCAL_AFFILIATE_PROFILES.julio;
+    const localUrl = new URL(originalUrl.pathname + originalUrl.search, baseUrl);
+    localUrl.searchParams.set('_perfil_local', perfil);
+    localUrl.searchParams.set('_agora', String(Date.now()));
+
+    try {
+        const response = await consultarShopee(localUrl.toString(), event.request.signal);
+        await avisarCliente(event.clientId, {
+            type: 'AFFILIATE_BOT_SOURCE',
+            source: 'local',
+            profile: perfil,
+            baseUrl,
+            status: response.status
+        });
+        console.log(`[BOT AFILIADO] ${perfil} local respondeu HTTP ${response.status} em ${baseUrl}.`);
+        return response;
+    } catch (error) {
+        if (error?.name === 'AbortError' || event.request.signal?.aborted) throw error;
+
+        await avisarCliente(event.clientId, {
+            type: 'AFFILIATE_BOT_SOURCE',
+            source: 'cloud-fallback',
+            profile: perfil,
+            baseUrl,
+            error: String(error?.message || error)
+        });
+        console.warn(`[BOT AFILIADO] ${perfil} local indisponível em ${baseUrl}. Usando Render.`, error?.message || error);
+        return null;
+    }
 }
 
 async function avisarTentativa(tentativa, total) {
@@ -113,6 +182,12 @@ async function consultarShopeeComRecuperacao(request, originalUrl) {
     return respostaDeOscilacao(ultimoErro);
 }
 
+async function consultarShopeeLocalOuNuvem(event, originalUrl) {
+    const local = await consultarBotAfiliadoLocal(event, originalUrl);
+    if (local) return local;
+    return consultarShopeeComRecuperacao(event.request, originalUrl);
+}
+
 async function scriptComFilaCompartilhada(request) {
     const response = await fetch(request, { cache: 'no-store' });
     const source = await response.text();
@@ -176,7 +251,7 @@ self.addEventListener('fetch', (event) => {
         directPath === SHOPEE_PRODUCT_PATH;
 
     if (isShopeeProductRead) {
-        event.respondWith(consultarShopeeComRecuperacao(event.request, requestUrl));
+        event.respondWith(consultarShopeeLocalOuNuvem(event, requestUrl));
         return;
     }
 
