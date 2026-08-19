@@ -1,0 +1,7 @@
+.v2-metrics{grid-template-columns:repeat(5,minmax(0,1fr))}
+.v2-affiliate-metric[data-state="local"]{border-color:rgba(25,212,131,.34);box-shadow:inset 0 0 0 1px rgba(25,212,131,.04)}
+.v2-affiliate-metric[data-state="cloud-fallback"]{border-color:rgba(255,210,122,.34);box-shadow:inset 0 0 0 1px rgba(255,210,122,.04)}
+.v2-affiliate-metric strong{font-size:25px}
+@media(max-width:1120px){.v2-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:980px){.v2-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.v2-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.v2-affiliate-metric strong{font-size:22px}}
