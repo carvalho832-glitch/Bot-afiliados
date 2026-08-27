@@ -6,7 +6,7 @@ cd "$APP_DIR"
 
 export PORT="${PORT:-3010}"
 export TZ="${TZ:-America/Sao_Paulo}"
-export PUPPETEER_CACHE_DIR="${PUPPETEER_CACHE_DIR:-$HOME/.cache/puppeteer}"
+export PUPPETEER_CACHE_DIR="${PUPPETEER_CACHE_DIR:-node_modules/.puppeteer_cache}"
 
 mkdir -p "$PUPPETEER_CACHE_DIR"
 
@@ -19,34 +19,46 @@ node --check phase22-control.js
 node --check apply-phase22-panel.cjs
 node apply-phase22-panel.cjs
 
-EXPECTED_CHROME="$(node - <<'NODE'
+resolve_chrome() {
+  node - <<'NODE'
 try {
-  const revisions = require('./node_modules/puppeteer-core/lib/cjs/puppeteer/revisions.js');
-  process.stdout.write(String(revisions.PUPPETEER_REVISIONS?.chrome || ''));
+  const fs = require('node:fs');
+  const puppeteer = require('puppeteer');
+  const executable = puppeteer.executablePath();
+  fs.accessSync(executable, fs.constants.X_OK);
+  process.stdout.write(executable);
 } catch {
-  process.stdout.write('');
+  process.exit(1);
 }
 NODE
-)"
+}
 
-CHROME_READY=false
-if [[ -n "$EXPECTED_CHROME" ]]; then
-  if find "$PUPPETEER_CACHE_DIR" -type f -name chrome -path "*${EXPECTED_CHROME}*" -perm -u+x -print -quit 2>/dev/null | grep -q .; then
-    CHROME_READY=true
-  fi
-elif find "$PUPPETEER_CACHE_DIR" -type f -name chrome -perm -u+x -print -quit 2>/dev/null | grep -q .; then
-  CHROME_READY=true
-fi
+CHROME_PATH="$(resolve_chrome 2>/dev/null || true)"
 
-if [[ "$CHROME_READY" != true ]]; then
+if [[ -z "$CHROME_PATH" ]]; then
   AVAILABLE_KB="$(df -Pk / | awk 'NR==2 { print $4 }')"
   if [[ -n "$AVAILABLE_KB" && "$AVAILABLE_KB" -lt 900000 ]]; then
     echo "❌ Espaço insuficiente para instalar o Chrome do Puppeteer."
     echo "Disponível: $((AVAILABLE_KB / 1024)) MB. Libere pelo menos 900 MB."
     exit 1
   fi
+
+  echo "🧹 Chrome ausente ou cache incompleto; limpando somente o cache do Chrome..."
+  rm -rf "$PUPPETEER_CACHE_DIR/chrome"
+
   echo "🌐 Instalando o Chrome compatível com o Puppeteer..."
-  npx puppeteer browsers install chrome
+  npx puppeteer browsers install chrome --format '{{path}}'
+
+  CHROME_PATH="$(resolve_chrome 2>/dev/null || true)"
+  if [[ -z "$CHROME_PATH" ]]; then
+    echo "❌ A instalação terminou sem um Chrome utilizável no cache configurado: $PUPPETEER_CACHE_DIR"
+    echo "[DIAGNÓSTICO] Arquivos chrome encontrados:"
+    find "$PUPPETEER_CACHE_DIR" -maxdepth 6 -type f -name chrome -print 2>/dev/null || true
+    exit 1
+  fi
 fi
+
+export PUPPETEER_EXECUTABLE_PATH="$CHROME_PATH"
+echo "✅ Chrome pronto: $PUPPETEER_EXECUTABLE_PATH"
 
 exec node server.js

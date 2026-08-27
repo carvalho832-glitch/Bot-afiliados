@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "achou-levou-render-keeper",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-17",
+  "triggers": {
+    "crons": [
+      "*/10 * * * *"
+    ]
+  },
+  "vars": {
+    "JULIO_RENDER_URL": "https://SEU-SERVICO-JULIO.onrender.com",
+    "RENATA_RENDER_URL": "https://SEU-SERVICO-RENATA.onrender.com",
+    "RUN_SUNDAY": "false"
+  }
+}

@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: achou-levou-renata-whatsapp
+    runtime: node
+    plan: free
+    region: virginia
+    branch: feat/render-free-dual-bot
+    rootDir: whatsapp-bot
+    buildCommand: bash build-render-free.sh
+    startCommand: npm run start:render
+    healthCheckPath: /
+    autoDeployTrigger: off
+    envVars:
+      - key: BOT_PROFILE
+        value: renata
+      - key: WHATSAPP_CLIENT_ID
+        value: achou-levou-renata
+      - key: TZ
+        value: America/Sao_Paulo
+      - key: NODE_VERSION
+        value: "22.22.0"
+      - key: PUPPETEER_CACHE_DIR
+        value: node_modules/.puppeteer_cache
+      - key: CLOUD_BACKUP_FIRST_SECONDS
+        value: "120"
+      - key: CLOUD_BACKUP_INTERVAL_SECONDS
+        value: "600"
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_BUCKET
+        value: achou-levou-bot-backups
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: BOT_API_KEY
+        generateValue: true
+      - key: BOT_ALLOWED_ORIGINS
+        value: "*"
+      - key: GROUPS_READ_TIMEOUT_MS
+        value: "15000"
+      - key: MESSAGE_SEND_TIMEOUT_MS
+        value: "45000"
+      - key: SHOPEE_TRACKING_API_URL
+        value: https://bot-afiliados-1fwi.onrender.com/shopee/rastrear
+      - key: SHOPEE_TRACKING_TOKEN
+        sync: false
+      - key: SHOPEE_TRACKING_TIMEOUT_MS
+        value: "45000"
+      - key: SHOPEE_TRACKING_TIME_ZONE
+        value: America/Sao_Paulo
