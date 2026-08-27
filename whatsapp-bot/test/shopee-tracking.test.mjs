@@ -36,7 +36,21 @@ test('gera cinco Sub_ids estáveis e exclusivos por ID real do grupo', () => {
   assert.deepEqual(a.slice(1), ['ofoferta10', 'catcalcados', 'h0730', 'wa20260731']);
 });
 
-test('troca o link original pelo oficial rastreado e envia os Sub_ids do grupo', async () => {
+test('normaliza categoria com acento e preserva horário/data de São Paulo', () => {
+  const subIds = criarSubIdsRastreamento({
+    target: { id: '333@g.us', name: 'Grupo Eletrônicos' },
+    offerId: 'oferta-11',
+    category: 'Eletrônicos',
+    now: NOW
+  });
+
+  assert.equal(subIds.length, 5);
+  assert.equal(subIds[2], 'cateletronicos');
+  assert.equal(subIds[3], 'h0730');
+  assert.equal(subIds[4], 'wa20260731');
+});
+
+test('troca o link de produto Shopee pelo oficial rastreado e envia os cinco Sub_ids', async () => {
   let requestBody = null;
   const resultado = await prepararMensagemRastreada({
     message: '🔥 Oferta\nhttps://shopee.com.br/product/100/200',
@@ -52,11 +66,67 @@ test('troca o link original pelo oficial rastreado e envia os Sub_ids do grupo',
   });
 
   assert.equal(resultado.record.status, 'tracked');
+  assert.equal(resultado.record.subIds.length, 5);
   assert.match(resultado.message, /https:\/\/s\.shopee\.com\.br\/rastreadoA/);
   assert.doesNotMatch(resultado.message, /product\/100\/200/);
   assert.equal(requestBody.originUrl, 'https://shopee.com.br/product/100/200');
   assert.deepEqual(requestBody.subIds, resultado.record.subIds);
   assert.match(requestBody.subIds[0], /^ggrupobiritibamirim[a-f0-9]{6}$/);
+});
+
+test('link curto de afiliado Shopee também recebe os cinco Sub_ids', async () => {
+  let chamadas = 0;
+  let requestBody = null;
+  const linkAfiliado = 'https://s.shopee.com.br/abc123';
+
+  const resultado = await prepararMensagemRastreada({
+    message: `Oferta ${linkAfiliado}`,
+    target: { id: '111@g.us', name: 'Desapega' },
+    offerId: 'oferta-21',
+    category: 'Casa',
+    now: NOW,
+    endpoint: 'https://api.example/shopee/rastrear',
+    fetchImpl: async (_url, options) => {
+      chamadas += 1;
+      requestBody = JSON.parse(options.body);
+      return responseJson(200, { ok: true, shortLink: 'https://s.shopee.com.br/rastreadoB' });
+    }
+  });
+
+  assert.equal(chamadas, 1);
+  assert.equal(requestBody.originUrl, linkAfiliado);
+  assert.equal(resultado.record.status, 'tracked');
+  assert.equal(resultado.record.subIds.length, 5);
+  assert.equal(resultado.record.subIds[2], 'catcasa');
+  assert.match(resultado.message, /rastreadoB/);
+});
+
+test('link universal já afiliado da Shopee também é rastreado novamente com nossos Sub_ids', async () => {
+  let chamadas = 0;
+  let requestBody = null;
+  const linkAfiliado = 'https://shopee.com.br/universal-link/product/1/22792809253?utm_source=an_123&utm_medium=affiliates';
+
+  const resultado = await prepararMensagemRastreada({
+    message: `Oferta ${linkAfiliado}`,
+    target: { id: '222@g.us', name: 'Grupo da Breganha' },
+    offerId: 'oferta-22',
+    category: 'Moda',
+    now: NOW,
+    endpoint: 'https://api.example/shopee/rastrear',
+    fetchImpl: async (_url, options) => {
+      chamadas += 1;
+      requestBody = JSON.parse(options.body);
+      return responseJson(200, { ok: true, shortLink: 'https://s.shopee.com.br/rastreadoC' });
+    }
+  });
+
+  assert.equal(chamadas, 1);
+  assert.equal(requestBody.originUrl, linkAfiliado);
+  assert.equal(requestBody.subIds.length, 5);
+  assert.equal(resultado.record.status, 'tracked');
+  assert.equal(resultado.record.subIds.length, 5);
+  assert.match(resultado.message, /rastreadoC/);
+  assert.doesNotMatch(resultado.message, /universal-link/);
 });
 
 test('a mesma oferta recebe marcador diferente em cada grupo', async () => {
@@ -91,7 +161,7 @@ test('reutiliza o link salvo ao tentar reenviar para o mesmo grupo', async () =>
       originalUrl: 'https://shopee.com.br/product/100/200',
       shortLink: 'https://s.shopee.com.br/cache123'
     }],
-    subIds: ['ggrupoabc123'],
+    subIds: ['ggrupoabc123', 'ofoferta40', 'catgeral', 'h0730', 'wa20260731'],
     generatedAt: NOW.toISOString(),
     error: null
   };
@@ -108,7 +178,7 @@ test('reutiliza o link salvo ao tentar reenviar para o mesmo grupo', async () =>
   assert.match(resultado.message, /cache123/);
 });
 
-test('bloqueia o envio quando o serviço de afiliado está indisponível', async () => {
+test('bloqueia a oferta Shopee quando o serviço de afiliado está indisponível', async () => {
   const message = 'Oferta https://shopee.com.br/product/100/200';
   const promessa = prepararMensagemRastreada({
     message,
@@ -122,30 +192,36 @@ test('bloqueia o envio quando o serviço de afiliado está indisponível', async
   await assert.rejects(promessa, /Link de afiliado não gerado; envio bloqueado.*temporariamente indisponível/);
 });
 
-test('bloqueia ofertas sem link da Shopee', async () => {
+test('preserva Mercado Livre sem chamar o rastreador Shopee', async () => {
   let chamadas = 0;
-  const message = 'Oferta https://produto.mercadolivre.com.br/exemplo';
-  const promessa = prepararMensagemRastreada({
-    message,
+  const linkMercadoLivre = 'https://produto.mercadolivre.com.br/exemplo';
+  const resultado = await prepararMensagemRastreada({
+    message: `Oferta ${linkMercadoLivre}`,
     fetchImpl: async () => { chamadas += 1; }
   });
 
   assert.equal(chamadas, 0);
-  await assert.rejects(promessa, /Oferta sem link oficial da Shopee/);
+  assert.equal(resultado.record.status, 'not_applicable');
+  assert.deepEqual(resultado.record.subIds, []);
+  assert.equal(resultado.message, `Oferta ${linkMercadoLivre}`);
 });
 
-test('preserva o mesmo link copiado do painel de afiliados', async () => {
-  let chamadas = 0;
-  const linkAfiliado = 'https://shopee.com.br/universal-link/product/1/22792809253?utm_source=an_123&utm_medium=affiliates';
-  const resultado = await prepararMensagemRastreada({
-    message: `Oferta ${linkAfiliado}`,
-    target: { id: '111@g.us', name: 'Grupo' },
-    offerId: 'oferta-60',
-    endpoint: 'https://api.example/shopee/rastrear',
-    fetchImpl: async () => { chamadas += 1; }
+test('bloqueia mensagem sem nenhuma URL', async () => {
+  const promessa = prepararMensagemRastreada({
+    message: 'Oferta sem link',
+    fetchImpl: async () => { throw new Error('não deveria chamar a rede'); }
   });
 
-  assert.equal(resultado.record.status, 'preserved');
-  assert.equal(resultado.message, `Oferta ${linkAfiliado}`);
-  assert.equal(chamadas, 0);
+  await assert.rejects(promessa, /Oferta sem link/);
+});
+
+test('bloqueia mistura de Shopee com outra plataforma na mesma mensagem', async () => {
+  const promessa = prepararMensagemRastreada({
+    message: 'Oferta https://shopee.com.br/product/100/200 e https://produto.mercadolivre.com.br/exemplo',
+    target: { id: '111@g.us', name: 'Grupo' },
+    offerId: 'oferta-70',
+    fetchImpl: async () => { throw new Error('não deveria chamar a rede'); }
+  });
+
+  await assert.rejects(promessa, /misturar plataformas/);
 });

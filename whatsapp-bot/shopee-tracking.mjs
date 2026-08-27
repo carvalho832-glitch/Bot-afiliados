@@ -13,18 +13,6 @@ function extrairUrls(message = '') {
     .map(url => url.replace(/[\])},.;!?*]+$/, ''));
 }
 
-function ehLinkAfiliadoShopee(url = '') {
-  try {
-    const parsed = new URL(url);
-    if (!ehDominioShopee(parsed.hostname)) return false;
-    if (parsed.hostname.toLowerCase() === 's.shopee.com.br') return true;
-    const rastreamento = `${parsed.pathname}?${parsed.searchParams}`.toLowerCase();
-    return /affiliate|uls_trackid|share_channel|an_[a-z0-9]|utm_(source|medium|campaign)|smtt=|af_siteid|sub[_-]?id|tracking|click_id/.test(rastreamento);
-  } catch {
-    return false;
-  }
-}
-
 function normalizarMarcador(valor = '', fallback = 'na', limite = 50) {
   const limpar = entrada => String(entrada || '')
     .normalize('NFD')
@@ -165,8 +153,7 @@ export async function prepararMensagemRastreada({
   const linksOriginais = extrairLinksShopee(originalMessage);
 
   // O rastreador deste módulo é exclusivo da Shopee. Ofertas de Mercado Livre,
-  // Amazon ou outras plataformas devem seguir com os links originais preservados,
-  // sem tentar gerar Sub IDs da Shopee e sem bloquear a fila.
+  // Amazon ou outras plataformas seguem com os links originais preservados.
   if (!linksOriginais.length) {
     if (!todosOsLinks.length) {
       throw new Error('Oferta sem link: envio bloqueado porque nenhuma URL foi encontrada na mensagem.');
@@ -185,24 +172,13 @@ export async function prepararMensagemRastreada({
   }
 
   if (todosOsLinks.some(url => !linksOriginais.includes(url))) {
-    throw new Error('Oferta contém link fora da Shopee: envio bloqueado para preservar somente o link de afiliado.');
+    throw new Error('Oferta contém link fora da Shopee: envio bloqueado para evitar misturar plataformas na mesma mensagem.');
   }
 
-  // O link copiado do painel de Afiliados é a fonte de verdade. Não o
-  // reenviamos ao gerador, pois isso trocaria o URL salvo por outro link.
-  if (linksOriginais.every(ehLinkAfiliadoShopee)) {
-    return {
-      message: originalMessage,
-      record: {
-        status: 'preserved',
-        links: linksOriginais.map(originalUrl => ({ originalUrl, shortLink: originalUrl })),
-        subIds: [],
-        generatedAt: new Date(now).toISOString(),
-        error: null
-      }
-    };
-  }
-
+  // Toda oferta Shopee deve ser rastreada por grupo, inclusive quando a URL
+  // original já é um link curto ou link de afiliado da Shopee. O backend
+  // resolve links curtos quando necessário e gera um novo s.shopee.com.br
+  // usando as credenciais do perfil e os cinco Sub IDs abaixo.
   if (registroEmCacheValido(existing, linksOriginais)) {
     return { message: aplicarLinksRastreados(originalMessage, existing.links), record: existing };
   }
