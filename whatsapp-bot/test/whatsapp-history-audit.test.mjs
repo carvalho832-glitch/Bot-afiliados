@@ -65,6 +65,6 @@ test('filtra por data e grupo sem expor id real do grupo', async () => {
   assert.deepEqual(result.groupsChecked, ['Desapega']);
   assert.equal(result.matched, 1);
   assert.equal(result.items[0].group, 'Desapega');
-  assert.doesNotMatch(json, /111@g\.us|222222@g\.us/);
+  assert.doesNotMatch(json, /111@g\.us|222@g\.us/);
   assert.doesNotMatch(json, /Resposta de participante/);
 });
