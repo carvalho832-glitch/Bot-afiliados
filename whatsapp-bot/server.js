@@ -19,6 +19,7 @@ import {
   setQueueRunning
 } from './bot-store.mjs';
 import {
+  client,
   getConnectionState,
   getQrState,
   fetchLiveGroups,
@@ -33,6 +34,7 @@ import {
 } from './bot-engine.mjs';
 import { startQueueWatchdog } from './queue-watchdog.mjs';
 import { buildAuditOffers } from './audit-utils.mjs';
+import { buildWhatsAppSentAudit } from './whatsapp-history-audit.mjs';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3010);
@@ -129,10 +131,10 @@ app.get('/', (req, res) => {
   res.json({
     ok: true,
     service: 'Achou Levou WhatsApp Bot',
-    version: '2.3.3',
+    version: '2.3.4',
     ...getConnectionState(),
     serverTime: horaServidor(),
-    routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/review-source', '/audit/offers', '/qr-page']
+    routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/review-source', '/audit/offers', '/audit/whatsapp-sent', '/qr-page']
   });
 });
 
@@ -271,6 +273,33 @@ app.get('/audit/offers', (req, res) => {
   });
 });
 
+app.get('/audit/whatsapp-sent', async (req, res) => {
+  try {
+    if (getConnectionState().status !== 'conectado') {
+      return res.status(503).json({ ok: false, error: 'WhatsApp ainda não conectado.' });
+    }
+
+    const groups = await fetchLiveGroups({ force: false });
+    const audit = await buildWhatsAppSentAudit({
+      client,
+      groups,
+      date: req.query.date,
+      group: req.query.group,
+      limitPerGroup: req.query.limitPerGroup,
+      timeZone: process.env.AUDIT_TIME_ZONE || process.env.SHOPEE_TRACKING_TIME_ZONE || 'America/Sao_Paulo'
+    });
+
+    res.json({
+      ok: true,
+      source: 'whatsapp-sent-readonly-v1',
+      generatedAt: new Date().toISOString(),
+      ...audit
+    });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: String(error?.message || error) });
+  }
+});
+
 app.post('/queue/add', (req, res) => {
   const text = String(req.body?.text || '').trim();
   if (!text) return res.status(400).json({ ok: false, error: 'Texto vazio.' });
@@ -350,6 +379,6 @@ initializeBot();
 startQueueWatchdog();
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[SERVIDOR] Bot v2.3.3 rodando em http://localhost:${PORT}`);
+  console.log(`[SERVIDOR] Bot v2.3.4 rodando em http://localhost:${PORT}`);
   console.log('[DADOS]', { settings: SETTINGS_FILE, queue: QUEUE_FILE, runtime: RUNTIME_FILE });
 });
