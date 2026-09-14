@@ -14,15 +14,17 @@ jobs:
   resolve:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve test links
+      - name: Inspect Mercado Livre affiliate landing
         shell: bash
         run: |
           set +e
-          links=(
-            'https://s.shopee.com.br/3qN5HrtUez'
-            'https://meli.la/33vCDqb'
-          )
-          for u in "${links[@]}"; do
-            result=$(curl -L -sS --max-time 30 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36' -o /dev/null -w '%{http_code}|%{url_effective}' "$u")
-            echo "RESOLVE|$u|$result"
-          done
+          u='https://meli.la/33vCDqb'
+          curl -L -sS --max-time 30 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36' -D /tmp/headers.txt -o /tmp/page.html "$u"
+          echo '=== HEADERS ==='
+          grep -Ei '^(HTTP/|location:|content-type:)' /tmp/headers.txt | tail -30
+          echo '=== FINAL URL ==='
+          curl -L -sS --max-time 30 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36' -o /dev/null -w '%{url_effective}\n' "$u"
+          echo '=== TITLE/CANONICAL/PRODUCT HINTS ==='
+          grep -Eio '<title[^>]*>[^<]{0,300}|<link[^>]+rel=["'"']canonical["'"'][^>]*>|https://produto\.mercadolivre\.com\.br/[^"'"' <]+' /tmp/page.html | head -30
+          grep -Eio 'MLB-[0-9]+' /tmp/page.html | sort -u | head -30
+          grep -Eio 'item_id[^,}<]{0,120}|itemId[^,}<]{0,120}|product[^,}<]{0,160}' /tmp/page.html | head -40
