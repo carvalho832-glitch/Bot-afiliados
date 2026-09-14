@@ -1,0 +1,31 @@
+name: Conferir preços Shopee temporariamente
+
+on:
+  push:
+    branches:
+      - chore/resolve-offer-links
+    paths:
+      - '.github/scripts/resolve_shopee_prices.mjs'
+      - '.github/workflows/resolve-shopee-prices-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Consultar IDs exatos
+        run: node .github/scripts/resolve_shopee_prices.mjs
+      - name: Publicar resultado
+        uses: actions/upload-artifact@v4
+        with:
+          name: resolved-shopee-prices
+          path: tmp/resolved-shopee-prices.json
+          retention-days: 1
