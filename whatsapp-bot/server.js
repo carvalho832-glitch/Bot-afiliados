@@ -35,6 +35,7 @@ import {
 import { startQueueWatchdog } from './queue-watchdog.mjs';
 import { buildAuditOffers } from './audit-utils.mjs';
 import { buildWhatsAppSentAudit } from './whatsapp-history-audit.mjs';
+import { parseBulkImportPayload, secureTokenEqual } from './bulk-import.mjs';
 
 const app = express();
 const PORT = Number(process.env.PORT || 3010);
@@ -117,6 +118,23 @@ function isReviewPending(item = {}) {
     .includes(cleanReviewValue(item.status).toLowerCase());
 }
 
+function requireBulkImportToken(req, res, next) {
+  const expected = String(process.env.BULK_IMPORT_TOKEN || '').trim();
+  if (!expected) {
+    return res.status(503).json({
+      ok: false,
+      error: 'Importação em lote desativada. Configure BULK_IMPORT_TOKEN no ambiente do robô.'
+    });
+  }
+
+  const provided = String(req.get('x-import-token') || '').trim();
+  if (!secureTokenEqual(expected, provided)) {
+    return res.status(401).json({ ok: false, error: 'Token de importação inválido.' });
+  }
+
+  next();
+}
+
 app.use(cors());
 app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -134,7 +152,7 @@ app.get('/', (req, res) => {
     version: '2.3.4',
     ...getConnectionState(),
     serverTime: horaServidor(),
-    routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/review-source', '/audit/offers', '/audit/whatsapp-sent', '/qr-page']
+    routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/import-batch', '/queue/review-source', '/audit/offers', '/audit/whatsapp-sent', '/qr-page']
   });
 });
 
@@ -318,6 +336,83 @@ app.post('/queue/add', (req, res) => {
   res.json({ ok: true, added: newItems.length, queue: getQueueSummary() });
 });
 
+app.post('/queue/import-batch', requireBulkImportToken, async (req, res) => {
+  let parsed;
+  try {
+    parsed = parseBulkImportPayload(req.body || {});
+  } catch (error) {
+    return res.status(Number(error?.statusCode) || 400).json({
+      ok: false,
+      error: String(error?.message || error)
+    });
+  }
+
+  const previousSettings = getSettings();
+  const previousQueue = getQueue();
+  let imported = 0;
+
+  try {
+    const settingsPatch = {
+      ...parsed.settings,
+      ...(parsed.start ? { enabled: true } : {})
+    };
+    const settings = Object.keys(settingsPatch).length
+      ? saveSettings(settingsPatch)
+      : previousSettings;
+
+    const newItems = parsed.messages.map(message => {
+      const item = createQueueItem(message);
+      item.targets = escolherGruposPorCategoria(settings, item.category);
+      item.error = item.targets.length ? null : 'Nenhum grupo ativo compatível com esta oferta.';
+      return item;
+    });
+
+    saveQueue([...previousQueue, ...newItems]);
+    imported = newItems.length;
+    preencherGruposNasOfertasPendentes();
+  } catch (error) {
+    try { saveQueue(previousQueue); } catch {}
+    try { saveSettings(previousSettings); } catch {}
+    return res.status(500).json({
+      ok: false,
+      error: 'A importação falhou e as alterações foram revertidas.',
+      detail: String(error?.message || error)
+    });
+  }
+
+  if (parsed.start) {
+    try {
+      preencherGruposNasOfertasPendentes();
+      const result = await startQueue();
+      return res.json({
+        ok: true,
+        added: imported,
+        started: true,
+        settings: getSettings(),
+        queue: result.queue
+      });
+    } catch (error) {
+      return res.status(202).json({
+        ok: true,
+        added: imported,
+        started: false,
+        warning: 'As ofertas foram importadas, mas a fila não pôde ser iniciada agora.',
+        detail: String(error?.message || error),
+        settings: getSettings(),
+        queue: getQueueSummary()
+      });
+    }
+  }
+
+  return res.json({
+    ok: true,
+    added: imported,
+    started: false,
+    settings: getSettings(),
+    queue: getQueueSummary()
+  });
+});
+
 app.post('/queue/start', async (req, res) => {
   try {
     preencherGruposNasOfertasPendentes();
@@ -361,7 +456,7 @@ app.get('/qr', (req, res) => {
 app.get('/qr-page', (req, res) => {
   const qr = getQrState();
   if (!qr.qrDataUrl) {
-    return res.send(`<html><body style="font-family:Arial;text-align:center;padding:40px;background:#0d1117;color:white"><h2>Status: ${qr.status}</h2><p>Aguarde alguns segundos e atualize.</p><a style="color:#58a6ff" href="/qr-page">Atualizar</a></body></html>`);
+    return res.send(`<html><body style="font-family:Arial;text-align:center;padding:40px;background:#0d1117;color:white"><h2>Status: ${qr.status}</h2><p>Aguarde alguns segundos e atualize.</p><a style="color:#58a6ff" href="/qr-page">Atualizar</a></p></body></html>`);
   }
   res.send(`<html><body style="font-family:Arial;text-align:center;padding:30px;background:#0d1117;color:white"><h2>Escaneie o QR Code</h2><p>WhatsApp → Aparelhos conectados → Conectar aparelho</p><img src="${qr.qrDataUrl}" style="width:300px;max-width:90%;background:white;padding:12px;border-radius:12px"><p><a style="color:#58a6ff" href="/status">Ver status</a></p></body></html>`);
 });
