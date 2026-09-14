@@ -12,60 +12,91 @@ permissions:
 
 jobs:
   resolve:
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [0,1,2,3,4,5,6,7,8,9,10]
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve all Mercado Livre links
+      - name: Resolve Shopee batch ${{ matrix.group }}
+        env:
+          GROUP: ${{ matrix.group }}
         shell: bash
         run: |
-          cat > /tmp/ml.txt <<'EOF'
-          https://meli.la/33vCDqb
-          https://meli.la/14XY5Pw
-          https://meli.la/1Day7Ga
-          https://meli.la/2pHYrtA
-          https://meli.la/2V4Z2pv
-          https://meli.la/1DN1ucJ
-          https://meli.la/1eaZ9in
-          https://meli.la/1AxaZSy
-          https://meli.la/2hgs7zg
-          https://meli.la/259bnM8
-          https://meli.la/1dAdwyB
-          https://meli.la/2tPNsMf
-          https://meli.la/1BzjHso
-          https://meli.la/2Qg9ifj
-          https://meli.la/1TKPkSm
-          https://meli.la/2ia3AQL
-          https://meli.la/2rDiJJy
-          https://meli.la/2XJ1LNf
-          https://meli.la/2ruaM3D
-          https://meli.la/2UztGx8
-          https://meli.la/27aemax
-          https://meli.la/1Jg2f4E
-          https://meli.la/2oNewqb
-          https://meli.la/2kT3Ben
-          https://meli.la/2AC9J9E
-          https://meli.la/2q1CnFe
-          https://meli.la/1fGyVi2
-          EOF
           python3 - <<'PY'
-          import subprocess,re,concurrent.futures,html
-          links=[x.strip() for x in open('/tmp/ml.txt') if x.strip()]
-          ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-          def one(pair):
-              i,u=pair
-              try:
-                  p=subprocess.run(['curl','-L','-sS','--max-time','30','-A',ua,'-H','Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',u],capture_output=True,text=True,timeout=35)
-                  s=p.stdout
-                  m=re.search(r'<ul class="ui-recommendations-list__items-wrapper--single"[\s\S]*?</ul>',s,re.I)
-                  if not m: return (i,f'ML|{i}|{u}|ERROR|SECTION_NOT_FOUND')
-                  sec=m.group(0)
-                  pm=re.search(r'https://(?:produto|www)\.mercadolivre\.com\.br/[^"\' ]*MLB-?\d+[^"\' ]*',sec,re.I)
-                  url=html.unescape(pm.group(0)).split('?')[0].split('#')[0] if pm else 'URL_NOT_FOUND'
-                  text=html.unescape(re.sub(r'<[^>]+>',' ',sec))
-                  text=re.sub(r'\s+',' ',text).strip().replace('|','/')
-                  return (i,f'ML|{i}|{u}|{url}|{text[:1000]}')
-              except Exception as e:
-                  return (i,f'ML|{i}|{u}|ERROR|{type(e).__name__}')
-          with concurrent.futures.ThreadPoolExecutor(max_workers=5) as ex:
-              rows=list(ex.map(one,enumerate(links,1)))
-          for _,row in sorted(rows): print(row)
+          import subprocess,re,os,time
+          links='''
+          https://s.shopee.com.br/3qN5HrtUez
+          https://s.shopee.com.br/3LQogwvOfu
+          https://s.shopee.com.br/3VkEtFulKx
+          https://s.shopee.com.br/70K73ghREe
+          https://s.shopee.com.br/7AdXFzgnth
+          https://s.shopee.com.br/4Vcm5N69gS
+          https://s.shopee.com.br/4LJLt46n1R
+          https://s.shopee.com.br/4Azvgl7QMQ
+          https://s.shopee.com.br/40gVUS83hP
+          https://s.shopee.com.br/1BMK7FIqRs
+          https://s.shopee.com.br/6q0grsDkEJ
+          https://s.shopee.com.br/6L4QGxFeFE
+          https://s.shopee.com.br/6VNqTGF0uH
+          https://s.shopee.com.br/60RZsLGuvC
+          https://s.shopee.com.br/6Al04eGHaF
+          https://s.shopee.com.br/6Al057QqFE
+          https://s.shopee.com.br/60RZsoRTaD
+          https://s.shopee.com.br/6VNqTjPZZK
+          https://s.shopee.com.br/6L4QHQQCuJ
+          https://s.shopee.com.br/5VVJHtTNbA
+          https://s.shopee.com.br/2qUY7NlR4M
+          https://s.shopee.com.br/2gB7v4m4PL
+          https://s.shopee.com.br/3qN5JDhd2a
+          https://s.shopee.com.br/3g3f6uiGNZ
+          https://s.shopee.com.br/3VkEubitiY
+          https://s.shopee.com.br/9AObf9BE1q
+          https://s.shopee.com.br/905BSqBrMp
+          https://s.shopee.com.br/8AW4TJF23g
+          https://s.shopee.com.br/80CeH0FfOf
+          https://s.shopee.com.br/8V8urvDlNm
+          https://s.shopee.com.br/2qUY7ZkiIj
+          https://s.shopee.com.br/30nyJsk4xm
+          https://s.shopee.com.br/3B7OWBjRcp
+          https://s.shopee.com.br/3LQoiUioHs
+          https://s.shopee.com.br/3VkEuniAwv
+          https://s.shopee.com.br/70K75Hydwx
+          https://s.shopee.com.br/7VGNgCwjw4
+          https://s.shopee.com.br/7KwxTtxNH3
+          https://s.shopee.com.br/7ptE4ovTGA
+          https://s.shopee.com.br/7fZnsVw6b9
+          https://s.shopee.com.br/8KpUfon4z3
+          https://s.shopee.com.br/8AW4TVniK2
+          https://s.shopee.com.br/80CeHCoLf1
+          https://s.shopee.com.br/9AObfLjuIG
+          https://s.shopee.com.br/905BT2kXdF
+          https://s.shopee.com.br/9AObfQZ9mp
+          https://s.shopee.com.br/1LfkL22ygK
+          https://s.shopee.com.br/1VzAXL2LLN
+          https://s.shopee.com.br/1gIaje1i0Q
+          https://s.shopee.com.br/1qc0vx14fT
+          https://s.shopee.com.br/8pllGxNmjf
+          https://s.shopee.com.br/9fKsGUKc2q
+          https://s.shopee.com.br/9peISnJyht
+          https://s.shopee.com.br/9Ki1rsLsio
+          https://s.shopee.com.br/9V1S4BLFNr
+          '''.split()
+          g=int(os.environ['GROUP'])
+          batch=links[g*5:(g+1)*5]
+          ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36'
+          for offset,u in enumerate(batch):
+              i=g*5+offset+1
+              final=''
+              for attempt in range(3):
+                  p=subprocess.run(['curl','-L','-sS','--max-time','25','-A',ua,'-o','/dev/null','-w','%{url_effective}',u],capture_output=True,text=True,timeout=30)
+                  final=p.stdout.strip()
+                  m=re.search(r'/([0-9]+)/([0-9]+)(?:\?|$)',final)
+                  if m:
+                      print(f'SHOPEE|{i}|{u}|{m.group(1)}|{m.group(2)}')
+                      break
+                  time.sleep(1.5*(attempt+1))
+              else:
+                  print(f'SHOPEE|{i}|{u}|ERROR|NO_IDS')
+              time.sleep(0.7)
           PY
