@@ -14,33 +14,31 @@ jobs:
   resolve:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve Shopee test item
+      - name: Inspect Shopee product metadata
         shell: bash
         run: |
-          set -e
+          set +e
           u='https://s.shopee.com.br/3qN5HrtUez'
-          final=$(curl -L -sS --max-time 30 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36' -o /dev/null -w '%{url_effective}' "$u")
-          echo "FINAL=$final"
-          python3 - "$final" <<'PY'
-          import re,sys
-          u=sys.argv[1]
-          m=re.search(r'/([0-9]+)/([0-9]+)(?:\?|$)',u)
-          if not m:
-              print('IDS_NOT_FOUND'); raise SystemExit(2)
-          print('SHOPID='+m.group(1))
-          print('ITEMID='+m.group(2))
-          open('/tmp/ids','w').write(m.group(1)+' '+m.group(2))
-          PY
-          read shopid itemid < /tmp/ids
-          api="https://shopee.com.br/api/v4/item/get?itemid=$itemid&shopid=$shopid"
-          curl -sS --max-time 30 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36' -H 'Accept: application/json' -H "Referer: $final" "$api" -o /tmp/item.json
+          curl -L -sS --max-time 30 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36' -D /tmp/h.txt -o /tmp/page.html -w 'HTTP=%{http_code}\nFINAL=%{url_effective}\nSIZE=%{size_download}\n' "$u"
+          echo '=== HEADERS ==='
+          grep -Ei '^(HTTP/|content-type:|location:)' /tmp/h.txt | tail -20
+          echo '=== HTML META ==='
           python3 - <<'PY'
-          import json
-          d=json.load(open('/tmp/item.json'))
-          print('TOP_KEYS', list(d)[:20])
-          item=d.get('data') or d.get('item') or {}
-          if isinstance(item,dict) and 'item' in item and isinstance(item['item'],dict): item=item['item']
-          keys=['name','price','price_min','price_max','price_before_discount','price_min_before_discount','price_max_before_discount','discount','historical_sold','sold','stock','rating_star']
-          for k in keys: print(k,repr(item.get(k)))
-          print('RAW_PREFIX',json.dumps(d,ensure_ascii=False)[:2000])
+          from pathlib import Path
+          import re,html,json
+          s=Path('/tmp/page.html').read_text('utf-8',errors='ignore')
+          print('LEN',len(s))
+          for label,pat in [
+            ('TITLE',r'<title[^>]*>(.*?)</title>'),
+            ('OG_TITLE',r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)'),
+            ('DESCRIPTION',r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)'),
+          ]:
+            m=re.search(pat,s,re.I|re.S)
+            print(label,html.unescape(re.sub(r'\s+',' ',m.group(1))).strip()[:500] if m else 'NOT_FOUND')
+          for key in ['price_before_discount','price_min_before_discount','price','price_min','name','historical_sold','discount']:
+            vals=re.findall(r'"'+re.escape(key)+r'"\s*:\s*(".*?"|-?\d+(?:\.\d+)?|null)',s,re.I)
+            print(key, vals[:10])
+          print('JSONLD')
+          for block in re.findall(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',s,re.I|re.S)[:5]:
+            print(html.unescape(re.sub(r'\s+',' ',block)).strip()[:1800])
           PY
