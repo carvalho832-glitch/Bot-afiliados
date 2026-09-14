@@ -11,82 +11,29 @@ permissions:
   contents: read
 
 jobs:
-  resolve:
+  inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve all Shopee short links
+      - name: Inspect visible prices
         shell: bash
         run: |
-          cat > /tmp/links.txt <<'EOF'
-          https://s.shopee.com.br/3qN5HrtUez
-          https://s.shopee.com.br/3LQogwvOfu
-          https://s.shopee.com.br/3VkEtFulKx
-          https://s.shopee.com.br/70K73ghREe
-          https://s.shopee.com.br/7AdXFzgnth
-          https://s.shopee.com.br/4Vcm5N69gS
-          https://s.shopee.com.br/4LJLt46n1R
-          https://s.shopee.com.br/4Azvgl7QMQ
-          https://s.shopee.com.br/40gVUS83hP
-          https://s.shopee.com.br/1BMK7FIqRs
-          https://s.shopee.com.br/6q0grsDkEJ
-          https://s.shopee.com.br/6L4QGxFeFE
-          https://s.shopee.com.br/6VNqTGF0uH
-          https://s.shopee.com.br/60RZsLGuvC
-          https://s.shopee.com.br/6Al04eGHaF
-          https://s.shopee.com.br/6Al057QqFE
-          https://s.shopee.com.br/60RZsoRTaD
-          https://s.shopee.com.br/6VNqTjPZZK
-          https://s.shopee.com.br/6L4QHQQCuJ
-          https://s.shopee.com.br/5VVJHtTNbA
-          https://s.shopee.com.br/2qUY7NlR4M
-          https://s.shopee.com.br/2gB7v4m4PL
-          https://s.shopee.com.br/3qN5JDhd2a
-          https://s.shopee.com.br/3g3f6uiGNZ
-          https://s.shopee.com.br/3VkEubitiY
-          https://s.shopee.com.br/9AObf9BE1q
-          https://s.shopee.com.br/905BSqBrMp
-          https://s.shopee.com.br/8AW4TJF23g
-          https://s.shopee.com.br/80CeH0FfOf
-          https://s.shopee.com.br/8V8urvDlNm
-          https://s.shopee.com.br/2qUY7ZkiIj
-          https://s.shopee.com.br/30nyJsk4xm
-          https://s.shopee.com.br/3B7OWBjRcp
-          https://s.shopee.com.br/3LQoiUioHs
-          https://s.shopee.com.br/3VkEuniAwv
-          https://s.shopee.com.br/70K75Hydwx
-          https://s.shopee.com.br/7VGNgCwjw4
-          https://s.shopee.com.br/7KwxTtxNH3
-          https://s.shopee.com.br/7ptE4ovTGA
-          https://s.shopee.com.br/7fZnsVw6b9
-          https://s.shopee.com.br/8KpUfon4z3
-          https://s.shopee.com.br/8AW4TVniK2
-          https://s.shopee.com.br/80CeHCoLf1
-          https://s.shopee.com.br/9AObfLjuIG
-          https://s.shopee.com.br/905BT2kXdF
-          https://s.shopee.com.br/9AObfQZ9mp
-          https://s.shopee.com.br/1LfkL22ygK
-          https://s.shopee.com.br/1VzAXL2LLN
-          https://s.shopee.com.br/1gIaje1i0Q
-          https://s.shopee.com.br/1qc0vx14fT
-          https://s.shopee.com.br/8pllGxNmjf
-          https://s.shopee.com.br/9fKsGUKc2q
-          https://s.shopee.com.br/9peISnJyht
-          https://s.shopee.com.br/9Ki1rsLsio
-          https://s.shopee.com.br/9V1S4BLFNr
-          EOF
+          url='https://shopee.com.br/Kit-Parafusadeira-Domestica-com-maleta-Leve-Portatil-USB-Recarregavel-YUMI-i.1025824477.23193562548'
+          chrome=$(command -v google-chrome)
+          "$chrome" --headless --disable-gpu --no-sandbox --disable-dev-shm-usage --virtual-time-budget=18000 --dump-dom "$url" > /tmp/dom.html 2>/tmp/err
           python3 - <<'PY'
-          import subprocess,re,urllib.parse
-          links=[x.strip() for x in open('/tmp/links.txt') if x.strip()]
-          ua='Shopee Android app'
-          for i,u in enumerate(links,1):
-              p=subprocess.run(['curl','-sS','--max-time','20','-A',ua,'-D','-','-o','/dev/null',u],capture_output=True,text=True,timeout=25)
-              m=re.search(r'^location:\s*(\S+)',p.stdout,re.I|re.M)
-              loc=m.group(1).strip() if m else ''
-              decoded=urllib.parse.unquote(loc)
-              ids=re.search(r'-i\.([0-9]+)\.([0-9]+)',decoded)
-              title=''
-              if ids:
-                  path=urllib.parse.urlparse(decoded).path.rsplit('-i.',1)[0].lstrip('/')
-                  title=path.replace('-',' ')
-              print(f'SHOPEE|{i}|{u}|{ids.group(1) if ids else ""}|{ids.group(2) if ids else ""}|{title}|{loc}')
+          from pathlib import Path
+          import re,html
+          s=Path('/tmp/dom.html').read_text('utf8',errors='ignore')
+          print('LEN',len(s))
+          text=html.unescape(re.sub(r'<[^>]+>','\n',s))
+          lines=[re.sub(r'\s+',' ',x).strip() for x in text.splitlines() if x.strip()]
+          for i,x in enumerate(lines):
+              if 'R$' in x or re.search(r'\b\d{1,4}[,.]\d{2}\b',x):
+                  print('PRICE_LINE',i,x[:1000])
+          for pat in [r'R\$\s*[0-9.,]+',r'"price"\s*:\s*[^,}]+',r'"price_before_discount"\s*:\s*[^,}]+',r'"show_discount"\s*:\s*[^,}]+']:
+              vals=[]
+              for m in re.finditer(pat,s,re.I):
+                  v=m.group(0)
+                  if v not in vals: vals.append(v)
+              print('PATTERN',pat,vals[:30])
           PY
