@@ -14,22 +14,33 @@ jobs:
   resolve:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve Mercado Livre social target
+      - name: Resolve Shopee test item
         shell: bash
         run: |
           set -e
-          u='https://meli.la/33vCDqb'
-          curl -L -sS --max-time 30 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8' -o /tmp/page.html "$u"
+          u='https://s.shopee.com.br/3qN5HrtUez'
+          final=$(curl -L -sS --max-time 30 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36' -o /dev/null -w '%{url_effective}' "$u")
+          echo "FINAL=$final"
+          python3 - "$final" <<'PY'
+          import re,sys
+          u=sys.argv[1]
+          m=re.search(r'/([0-9]+)/([0-9]+)(?:\?|$)',u)
+          if not m:
+              print('IDS_NOT_FOUND'); raise SystemExit(2)
+          print('SHOPID='+m.group(1))
+          print('ITEMID='+m.group(2))
+          open('/tmp/ids','w').write(m.group(1)+' '+m.group(2))
+          PY
+          read shopid itemid < /tmp/ids
+          api="https://shopee.com.br/api/v4/item/get?itemid=$itemid&shopid=$shopid"
+          curl -sS --max-time 30 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36' -H 'Accept: application/json' -H "Referer: $final" "$api" -o /tmp/item.json
           python3 - <<'PY'
-          from pathlib import Path
-          import re, html
-          s=Path('/tmp/page.html').read_text('utf-8',errors='ignore')
-          m=re.search(r'<ul class="ui-recommendations-list__items-wrapper--single"[\s\S]*?</ul>',s,re.I)
-          print('SECTION_FOUND', bool(m))
-          if m:
-              sec=m.group(0)
-              p=re.search(r'https://(?:produto|www)\.mercadolivre\.com\.br/[^"\' ]*MLB-?\d+[^"\' ]*',sec,re.I)
-              print('PRODUCT_URL', html.unescape(p.group(0)) if p else 'NOT_FOUND')
-              text=html.unescape(re.sub(r'<[^>]+>',' ',sec))
-              print('SECTION_TEXT',re.sub(r'\s+',' ',text).strip()[:1500])
+          import json
+          d=json.load(open('/tmp/item.json'))
+          print('TOP_KEYS', list(d)[:20])
+          item=d.get('data') or d.get('item') or {}
+          if isinstance(item,dict) and 'item' in item and isinstance(item['item'],dict): item=item['item']
+          keys=['name','price','price_min','price_max','price_before_discount','price_min_before_discount','price_max_before_discount','discount','historical_sold','sold','stock','rating_star']
+          for k in keys: print(k,repr(item.get(k)))
+          print('RAW_PREFIX',json.dumps(d,ensure_ascii=False)[:2000])
           PY
