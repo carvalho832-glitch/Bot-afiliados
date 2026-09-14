@@ -1,0 +1,25 @@
+name: Importar 55 ofertas ao bot temporariamente
+
+on:
+  push:
+    branches:
+      - chore/resolve-offer-links
+    paths:
+      - '.github/scripts/import_55_offers_live.mjs'
+      - '.github/workflows/import-55-offers-live-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verificar fila e importar sem iniciar
+        run: node .github/scripts/import_55_offers_live.mjs
