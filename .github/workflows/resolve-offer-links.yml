@@ -14,40 +14,81 @@ jobs:
   resolve:
     runs-on: ubuntu-latest
     steps:
-      - name: Render Shopee test item
+      - name: Resolve all Shopee links
         shell: bash
         run: |
-          set +e
-          u='https://s.shopee.com.br/3qN5HrtUez'
-          chrome=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
-          echo "CHROME=$chrome"
-          "$chrome" --headless --disable-gpu --no-sandbox --disable-dev-shm-usage --virtual-time-budget=15000 --dump-dom "$u" > /tmp/dom.html 2>/tmp/chrome.err
-          echo '=== DOM SIZE ==='
-          wc -c /tmp/dom.html
-          echo '=== CHROME ERR TAIL ==='
-          tail -30 /tmp/chrome.err || true
+          cat > /tmp/links.txt <<'EOF'
+          https://s.shopee.com.br/3qN5HrtUez
+          https://s.shopee.com.br/3LQogwvOfu
+          https://s.shopee.com.br/3VkEtFulKx
+          https://s.shopee.com.br/70K73ghREe
+          https://s.shopee.com.br/7AdXFzgnth
+          https://s.shopee.com.br/4Vcm5N69gS
+          https://s.shopee.com.br/4LJLt46n1R
+          https://s.shopee.com.br/4Azvgl7QMQ
+          https://s.shopee.com.br/40gVUS83hP
+          https://s.shopee.com.br/1BMK7FIqRs
+          https://s.shopee.com.br/6q0grsDkEJ
+          https://s.shopee.com.br/6L4QGxFeFE
+          https://s.shopee.com.br/6VNqTGF0uH
+          https://s.shopee.com.br/60RZsLGuvC
+          https://s.shopee.com.br/6Al04eGHaF
+          https://s.shopee.com.br/6Al057QqFE
+          https://s.shopee.com.br/60RZsoRTaD
+          https://s.shopee.com.br/6VNqTjPZZK
+          https://s.shopee.com.br/6L4QHQQCuJ
+          https://s.shopee.com.br/5VVJHtTNbA
+          https://s.shopee.com.br/2qUY7NlR4M
+          https://s.shopee.com.br/2gB7v4m4PL
+          https://s.shopee.com.br/3qN5JDhd2a
+          https://s.shopee.com.br/3g3f6uiGNZ
+          https://s.shopee.com.br/3VkEubitiY
+          https://s.shopee.com.br/9AObf9BE1q
+          https://s.shopee.com.br/905BSqBrMp
+          https://s.shopee.com.br/8AW4TJF23g
+          https://s.shopee.com.br/80CeH0FfOf
+          https://s.shopee.com.br/8V8urvDlNm
+          https://s.shopee.com.br/2qUY7ZkiIj
+          https://s.shopee.com.br/30nyJsk4xm
+          https://s.shopee.com.br/3B7OWBjRcp
+          https://s.shopee.com.br/3LQoiUioHs
+          https://s.shopee.com.br/3VkEuniAwv
+          https://s.shopee.com.br/70K75Hydwx
+          https://s.shopee.com.br/7VGNgCwjw4
+          https://s.shopee.com.br/7KwxTtxNH3
+          https://s.shopee.com.br/7ptE4ovTGA
+          https://s.shopee.com.br/7fZnsVw6b9
+          https://s.shopee.com.br/8KpUfon4z3
+          https://s.shopee.com.br/8AW4TVniK2
+          https://s.shopee.com.br/80CeHCoLf1
+          https://s.shopee.com.br/9AObfLjuIG
+          https://s.shopee.com.br/905BT2kXdF
+          https://s.shopee.com.br/9AObfQZ9mp
+          https://s.shopee.com.br/1LfkL22ygK
+          https://s.shopee.com.br/1VzAXL2LLN
+          https://s.shopee.com.br/1gIaje1i0Q
+          https://s.shopee.com.br/1qc0vx14fT
+          https://s.shopee.com.br/8pllGxNmjf
+          https://s.shopee.com.br/9fKsGUKc2q
+          https://s.shopee.com.br/9peISnJyht
+          https://s.shopee.com.br/9Ki1rsLsio
+          https://s.shopee.com.br/9V1S4BLFNr
+          EOF
           python3 - <<'PY'
-          from pathlib import Path
-          import re, html
-          s=Path('/tmp/dom.html').read_text('utf-8',errors='ignore')
-          print('=== TITLE ===')
-          m=re.search(r'<title[^>]*>(.*?)</title>',s,re.I|re.S)
-          print(html.unescape(re.sub(r'\s+',' ',m.group(1))).strip()[:500] if m else 'NO_TITLE')
-          print('=== TEXT WITH PRICE/KNOWN TERMS ===')
-          text=re.sub(r'<script.*?</script>','\n',s,flags=re.I|re.S)
-          text=re.sub(r'<style.*?</style>','\n',text,flags=re.I|re.S)
-          text=html.unescape(re.sub(r'<[^>]+>','\n',text))
-          lines=[re.sub(r'\s+',' ',x).strip() for x in text.splitlines()]
-          lines=[x for x in lines if x]
-          chosen=[]
-          for x in lines:
-              low=x.lower()
-              if ('r$' in low or 'brit' in low or 'aspir' in low or 'desconto' in low or 'off' in low or 'vendid' in low) and x not in chosen:
-                  chosen.append(x)
-          for x in chosen[:150]: print(x[:700])
-          print('=== ITEMID CONTEXT ===')
-          target='20298661096'
-          for m in list(re.finditer(target,s))[:20]:
-              a=max(0,m.start()-500); b=min(len(s),m.end()+1000)
-              print(re.sub(r'\s+',' ',html.unescape(s[a:b]))[:1800])
+          import subprocess,re,concurrent.futures
+          links=[x.strip() for x in open('/tmp/links.txt') if x.strip()]
+          ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36'
+          def one(pair):
+              i,u=pair
+              try:
+                  p=subprocess.run(['curl','-L','-sS','--max-time','25','-A',ua,'-o','/dev/null','-w','%{url_effective}',u],capture_output=True,text=True,timeout=30)
+                  final=p.stdout.strip()
+                  m=re.search(r'/([0-9]+)/([0-9]+)(?:\?|$)',final)
+                  if m: return (i,f'SHOPEE|{i}|{u}|{m.group(1)}|{m.group(2)}')
+                  return (i,f'SHOPEE|{i}|{u}|ERROR|NO_IDS')
+              except Exception as e:
+                  return (i,f'SHOPEE|{i}|{u}|ERROR|{type(e).__name__}')
+          with concurrent.futures.ThreadPoolExecutor(max_workers=10) as ex:
+              rows=list(ex.map(one,enumerate(links,1)))
+          for _,row in sorted(rows): print(row)
           PY
