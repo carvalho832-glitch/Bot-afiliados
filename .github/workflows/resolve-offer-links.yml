@@ -11,116 +11,32 @@ permissions:
   contents: read
 
 jobs:
-  map:
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [0,1,2,3,4,5,6,7,8,9,10]
+  inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Map Shopee group ${{ matrix.group }}
-        env:
-          GROUP: ${{ matrix.group }}
+      - name: Inspect unresolved Shopee short link
         shell: bash
         run: |
-          python3 - <<'PY'
-          import subprocess,re,os,time,html
+          set +e
+          u='https://s.shopee.com.br/3LQogwvOfu'
+          for ua in \
+            'Mozilla/5.0 (Linux; Android 16; SM-S901E) AppleWebKit/537.36 Chrome/140 Mobile Safari/537.36' \
+            'Shopee Android app' \
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'; do
+            echo "=== UA: $ua ==="
+            curl -sS --max-time 20 -A "$ua" -D /tmp/h.txt -o /tmp/b.html "$u"
+            grep -Ei '^(HTTP/|location:|set-cookie:|content-type:)' /tmp/h.txt | head -30
+            echo BODY_SIZE=$(wc -c < /tmp/b.html)
+            python3 - <<'PY'
           from pathlib import Path
-          links='''
-          https://s.shopee.com.br/3qN5HrtUez
-          https://s.shopee.com.br/3LQogwvOfu
-          https://s.shopee.com.br/3VkEtFulKx
-          https://s.shopee.com.br/70K73ghREe
-          https://s.shopee.com.br/7AdXFzgnth
-          https://s.shopee.com.br/4Vcm5N69gS
-          https://s.shopee.com.br/4LJLt46n1R
-          https://s.shopee.com.br/4Azvgl7QMQ
-          https://s.shopee.com.br/40gVUS83hP
-          https://s.shopee.com.br/1BMK7FIqRs
-          https://s.shopee.com.br/6q0grsDkEJ
-          https://s.shopee.com.br/6L4QGxFeFE
-          https://s.shopee.com.br/6VNqTGF0uH
-          https://s.shopee.com.br/60RZsLGuvC
-          https://s.shopee.com.br/6Al04eGHaF
-          https://s.shopee.com.br/6Al057QqFE
-          https://s.shopee.com.br/60RZsoRTaD
-          https://s.shopee.com.br/6VNqTjPZZK
-          https://s.shopee.com.br/6L4QHQQCuJ
-          https://s.shopee.com.br/5VVJHtTNbA
-          https://s.shopee.com.br/2qUY7NlR4M
-          https://s.shopee.com.br/2gB7v4m4PL
-          https://s.shopee.com.br/3qN5JDhd2a
-          https://s.shopee.com.br/3g3f6uiGNZ
-          https://s.shopee.com.br/3VkEubitiY
-          https://s.shopee.com.br/9AObf9BE1q
-          https://s.shopee.com.br/905BSqBrMp
-          https://s.shopee.com.br/8AW4TJF23g
-          https://s.shopee.com.br/80CeH0FfOf
-          https://s.shopee.com.br/8V8urvDlNm
-          https://s.shopee.com.br/2qUY7ZkiIj
-          https://s.shopee.com.br/30nyJsk4xm
-          https://s.shopee.com.br/3B7OWBjRcp
-          https://s.shopee.com.br/3LQoiUioHs
-          https://s.shopee.com.br/3VkEuniAwv
-          https://s.shopee.com.br/70K75Hydwx
-          https://s.shopee.com.br/7VGNgCwjw4
-          https://s.shopee.com.br/7KwxTtxNH3
-          https://s.shopee.com.br/7ptE4ovTGA
-          https://s.shopee.com.br/7fZnsVw6b9
-          https://s.shopee.com.br/8KpUfon4z3
-          https://s.shopee.com.br/8AW4TVniK2
-          https://s.shopee.com.br/80CeHCoLf1
-          https://s.shopee.com.br/9AObfLjuIG
-          https://s.shopee.com.br/905BT2kXdF
-          https://s.shopee.com.br/9AObfQZ9mp
-          https://s.shopee.com.br/1LfkL22ygK
-          https://s.shopee.com.br/1VzAXL2LLN
-          https://s.shopee.com.br/1gIaje1i0Q
-          https://s.shopee.com.br/1qc0vx14fT
-          https://s.shopee.com.br/8pllGxNmjf
-          https://s.shopee.com.br/9fKsGUKc2q
-          https://s.shopee.com.br/9peISnJyht
-          https://s.shopee.com.br/9Ki1rsLsio
-          https://s.shopee.com.br/9V1S4BLFNr
-          '''.split()
-          g=int(os.environ['GROUP']); batch=links[g*5:(g+1)*5]
-          chrome='/usr/bin/google-chrome'
-          ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36'
-          rows=[]
-          for offset,u in enumerate(batch):
-              i=g*5+offset+1
-              final=subprocess.run(['curl','-L','-sS','--max-time','25','-A',ua,'-o','/dev/null','-w','%{url_effective}',u],capture_output=True,text=True,timeout=30).stdout.strip()
-              mid=re.search(r'/([0-9]+)/([0-9]+)(?:\?|$)',final)
-              shopid,itemid=(mid.group(1),mid.group(2)) if mid else ('','')
-              domfile=f'/tmp/dom-{i}.html'
-              subprocess.run([chrome,'--headless','--disable-gpu','--no-sandbox','--disable-dev-shm-usage','--virtual-time-budget=11000','--dump-dom',u],stdout=open(domfile,'w'),stderr=subprocess.DEVNULL,timeout=25)
-              s=Path(domfile).read_text('utf-8',errors='ignore')
-              mt=re.search(r'<title[^>]*>(.*?)</title>',s,re.I|re.S)
-              title=html.unescape(re.sub(r'\s+',' ',mt.group(1))).strip() if mt else ''
-              title=re.sub(r'\s*\|\s*Shopee Brasil\s*$','',title,flags=re.I).replace('|','/')
-              md=re.search(r'show_discount[^0-9]{0,15}(\d{1,3})',s,re.I)
-              discount=md.group(1) if md else ''
-              mc=re.search(r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)',s,re.I)
-              canonical=html.unescape(mc.group(1)) if mc else ''
-              rows.append(f'SHOPEE|{i}|{u}|{shopid}|{itemid}|{discount}|{title}|{canonical}')
-              time.sleep(.5)
-          Path('/tmp/result.txt').write_text('\n'.join(rows)+'\n','utf-8')
+          import re,html
+          s=Path('/tmp/b.html').read_text('utf-8',errors='ignore')
+          for pat in [r'https?://[^"\'<> ]+',r'(?:shop|item)[_ -]?id[^<]{0,120}',r'product/[0-9]+/[0-9]+',r'i\.[0-9]+\.[0-9]+']:
+              vals=[]
+              for x in re.findall(pat,s,re.I):
+                  x=html.unescape(x if isinstance(x,str) else ''.join(x))
+                  if x not in vals: vals.append(x)
+              print(pat, vals[:20])
+          print(s[:1000].replace('\n',' '))
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: shopee-group-${{ matrix.group }}
-          path: /tmp/result.txt
-          retention-days: 1
-
-  combine:
-    needs: map
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: shopee-group-*
-          path: results
-      - name: Print consolidated mapping
-        shell: bash
-        run: |
-          find results -name result.txt -type f -print0 | xargs -0 cat | sort -t'|' -k2,2n
+          done
