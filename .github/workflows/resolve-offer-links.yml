@@ -14,38 +14,22 @@ jobs:
   resolve:
     runs-on: ubuntu-latest
     steps:
-      - name: Render Mercado Livre affiliate landing
+      - name: Resolve Mercado Livre social target
         shell: bash
         run: |
-          set +e
+          set -e
           u='https://meli.la/33vCDqb'
-          chrome=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
-          echo "CHROME=$chrome"
-          "$chrome" --headless --disable-gpu --no-sandbox --virtual-time-budget=12000 --dump-dom "$u" > /tmp/dom.html 2>/tmp/chrome.err
-          echo '=== DOM SIZE ==='
-          wc -c /tmp/dom.html
+          curl -L -sS --max-time 30 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8' -o /tmp/page.html "$u"
           python3 - <<'PY'
           from pathlib import Path
           import re, html
-          s = Path('/tmp/dom.html').read_text('utf-8', errors='ignore')
-          print('=== TITLE ===')
-          m = re.search(r'<title[^>]*>(.*?)</title>', s, re.I|re.S)
-          print(html.unescape(re.sub(r'\s+', ' ', m.group(1))).strip() if m else 'NO_TITLE')
-          print('=== PRODUCT URLS ===')
-          urls = re.findall(r'https?://[^"\'<>\s]+', s)
-          seen=[]
-          for u in urls:
-              u=html.unescape(u)
-              if 'mercadolivre' in u.lower() and any(x in u.lower() for x in ('mlb','produto','/p/')) and u not in seen:
-                  seen.append(u)
-          for u in seen[:80]: print(u)
-          print('=== MLB IDS ===')
-          for x in sorted(set(re.findall(r'MLB-?[0-9]{6,}', s, re.I)))[:80]: print(x)
-          print('=== TEXT HINTS ===')
-          text = re.sub(r'<script.*?</script>', '\n', s, flags=re.I|re.S)
-          text = re.sub(r'<style.*?</style>', '\n', text, flags=re.I|re.S)
-          text = html.unescape(re.sub(r'<[^>]+>', '\n', text))
-          lines=[re.sub(r'\s+',' ',x).strip() for x in text.splitlines()]
-          lines=[x for x in lines if x]
-          for x in lines[:150]: print(x[:500])
+          s=Path('/tmp/page.html').read_text('utf-8',errors='ignore')
+          m=re.search(r'<ul class="ui-recommendations-list__items-wrapper--single"[\s\S]*?</ul>',s,re.I)
+          print('SECTION_FOUND', bool(m))
+          if m:
+              sec=m.group(0)
+              p=re.search(r'https://(?:produto|www)\.mercadolivre\.com\.br/[^"\' ]*MLB-?\d+[^"\' ]*',sec,re.I)
+              print('PRODUCT_URL', html.unescape(p.group(0)) if p else 'NOT_FOUND')
+              text=html.unescape(re.sub(r'<[^>]+>',' ',sec))
+              print('SECTION_TEXT',re.sub(r'\s+',' ',text).strip()[:1500])
           PY
