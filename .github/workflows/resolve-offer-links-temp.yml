@@ -1,0 +1,31 @@
+name: Resolver links de ofertas temporariamente
+
+on:
+  push:
+    branches:
+      - chore/resolve-offer-links
+    paths:
+      - '.github/scripts/resolve_offer_links.mjs'
+      - '.github/workflows/resolve-offer-links-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Resolver links curtos
+        run: node .github/scripts/resolve_offer_links.mjs
+      - name: Publicar resultado
+        uses: actions/upload-artifact@v4
+        with:
+          name: resolved-offer-links
+          path: tmp/resolved-offer-links.json
+          retention-days: 1
