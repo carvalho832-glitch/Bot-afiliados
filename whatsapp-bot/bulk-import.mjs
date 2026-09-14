@@ -94,9 +94,6 @@ export function normalizeBulkSettings(payload = {}) {
   if (Object.prototype.hasOwnProperty.call(source, 'dailyLimit')) {
     settings.dailyLimit = integerSetting(source.dailyLimit, 'dailyLimit', 1, 1000);
   }
-  if (Object.prototype.hasOwnProperty.call(source, 'enabled')) {
-    settings.enabled = parseBoolean(source.enabled);
-  }
 
   return settings;
 }
