@@ -10,6 +10,9 @@ export PUPPETEER_CACHE_DIR="${PUPPETEER_CACHE_DIR:-$HOME/.cache/puppeteer}"
 
 mkdir -p "$PUPPETEER_CACHE_DIR"
 
+node --check apply-bulk-import.cjs
+node --check bulk-import.mjs
+node apply-bulk-import.cjs
 node --check server.js
 node --check bot-store.mjs
 node --check bot-engine.mjs
