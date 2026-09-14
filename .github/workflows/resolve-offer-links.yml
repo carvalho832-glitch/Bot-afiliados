@@ -14,31 +14,40 @@ jobs:
   resolve:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect Shopee product metadata
+      - name: Render Shopee test item
         shell: bash
         run: |
           set +e
           u='https://s.shopee.com.br/3qN5HrtUez'
-          curl -L -sS --max-time 30 -A 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36' -D /tmp/h.txt -o /tmp/page.html -w 'HTTP=%{http_code}\nFINAL=%{url_effective}\nSIZE=%{size_download}\n' "$u"
-          echo '=== HEADERS ==='
-          grep -Ei '^(HTTP/|content-type:|location:)' /tmp/h.txt | tail -20
-          echo '=== HTML META ==='
+          chrome=$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)
+          echo "CHROME=$chrome"
+          "$chrome" --headless --disable-gpu --no-sandbox --disable-dev-shm-usage --virtual-time-budget=15000 --dump-dom "$u" > /tmp/dom.html 2>/tmp/chrome.err
+          echo '=== DOM SIZE ==='
+          wc -c /tmp/dom.html
+          echo '=== CHROME ERR TAIL ==='
+          tail -30 /tmp/chrome.err || true
           python3 - <<'PY'
           from pathlib import Path
-          import re,html,json
-          s=Path('/tmp/page.html').read_text('utf-8',errors='ignore')
-          print('LEN',len(s))
-          for label,pat in [
-            ('TITLE',r'<title[^>]*>(.*?)</title>'),
-            ('OG_TITLE',r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)'),
-            ('DESCRIPTION',r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)'),
-          ]:
-            m=re.search(pat,s,re.I|re.S)
-            print(label,html.unescape(re.sub(r'\s+',' ',m.group(1))).strip()[:500] if m else 'NOT_FOUND')
-          for key in ['price_before_discount','price_min_before_discount','price','price_min','name','historical_sold','discount']:
-            vals=re.findall(r'"'+re.escape(key)+r'"\s*:\s*(".*?"|-?\d+(?:\.\d+)?|null)',s,re.I)
-            print(key, vals[:10])
-          print('JSONLD')
-          for block in re.findall(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',s,re.I|re.S)[:5]:
-            print(html.unescape(re.sub(r'\s+',' ',block)).strip()[:1800])
+          import re, html
+          s=Path('/tmp/dom.html').read_text('utf-8',errors='ignore')
+          print('=== TITLE ===')
+          m=re.search(r'<title[^>]*>(.*?)</title>',s,re.I|re.S)
+          print(html.unescape(re.sub(r'\s+',' ',m.group(1))).strip()[:500] if m else 'NO_TITLE')
+          print('=== TEXT WITH PRICE/KNOWN TERMS ===')
+          text=re.sub(r'<script.*?</script>','\n',s,flags=re.I|re.S)
+          text=re.sub(r'<style.*?</style>','\n',text,flags=re.I|re.S)
+          text=html.unescape(re.sub(r'<[^>]+>','\n',text))
+          lines=[re.sub(r'\s+',' ',x).strip() for x in text.splitlines()]
+          lines=[x for x in lines if x]
+          chosen=[]
+          for x in lines:
+              low=x.lower()
+              if ('r$' in low or 'brit' in low or 'aspir' in low or 'desconto' in low or 'off' in low or 'vendid' in low) and x not in chosen:
+                  chosen.append(x)
+          for x in chosen[:150]: print(x[:700])
+          print('=== ITEMID CONTEXT ===')
+          target='20298661096'
+          for m in list(re.finditer(target,s))[:20]:
+              a=max(0,m.start()-500); b=min(len(s),m.end()+1000)
+              print(re.sub(r'\s+',' ',html.unescape(s[a:b]))[:1800])
           PY
