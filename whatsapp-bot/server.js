@@ -456,7 +456,7 @@ app.get('/qr', (req, res) => {
 app.get('/qr-page', (req, res) => {
   const qr = getQrState();
   if (!qr.qrDataUrl) {
-    return res.send(`<html><body style="font-family:Arial;text-align:center;padding:40px;background:#0d1117;color:white"><h2>Status: ${qr.status}</h2><p>Aguarde alguns segundos e atualize.</p><a style="color:#58a6ff" href="/qr-page">Atualizar</a></p></body></html>`);
+    return res.send(`<html><body style="font-family:Arial;text-align:center;padding:40px;background:#0d1117;color:white"><h2>Status: ${qr.status}</h2><p>Aguarde alguns segundos e atualize.</p><a style="color:#58a6ff" href="/qr-page">Atualizar</a></body></html>`);
   }
   res.send(`<html><body style="font-family:Arial;text-align:center;padding:30px;background:#0d1117;color:white"><h2>Escaneie o QR Code</h2><p>WhatsApp → Aparelhos conectados → Conectar aparelho</p><img src="${qr.qrDataUrl}" style="width:300px;max-width:90%;background:white;padding:12px;border-radius:12px"><p><a style="color:#58a6ff" href="/status">Ver status</a></p></body></html>`);
 });
