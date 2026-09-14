@@ -1,3 +1,4 @@
+// Ferramenta temporária de conferência por shopid/itemid.
 import fs from 'node:fs/promises';
 
 const items = [
