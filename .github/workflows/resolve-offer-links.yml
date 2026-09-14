@@ -11,92 +11,29 @@ permissions:
   contents: read
 
 jobs:
-  resolve:
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [0,1,2,3,4,5,6,7,8,9,10]
+  inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve Shopee batch ${{ matrix.group }}
-        env:
-          GROUP: ${{ matrix.group }}
+      - name: Inspect rendered Shopee price fields
         shell: bash
         run: |
+          u='https://s.shopee.com.br/3qN5HrtUez'
+          chrome=$(command -v google-chrome)
+          "$chrome" --headless --disable-gpu --no-sandbox --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom "$u" > /tmp/dom.html 2>/dev/null
           python3 - <<'PY'
-          import subprocess,re,os,time
-          links='''
-          https://s.shopee.com.br/3qN5HrtUez
-          https://s.shopee.com.br/3LQogwvOfu
-          https://s.shopee.com.br/3VkEtFulKx
-          https://s.shopee.com.br/70K73ghREe
-          https://s.shopee.com.br/7AdXFzgnth
-          https://s.shopee.com.br/4Vcm5N69gS
-          https://s.shopee.com.br/4LJLt46n1R
-          https://s.shopee.com.br/4Azvgl7QMQ
-          https://s.shopee.com.br/40gVUS83hP
-          https://s.shopee.com.br/1BMK7FIqRs
-          https://s.shopee.com.br/6q0grsDkEJ
-          https://s.shopee.com.br/6L4QGxFeFE
-          https://s.shopee.com.br/6VNqTGF0uH
-          https://s.shopee.com.br/60RZsLGuvC
-          https://s.shopee.com.br/6Al04eGHaF
-          https://s.shopee.com.br/6Al057QqFE
-          https://s.shopee.com.br/60RZsoRTaD
-          https://s.shopee.com.br/6VNqTjPZZK
-          https://s.shopee.com.br/6L4QHQQCuJ
-          https://s.shopee.com.br/5VVJHtTNbA
-          https://s.shopee.com.br/2qUY7NlR4M
-          https://s.shopee.com.br/2gB7v4m4PL
-          https://s.shopee.com.br/3qN5JDhd2a
-          https://s.shopee.com.br/3g3f6uiGNZ
-          https://s.shopee.com.br/3VkEubitiY
-          https://s.shopee.com.br/9AObf9BE1q
-          https://s.shopee.com.br/905BSqBrMp
-          https://s.shopee.com.br/8AW4TJF23g
-          https://s.shopee.com.br/80CeH0FfOf
-          https://s.shopee.com.br/8V8urvDlNm
-          https://s.shopee.com.br/2qUY7ZkiIj
-          https://s.shopee.com.br/30nyJsk4xm
-          https://s.shopee.com.br/3B7OWBjRcp
-          https://s.shopee.com.br/3LQoiUioHs
-          https://s.shopee.com.br/3VkEuniAwv
-          https://s.shopee.com.br/70K75Hydwx
-          https://s.shopee.com.br/7VGNgCwjw4
-          https://s.shopee.com.br/7KwxTtxNH3
-          https://s.shopee.com.br/7ptE4ovTGA
-          https://s.shopee.com.br/7fZnsVw6b9
-          https://s.shopee.com.br/8KpUfon4z3
-          https://s.shopee.com.br/8AW4TVniK2
-          https://s.shopee.com.br/80CeHCoLf1
-          https://s.shopee.com.br/9AObfLjuIG
-          https://s.shopee.com.br/905BT2kXdF
-          https://s.shopee.com.br/9AObfQZ9mp
-          https://s.shopee.com.br/1LfkL22ygK
-          https://s.shopee.com.br/1VzAXL2LLN
-          https://s.shopee.com.br/1gIaje1i0Q
-          https://s.shopee.com.br/1qc0vx14fT
-          https://s.shopee.com.br/8pllGxNmjf
-          https://s.shopee.com.br/9fKsGUKc2q
-          https://s.shopee.com.br/9peISnJyht
-          https://s.shopee.com.br/9Ki1rsLsio
-          https://s.shopee.com.br/9V1S4BLFNr
-          '''.split()
-          g=int(os.environ['GROUP'])
-          batch=links[g*5:(g+1)*5]
-          ua='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/121 Safari/537.36'
-          for offset,u in enumerate(batch):
-              i=g*5+offset+1
-              final=''
-              for attempt in range(3):
-                  p=subprocess.run(['curl','-L','-sS','--max-time','25','-A',ua,'-o','/dev/null','-w','%{url_effective}',u],capture_output=True,text=True,timeout=30)
-                  final=p.stdout.strip()
-                  m=re.search(r'/([0-9]+)/([0-9]+)(?:\?|$)',final)
-                  if m:
-                      print(f'SHOPEE|{i}|{u}|{m.group(1)}|{m.group(2)}')
-                      break
-                  time.sleep(1.5*(attempt+1))
-              else:
-                  print(f'SHOPEE|{i}|{u}|ERROR|NO_IDS')
-              time.sleep(0.7)
+          from pathlib import Path
+          import re,html
+          s=Path('/tmp/dom.html').read_text('utf-8',errors='ignore')
+          print('=== NON-NULL PRICE-LIKE FIELDS ===')
+          pairs=[]
+          for m in re.finditer(r'\\?"([^"\\]{0,80}(?:price|discount)[^"\\]{0,80})\\?"\s*:\s*(?:\\?"([^"\\]{1,120})\\?"|(-?\d+(?:\.\d+)?|true|false|null))',s,re.I):
+              k=m.group(1); v=m.group(2) or m.group(3)
+              if v!='null' and (k,v) not in pairs: pairs.append((k,v))
+          for k,v in pairs[:250]: print(f'{k}={v}')
+          print('=== CURRENCY/AMOUNT CONTEXT ===')
+          for pat in ['BRL','show_discount','raw_discount','coin_earn','price_min','price_before_discount']:
+              print('PATTERN',pat)
+              for m in list(re.finditer(pat,s,re.I))[:15]:
+                  a=max(0,m.start()-250); b=min(len(s),m.end()+350)
+                  print(re.sub(r'\s+',' ',html.unescape(s[a:b]))[:650])
           PY
