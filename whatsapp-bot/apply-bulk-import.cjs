@@ -126,13 +126,11 @@ insertBefore(
 `
 );
 
-if (!source.includes("'/queue/import-batch'")) {
-  const oldRoutes = "routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/review-source', '/audit/offers', '/audit/whatsapp-sent', '/qr-page']";
-  const newRoutes = "routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/import-batch', '/queue/review-source', '/audit/offers', '/audit/whatsapp-sent', '/qr-page']";
-  if (source.includes(oldRoutes)) {
-    source = source.replace(oldRoutes, newRoutes);
-    changed = true;
-  }
+const oldRoutes = "routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/review-source', '/audit/offers', '/audit/whatsapp-sent', '/qr-page']";
+const newRoutes = "routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/import-batch', '/queue/review-source', '/audit/offers', '/audit/whatsapp-sent', '/qr-page']";
+if (source.includes(oldRoutes)) {
+  source = source.replace(oldRoutes, newRoutes);
+  changed = true;
 }
 
 if (changed) {
