@@ -1,0 +1,28 @@
+name: Resolve offer links
+
+on:
+  push:
+    branches:
+      - analysis/resolve-offer-links
+    paths:
+      - '.github/workflows/resolve-offer-links.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve test links
+        shell: bash
+        run: |
+          set +e
+          links=(
+            'https://s.shopee.com.br/3qN5HrtUez'
+            'https://meli.la/33vCDqb'
+          )
+          for u in "${links[@]}"; do
+            result=$(curl -L -sS --max-time 30 -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36' -o /dev/null -w '%{http_code}|%{url_effective}' "$u")
+            echo "RESOLVE|$u|$result"
+          done
