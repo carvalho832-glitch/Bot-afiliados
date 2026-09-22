@@ -30,20 +30,21 @@ test('returns 503 while controller is not configured', async () => {
   assert.equal(res.body.code, 'vm_controller_not_configured');
 });
 
-test('rejects an invalid administrative token', async () => {
+test('requires a bearer token before proxying', async () => {
   const middleware = createVmControllerProxyMiddleware({
-    env: { VM_CONTROLLER_URL: 'https://controller.example', VM_ADMIN_TOKEN: 'secret' },
+    env: { VM_CONTROLLER_URL: 'https://controller.example' },
     fetchImpl: async () => { throw new Error('should not fetch'); }
   });
   const res = makeRes();
-  await middleware(req('GET', '/admin/vm/status', 'wrong'), res, () => {});
+  await middleware(req('GET', '/admin/vm/status'), res, () => {});
   assert.equal(res.statusCode, 401);
+  assert.match(res.body.error, /ausente/i);
 });
 
 test('proxies VM status to the Cloud Run controller', async () => {
   const calls = [];
   const middleware = createVmControllerProxyMiddleware({
-    env: { VM_CONTROLLER_URL: 'https://controller.example/', VM_ADMIN_TOKEN: 'secret' },
+    env: { VM_CONTROLLER_URL: 'https://controller.example/' },
     fetchImpl: async (url, options) => {
       calls.push({ url, options });
       return {
@@ -62,7 +63,7 @@ test('proxies VM status to the Cloud Run controller', async () => {
 
 test('proxies VM start with POST and preserves upstream status', async () => {
   const middleware = createVmControllerProxyMiddleware({
-    env: { VM_CONTROLLER_URL: 'https://controller.example', VM_ADMIN_TOKEN: 'secret' },
+    env: { VM_CONTROLLER_URL: 'https://controller.example' },
     fetchImpl: async (_url, options) => ({
       status: 202,
       async text() { return JSON.stringify({ ok: true, action: 'start', method: options.method }); }
@@ -80,4 +81,50 @@ test('does not intercept unrelated routes', async () => {
   const middleware = createVmControllerProxyMiddleware({ env: {} });
   await middleware(req('GET', '/health'), makeRes(), () => { passed = true; });
   assert.equal(passed, true);
+});
+
+
+test('forwards whatever bearer token the caller supplied to Cloud Run', async () => {
+  const calls = [];
+  const middleware = createVmControllerProxyMiddleware({
+    env: { VM_CONTROLLER_URL: 'https://controller.example' },
+    fetchImpl: async (url, options) => {
+      calls.push({ url, options });
+      return {
+        status: 401,
+        async text() { return JSON.stringify({ ok: false, error: 'Token administrativo inválido.' }); }
+      };
+    }
+  });
+  const res = makeRes();
+  await middleware(req('GET', '/admin/vm/status', 'caller-token'), res, () => {});
+  assert.equal(res.statusCode, 401);
+  assert.equal(calls[0].options.headers.Authorization, 'Bearer caller-token');
+});
+
+test('config validates the bearer token against Cloud Run before responding', async () => {
+  const middleware = createVmControllerProxyMiddleware({
+    env: {
+      VM_CONTROLLER_URL: 'https://controller.example',
+      GCP_PROJECT_ID: 'project',
+      GCP_VM_ZONE: 'zone',
+      GCP_VM_INSTANCE: 'vm'
+    },
+    fetchImpl: async (_url, options) => ({
+      status: options.headers.Authorization === 'Bearer secret' ? 200 : 401,
+      async text() {
+        return JSON.stringify(
+          options.headers.Authorization === 'Bearer secret'
+            ? { ok: true, vm: { projectId: 'project', zone: 'zone', instance: 'vm', status: 'RUNNING' } }
+            : { ok: false, error: 'Token administrativo inválido.' }
+        );
+      }
+    })
+  });
+
+  const res = makeRes();
+  await middleware(req('GET', '/admin/vm/config', 'secret'), res, () => {});
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.mode, 'cloud-run-controller');
+  assert.equal(res.body.target.instance, 'vm');
 });
