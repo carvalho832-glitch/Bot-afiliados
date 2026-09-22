@@ -18,8 +18,23 @@ function clean(value = '') {
 }
 
 function parseCredentials(env = process.env) {
-  const raw = clean(env.GCP_SERVICE_ACCOUNT_JSON);
-  if (!raw) return null;
+  const rawJson = clean(env.GCP_SERVICE_ACCOUNT_JSON);
+  const rawBase64 = clean(env.GCP_SERVICE_ACCOUNT_JSON_B64);
+  if (!rawJson && !rawBase64) return null;
+
+  let raw = rawJson;
+  if (!raw && rawBase64) {
+    try {
+      raw = Buffer.from(rawBase64, 'base64').toString('utf8');
+    } catch (error) {
+      throw new VmControlError(
+        'GCP_SERVICE_ACCOUNT_JSON_B64 não contém Base64 válido.',
+        503,
+        'gcp_credentials_base64_invalid',
+        String(error?.message || error)
+      );
+    }
+  }
 
   try {
     const credentials = JSON.parse(raw);
@@ -29,7 +44,7 @@ function parseCredentials(env = process.env) {
     return credentials;
   } catch (error) {
     throw new VmControlError(
-      'GCP_SERVICE_ACCOUNT_JSON está configurado, mas não contém um JSON de conta de serviço válido.',
+      'A credencial do Google Cloud está configurada, mas não contém um JSON de conta de serviço válido.',
       503,
       'gcp_credentials_invalid',
       String(error?.message || error)
