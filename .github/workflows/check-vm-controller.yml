@@ -1,0 +1,27 @@
+name: Verificar VM Controller
+
+on:
+  push:
+    paths:
+      - 'vm-controller/**'
+      - '.github/workflows/check-vm-controller.yml'
+  pull_request:
+    paths:
+      - 'vm-controller/**'
+      - '.github/workflows/check-vm-controller.yml'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vm-controller
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verificar sintaxe
+        run: npm run check
