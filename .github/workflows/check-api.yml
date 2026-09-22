@@ -1,0 +1,31 @@
+name: Verificar API Achou Levou
+
+on:
+  push:
+    paths:
+      - 'api/**'
+      - '.github/workflows/check-api.yml'
+  pull_request:
+    paths:
+      - 'api/**'
+      - '.github/workflows/check-api.yml'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Instalar dependências sem baixar navegador
+        run: npm install --ignore-scripts
+      - name: Validar sintaxe
+        run: npm run check
+      - name: Executar testes
+        run: npm test
