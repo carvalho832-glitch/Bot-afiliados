@@ -98,18 +98,27 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP_DIR="$BACKUP_BASE/$STAMP"
 mkdir -p "$BACKUP_DIR"
 
-say "🛡️ Fazendo backup da sessão e configuração..."
+say "🛡️ Fazendo backup consistente da sessão e configuração..."
+say "⏸️ Pausando o processo do bot por alguns segundos somente durante a cópia da sessão..."
 
-# O Chromium altera CacheStorage/Code Cache enquanto o WhatsApp está aberto.
-# Esses arquivos são descartáveis e podem desaparecer durante a cópia.
-# Preservamos os dados persistentes da sessão e ignoramos apenas caches voláteis.
-mkdir -p "$BACKUP_DIR/.wwebjs_auth"
-tar -C "$AUTH_DIR"   --exclude='*/Service Worker/CacheStorage'   --exclude='*/Service Worker/CacheStorage/**'   --exclude='*/Cache'   --exclude='*/Cache/**'   --exclude='*/Code Cache'   --exclude='*/Code Cache/**'   --exclude='*/GPUCache'   --exclude='*/GPUCache/**'   --exclude='*/DawnCache'   --exclude='*/DawnCache/**'   --exclude='*/ShaderCache'   --exclude='*/ShaderCache/**'   --exclude='*/GrShaderCache'   --exclude='*/GrShaderCache/**'   --exclude='*/GraphiteDawnCache'   --exclude='*/GraphiteDawnCache/**'   -cf - . | tar -C "$BACKUP_DIR/.wwebjs_auth" -xf -
+pm2 stop "$PROCESS_NAME" >/dev/null
 
-cp -a "$ENV_FILE" "$BACKUP_DIR/.env"
-if [[ -d "$APP_DIR/data" ]]; then
-  cp -a "$APP_DIR/data" "$BACKUP_DIR/data"
+BACKUP_OK=false
+if cp -a "$AUTH_DIR" "$BACKUP_DIR/.wwebjs_auth" \
+  && cp -a "$ENV_FILE" "$BACKUP_DIR/.env"; then
+  if [[ -d "$APP_DIR/data" ]]; then
+    cp -a "$APP_DIR/data" "$BACKUP_DIR/data"
+  fi
+  BACKUP_OK=true
 fi
+
+say "▶️ Religando o bot após o backup..."
+pm2 restart "$PROCESS_NAME" --update-env >/dev/null || true
+
+if [[ "$BACKUP_OK" != true ]]; then
+  fail "O backup da sessão falhou. O bot antigo foi religado e a atualização foi cancelada."
+fi
+
 printf '%s\n' "$(git -C "$REPO_ROOT" rev-parse HEAD)" > "$BACKUP_DIR/git-head.txt"
 pm2 jlist > "$BACKUP_DIR/pm2-jlist.json" 2>/dev/null || true
 curl -fsS "http://127.0.0.1:${PORT}/status" > "$BACKUP_DIR/status-before.json" 2>/dev/null || true
