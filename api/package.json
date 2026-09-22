@@ -1,6 +1,6 @@
 {
   "name": "achou-levou-api",
-  "version": "1.13.0",
+  "version": "1.13.1",
   "description": "Backend do Achou Levou com OpenAI para mensagens, Shopee, Magalu, fila compartilhada e ponte segura para o robô",
   "type": "module",
   "main": "front-entry.js",
