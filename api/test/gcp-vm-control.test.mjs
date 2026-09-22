@@ -118,3 +118,26 @@ test('start refuses states that should not receive the start method', async () =
     error => error instanceof VmControlError && error.statusCode === 409
   );
 });
+
+
+test('accepts service account credentials encoded as Base64', async () => {
+  const credentials = {
+    client_email: 'starter@example.iam.gserviceaccount.com',
+    private_key: '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n'
+  };
+  const env = {
+    GCP_PROJECT_ID: 'p',
+    GCP_VM_ZONE: 'z',
+    GCP_VM_INSTANCE: 'vm',
+    GCP_SERVICE_ACCOUNT_JSON_B64: Buffer.from(JSON.stringify(credentials), 'utf8').toString('base64')
+  };
+
+  const controller = createVmController({
+    env,
+    auth: fakeAuth(),
+    fetchImpl: async () => jsonResponse(200, { status: 'RUNNING' })
+  });
+
+  const result = await controller.status();
+  assert.equal(result.status, 'RUNNING');
+});
