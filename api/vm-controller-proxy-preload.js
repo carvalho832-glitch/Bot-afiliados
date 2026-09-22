@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import express from 'express';
 
 const DEFAULT_TIMEOUT_MS = 20000;
@@ -11,17 +10,10 @@ function clean(value = '') {
 function controllerConfig(env = process.env) {
   return {
     url: clean(env.VM_CONTROLLER_URL).replace(/\/+$/, ''),
-    token: clean(env.VM_ADMIN_TOKEN),
     projectId: clean(env.GCP_PROJECT_ID),
     zone: clean(env.GCP_VM_ZONE),
     instance: clean(env.GCP_VM_INSTANCE)
   };
-}
-
-function secureEqual(expected = '', provided = '') {
-  const a = Buffer.from(String(expected || ''), 'utf8');
-  const b = Buffer.from(String(provided || ''), 'utf8');
-  return a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 function readBearer(req) {
@@ -65,38 +57,67 @@ export function createVmControllerProxyMiddleware({
 
     const config = controllerConfig(env);
 
-    if (!config.url || !config.token) {
+    if (!config.url) {
       return sendJson(res, 503, {
         ok: false,
         error: 'Ponte do controlador da VM ainda não configurada na API principal.',
         code: 'vm_controller_not_configured',
-        missing: [
-          !config.url && 'VM_CONTROLLER_URL',
-          !config.token && 'VM_ADMIN_TOKEN'
-        ].filter(Boolean)
+        missing: ['VM_CONTROLLER_URL']
       });
     }
 
     const provided = readBearer(req);
-    if (!secureEqual(config.token, provided)) {
-      return sendJson(res, 401, { ok: false, error: 'Token administrativo inválido.' });
-    }
-
-    if (isConfig) {
-      return sendJson(res, 200, {
-        ok: true,
-        configured: true,
-        mode: 'cloud-run-controller',
-        controllerUrl: config.url,
-        target: {
-          projectId: config.projectId || null,
-          zone: config.zone || null,
-          instance: config.instance || null
-        }
-      });
+    if (!provided) {
+      return sendJson(res, 401, { ok: false, error: 'Token administrativo ausente.' });
     }
 
     const upstreamPath = isStart ? '/start' : '/status';
+
+    if (isConfig) {
+      try {
+        const { response, data } = await fetchJsonWithTimeout(
+          fetchImpl,
+          `${config.url}/status`,
+          {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json',
+              Authorization: `Bearer ${provided}`
+            },
+            cache: 'no-store'
+          },
+          timeoutMs
+        );
+
+        if (response.status === 401 || response.status === 403) {
+          return sendJson(res, response.status, data || { ok: false, error: 'Token administrativo inválido.' });
+        }
+        if (!data || response.status >= 400) {
+          return sendJson(res, 502, { ok: false, error: 'Não foi possível validar o controlador da VM.' });
+        }
+
+        return sendJson(res, 200, {
+          ok: true,
+          configured: true,
+          mode: 'cloud-run-controller',
+          controllerUrl: config.url,
+          target: {
+            projectId: config.projectId || data?.vm?.projectId || null,
+            zone: config.zone || data?.vm?.zone || null,
+            instance: config.instance || data?.vm?.instance || null
+          }
+        });
+      } catch (error) {
+        const detalhe = error?.name === 'AbortError'
+          ? 'Tempo limite ao validar o controlador da VM.'
+          : String(error?.message || error);
+        return sendJson(res, 502, {
+          ok: false,
+          error: 'Não foi possível validar o controlador da VM.',
+          detalhe
+        });
+      }
+    }
 
     try {
       const { response, text, data } = await fetchJsonWithTimeout(
@@ -106,7 +127,7 @@ export function createVmControllerProxyMiddleware({
           method: isStart ? 'POST' : 'GET',
           headers: {
             Accept: 'application/json',
-            Authorization: `Bearer ${config.token}`
+            Authorization: `Bearer ${provided}`
           },
           cache: 'no-store'
         },
