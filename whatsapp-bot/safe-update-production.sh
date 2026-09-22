@@ -99,7 +99,13 @@ BACKUP_DIR="$BACKUP_BASE/$STAMP"
 mkdir -p "$BACKUP_DIR"
 
 say "🛡️ Fazendo backup da sessão e configuração..."
-cp -a "$AUTH_DIR" "$BACKUP_DIR/.wwebjs_auth"
+
+# O Chromium altera CacheStorage/Code Cache enquanto o WhatsApp está aberto.
+# Esses arquivos são descartáveis e podem desaparecer durante a cópia.
+# Preservamos os dados persistentes da sessão e ignoramos apenas caches voláteis.
+mkdir -p "$BACKUP_DIR/.wwebjs_auth"
+tar -C "$AUTH_DIR"   --exclude='*/Service Worker/CacheStorage'   --exclude='*/Service Worker/CacheStorage/**'   --exclude='*/Cache'   --exclude='*/Cache/**'   --exclude='*/Code Cache'   --exclude='*/Code Cache/**'   --exclude='*/GPUCache'   --exclude='*/GPUCache/**'   --exclude='*/DawnCache'   --exclude='*/DawnCache/**'   --exclude='*/ShaderCache'   --exclude='*/ShaderCache/**'   --exclude='*/GrShaderCache'   --exclude='*/GrShaderCache/**'   --exclude='*/GraphiteDawnCache'   --exclude='*/GraphiteDawnCache/**'   -cf - . | tar -C "$BACKUP_DIR/.wwebjs_auth" -xf -
+
 cp -a "$ENV_FILE" "$BACKUP_DIR/.env"
 if [[ -d "$APP_DIR/data" ]]; then
   cp -a "$APP_DIR/data" "$BACKUP_DIR/data"
