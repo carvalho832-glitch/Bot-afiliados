@@ -149,7 +149,7 @@ app.get('/', (req, res) => {
   res.json({
     ok: true,
     service: 'Achou Levou WhatsApp Bot',
-    version: '2.3.4',
+    version: '2.3.5',
     ...getConnectionState(),
     serverTime: horaServidor(),
     routes: ['/painel', '/status', '/diagnostics', '/groups', '/settings', '/queue', '/queue/import-batch', '/queue/review-source', '/audit/offers', '/audit/whatsapp-sent', '/qr-page']
@@ -474,6 +474,6 @@ initializeBot();
 startQueueWatchdog();
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[SERVIDOR] Bot v2.3.4 rodando em http://localhost:${PORT}`);
+  console.log(`[SERVIDOR] Bot v2.3.5 rodando em http://localhost:${PORT}`);
   console.log('[DADOS]', { settings: SETTINGS_FILE, queue: QUEUE_FILE, runtime: RUNTIME_FILE });
 });
