@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
+import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { resolverContaShopee } from './shopee-tracking-accounts.js';
+import { createVmController, getVmConfig, VmControlError } from './gcp-vm-control.mjs';
 
 process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
 const { buscarProdutoMagalu, fecharMagaluBrowser } = await import('./magalu-service.js');
@@ -18,6 +20,45 @@ const BOT_USER = process.env.BOT_PANEL_USER || 'julio';
 const BOT_PASSWORD = process.env.BOT_PANEL_PASSWORD || 'AchouLevou2026';
 const SHOPEE_TRACKING_LIMIT = Math.max(20, Number(process.env.SHOPEE_TRACKING_LIMIT_PER_10_MIN || 120));
 const trackingRequestsByProfile = new Map();
+const vmController = createVmController();
+
+function secureEqual(expected = '', provided = '') {
+  const a = Buffer.from(String(expected || ''), 'utf8');
+  const b = Buffer.from(String(provided || ''), 'utf8');
+  return a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function requireVmAdmin(req, res, next) {
+  const expected = String(process.env.VM_ADMIN_TOKEN || '').trim();
+  if (!expected) {
+    return res.status(503).json({
+      ok: false,
+      error: 'Controle remoto da VM desativado. Configure VM_ADMIN_TOKEN no servidor.'
+    });
+  }
+
+  const authorization = String(req.get('authorization') || '').trim();
+  const provided = authorization.replace(/^Bearer\s+/i, '').trim();
+
+  if (!secureEqual(expected, provided)) {
+    return res.status(401).json({ ok: false, error: 'Token administrativo inválido.' });
+  }
+
+  next();
+}
+
+function vmErrorResponse(res, error) {
+  const statusCode = Number(error?.statusCode || 500);
+  const known = error instanceof VmControlError;
+  console.error('[VM-CONTROL]', known ? error.code : 'unexpected_error', error?.message || error);
+
+  return res.status(statusCode).json({
+    ok: false,
+    error: known ? error.message : 'Falha inesperada ao controlar a VM.',
+    code: known ? error.code : 'unexpected_error',
+    ...(known && error.details ? { details: error.details } : {})
+  });
+}
 
 app.use(cors({
   origin: '*',
@@ -203,6 +244,36 @@ app.post('/shopee/rastrear', async (req, res) => {
       detalhe
     });
   }
+});
+
+app.get('/admin/vm/status', requireVmAdmin, async (_req, res) => {
+  try {
+    const vm = await vmController.status();
+    return res.json({ ok: true, vm });
+  } catch (error) {
+    return vmErrorResponse(res, error);
+  }
+});
+
+app.post('/admin/vm/start', requireVmAdmin, async (_req, res) => {
+  try {
+    const result = await vmController.start();
+    return res.status(result.accepted ? 202 : 200).json(result);
+  } catch (error) {
+    return vmErrorResponse(res, error);
+  }
+});
+
+app.get('/admin/vm/config', requireVmAdmin, (_req, res) => {
+  const config = getVmConfig();
+  return res.json({
+    ok: true,
+    configured: config.configured,
+    missing: config.missing,
+    target: config.configured
+      ? { projectId: config.projectId, zone: config.zone, instance: config.instance }
+      : null
+  });
 });
 
 app.get('/bot/queue', (_req, res) => lerJsonDoBot('/queue', res));
