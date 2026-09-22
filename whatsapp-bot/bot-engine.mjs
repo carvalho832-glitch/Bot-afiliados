@@ -320,15 +320,31 @@ export async function processQueue() {
     const now = Date.now();
     const availableSlots = Math.max(0, settings.dailyLimit - settings.sentToday);
     const batchSize = Math.min(settings.offersPerBatch, availableSlots);
-    const eligible = pending.filter(item => !item.retryAfter || item.retryAfter <= now).slice(0, batchSize);
+    const batchCandidates = pending.slice(0, batchSize);
+    const eligible = [];
+
+    // Preserva a ordem real da fila. Se uma oferta anterior estiver aguardando
+    // retry, nenhuma oferta posterior pode ultrapassá-la.
+    for (const candidate of batchCandidates) {
+      if (candidate.retryAfter && candidate.retryAfter > now) break;
+      eligible.push(candidate);
+    }
+
     if (!eligible.length) {
-      const nextRetry = Math.min(...pending.map(item => item.retryAfter || now + RETRY_DELAY_MS));
+      const firstPending = pending[0];
+      const nextRetry = Number(firstPending?.retryAfter || now + RETRY_DELAY_MS);
+      saveRuntime({
+        lastCycleResult: firstPending?.retryAfter
+          ? 'Primeira oferta aguardando nova tentativa; fila mantida em ordem.'
+          : 'Primeira oferta ainda não está elegível; fila mantida em ordem.'
+      });
       scheduleNextQueueRun(Math.max(1000, nextRetry - now));
       return;
     }
 
     let successfulDeliveries = 0;
     let completedOffers = 0;
+    let haltedOnPendingOffer = null;
 
     for (const selected of eligible) {
       queue = getQueue();
@@ -367,7 +383,7 @@ export async function processQueue() {
             saveQueue(queue);
             scheduleBrowserRecovery(error, {
               source: `envio para ${target.name || target.id}`,
-              pauseQueue: true
+              pauseQueue: false
             });
             throw error;
           }
@@ -393,10 +409,26 @@ export async function processQueue() {
         item.status = 'pending';
       }
       saveQueue(queue);
+
+      // Uma oferta pendente bloqueia as seguintes. Isso evita que a fila "pule"
+      // itens após falha parcial ou durante uma tentativa de recuperação.
+      if (item.status !== 'sent') {
+        haltedOnPendingOffer = item;
+        console.log(`[FILA] Oferta ${item.id} permanece pendente; lote interrompido para preservar a ordem.`);
+        break;
+      }
+
       if (getSettings().sentToday >= getSettings().dailyLimit) break;
     }
 
-    if (successfulDeliveries > 0 || completedOffers > 0) {
+    if (haltedOnPendingOffer) {
+      const retryAt = Number(haltedOnPendingOffer.retryAfter || Date.now() + RETRY_DELAY_MS);
+      const retryDelay = Math.max(1000, retryAt - Date.now());
+      const result = `Oferta ${haltedOnPendingOffer.id} permanece pendente; fila preservada sem avançar para ofertas seguintes.`;
+      console.log('[FILA]', result);
+      saveRuntime({ lastCycleResult: result });
+      scheduleNextQueueRun(retryDelay);
+    } else if (successfulDeliveries > 0 || completedOffers > 0) {
       settings = saveSettings({ lastBatchAt: Date.now(), lastSendAt: Date.now() });
       const result = `Lote concluído: ${completedOffers} oferta(s), ${successfulDeliveries} entrega(s).`;
       console.log('[FILA]', result);
@@ -478,7 +510,7 @@ export async function sendMessageToConfiguredGroups(message, category = null) {
       if (recoveringBrowser) {
         scheduleBrowserRecovery(error, {
           source: `envio direto para ${group.name || group.id}`,
-          pauseQueue: true
+          pauseQueue: false
         });
         break;
       }
@@ -503,7 +535,7 @@ export async function sendMessageToConfiguredGroups(message, category = null) {
 export function getDiagnostics() {
   const settings = getSettings();
   return {
-    version: '2.3.2',
+    version: '2.3.5',
     status,
     serverTime: horaServidor(),
     uptimeSeconds: Math.round(process.uptime()),
