@@ -1,9 +1,9 @@
 (function () {
   'use strict';
 
-  // O painel roda no GitHub Pages, portanto location.origin aponta para um
-  // servidor estático que rejeita POST com HTTP 405. A leitura e o envio
-  // precisam passar sempre pela API do Achou Levou no Render.
+  // O painel roda no GitHub Pages. Para o perfil Júlio, a leitura usa
+  // diretamente a API pública do bot e mantém a ponte do Render como fallback.
+  // O envio continua separado para não interferir na sessão do WhatsApp.
   const BRIDGE_BASE = 'https://bot-afiliados-1fwi.onrender.com';
   const STALE_GRACE_MS = 90000;
   const RECOVERY_DELAYS_MS = [1500, 4000, 8000];
@@ -165,6 +165,66 @@
       return String(config.profileId || 'julio').toLowerCase() !== 'renata';
     }
 
+    async function readJulioOverview() {
+      const config = queueApi.loadConfig?.() || {};
+      const botBase = String(config.botUrl || 'https://bot.achoulevoubot.uk').replace(/\/+$/, '');
+      const stamp = Date.now();
+
+      const [statusResult, queueResult] = await Promise.allSettled([
+        fetchJson(`${botBase}/status?t=${stamp}`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' }
+        }, 10000),
+        fetchJson(`${botBase}/queue?t=${stamp}`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' }
+        }, 10000)
+      ]);
+
+      let statusOk = statusResult.status === 'fulfilled';
+      let queueOk = queueResult.status === 'fulfilled';
+      let status = statusOk ? statusResult.value : null;
+      let queue = queueOk ? (queueResult.value?.queue || queueResult.value) : null;
+      let bridgeError = null;
+
+      if (!statusOk || !queueOk) {
+        try {
+          const payload = await fetchJson(`${BRIDGE_BASE}/bot/overview?t=${Date.now()}`, {
+            method: 'GET',
+            headers: { Accept: 'application/json' }
+          }, 12000);
+
+          if (!statusOk && payload.statusOk === true && payload.status) {
+            statusOk = true;
+            status = payload.status;
+          }
+          if (!queueOk && payload.queueOk === true && payload.queue) {
+            queueOk = true;
+            queue = payload.queue;
+          }
+        } catch (error) {
+          bridgeError = String(error?.message || error);
+        }
+      }
+
+      if (!statusOk && !queueOk) {
+        const directStatusError = String(statusResult.reason?.message || statusResult.reason || 'Falha no status direto.');
+        const directQueueError = String(queueResult.reason?.message || queueResult.reason || 'Falha na fila direta.');
+        throw new Error(`Leitura direta indisponível. Status: ${directStatusError} Fila: ${directQueueError}${bridgeError ? ` Ponte: ${bridgeError}` : ''}`);
+      }
+
+      return {
+        ok: statusOk || queueOk,
+        apiOnline: statusOk || queueOk,
+        statusOk,
+        queueOk,
+        status,
+        queue,
+        source: statusOk && queueOk ? 'bot-direto' : 'bot-direto-com-fallback',
+        checkedAt: new Date().toISOString()
+      };
+    }
+
     async function getOverview(options = {}) {
       if (!isJulioProfile() && originalGetOverview) return originalGetOverview(options);
 
@@ -174,19 +234,7 @@
 
       overviewInFlight = (async () => {
         try {
-          const payload = await fetchJson(`${BRIDGE_BASE}/bot/overview?t=${Date.now()}`, {
-            method: 'GET',
-            headers: { Accept: 'application/json' }
-          }, 18000);
-
-          const rawOverview = {
-            ...payload,
-            ok: payload.ok === true,
-            apiOnline: payload.apiOnline === true,
-            statusOk: payload.statusOk === true,
-            queueOk: payload.queueOk === true,
-            checkedAt: payload.checkedAt || new Date().toISOString()
-          };
+          const rawOverview = await readJulioOverview();
           const overview = preserveLastGoodData(rawOverview);
 
           lastOverview = overview;
@@ -286,3 +334,7 @@
 
   installBridge();
 })();
+
+[executed on device: achou-levou-julio (c15f8d78-5a6e-4e4d-b05c-675d5ef5c2fe)]
+
+Note: you've used 96% of this month's Desktop Commander usage. Visit https://mcp.desktopcommander.app/ to learn more about usage and resets.
