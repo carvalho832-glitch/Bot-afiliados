@@ -2,6 +2,8 @@
   'use strict';
 
   const VERSION = '93.1.0';
+  const ATENDIMENTO_JULIO_URL = 'https://bot.achoulevoubot.uk/atendimento/painel';
+
   const PANEL_URLS = Object.freeze({
     julio: 'https://bot.achoulevoubot.uk/painel',
     renata: 'https://usuario2.achoulevoubot.uk/painel'
@@ -48,6 +50,11 @@
   }
 
   function markButton() {
+    const atendimento = document.getElementById('btn-atendimento-julio');
+    if (atendimento) {
+      atendimento.hidden = currentProfile() !== 'julio';
+      atendimento.title = 'Abrir Atendimento de Ofertas do Júlio';
+    }
     const button = document.getElementById('btn-abrir-painel-bot');
     if (!button) return;
     button.dataset.embeddedPanelVersion = VERSION;
@@ -55,6 +62,13 @@
   }
 
   document.addEventListener('click', event => {
+    const atendimento = event.target?.closest?.('#btn-atendimento-julio');
+    if (atendimento) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (currentProfile() === 'julio') window.location.assign(ATENDIMENTO_JULIO_URL);
+      return;
+    }
     const button = event.target?.closest?.('#btn-abrir-painel-bot');
     if (!button) return;
 
