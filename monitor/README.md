@@ -39,6 +39,6 @@ pm2 save
 
 As anomalias precisam ocorrer em três verificações (exceto grupos isolados). Alertas repetidos são limitados a um por hora por tipo. Ao normalizar, é enviado aviso de recuperação.
 
-**Recuperação segura:** só executa \`pm2 restart\` se PM2 relatar \`stopped\` ou \`errored\` por 3 minutos, a última observação não indicar envio em andamento e não houve reinício na última hora. Nunca apaga filas, reenvia ofertas, limpa credenciais ou reinicia uma sessão que apenas parece congelada. Envio com confirmação incerta requer revisão manual.
+**Recuperação segura:** só executa \`pm2 restart\` se PM2 relatar \`stopped\` ou \`errored\` por 3 minutos, nenhuma observação durante a queda indicar envio em andamento, não houver grupos com resultado incerto e não houver reinício na última hora. Nunca apaga filas, reenvia ofertas, limpa credenciais ou reinicia uma sessão que apenas parece congelada. Envio com confirmação incerta requer revisão manual.
 
 **Limitação:** a verificação entre VMs depende dos túneis/domínios HTTPS. Se ambos os servidores caírem simultaneamente, nenhum monitor poderá enviar alerta; para cobertura total, acrescente um terceiro verificador externo independente.
