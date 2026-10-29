@@ -75,7 +75,8 @@ export function summarizeQueue(items = []) {
 
 export function mayRecover(sample, state, now = Date.now()) {
   return Boolean(sample.pmStatus === 'stopped' || sample.pmStatus === 'errored') &&
-    !sample.queueProcessing && !state.lastProcessing &&
+    !sample.queueProcessing && !state.lastProcessing && !state.unsafeOutage &&
+    Number(sample.holdCount || 0) === 0 &&
     Number(state.serviceDownSince || 0) > 0 &&
     now - state.serviceDownSince > 3 * 60_000 &&
     now - Number(state.lastRestartAt || 0) > 60 * 60_000;
