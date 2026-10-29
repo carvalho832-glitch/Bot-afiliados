@@ -79,7 +79,7 @@ async function notify(text, severity = 'high') {
   try {
     const result = await fetch(cfg.ntfyUrl, {
       method: 'POST',
-      headers: { 'Title': 'Achou Levou | ' + cfg.name, 'Priority': severity === 'high' ? '4' : '3',
+      headers: { 'Title': 'Achou Levou | ' + (cfg.name === 'Júlio' ? 'Julio' : cfg.name), 'Priority': severity === 'high' ? '4' : '3',
         'Tags': severity === 'high' ? 'warning' : 'information', 'Content-Type': 'text/plain; charset=utf-8' },
       body: text, signal: AbortSignal.timeout(8000)
     });
@@ -97,8 +97,13 @@ async function check({ dryRun = false } = {}) {
     const sample = await sampleHealth();
     if (sample.queueProcessing) state.processingSince ||= now;
     else state.processingSince = 0;
-    if (sample.pmStatus !== 'online' || sample.localError) state.serviceDownSince ||= now;
-    else state.serviceDownSince = 0;
+    if (sample.pmStatus !== 'online' || sample.localError) {
+      state.serviceDownSince ||= now;
+      if (state.lastProcessing || sample.queueProcessing) state.unsafeOutage = true;
+    } else {
+      state.serviceDownSince = 0;
+      state.unsafeOutage = false;
+    }
     const issues = evaluate(sample, state, now);
     const present = new Set(issues.map(x => x.code));
     for (const issue of issues) {
