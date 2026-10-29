@@ -50,6 +50,8 @@ test('only stopped PM2 process qualifies for guarded restart', () => {
   assert.equal(mayRecover(s, state, now), true);
   assert.equal(mayRecover({...s,pmStatus:'online'}, state, now), false);
   assert.equal(mayRecover(s, {...state,lastProcessing:true}, now), false);
+  assert.equal(mayRecover(s, {...state,unsafeOutage:true}, now), false);
+  assert.equal(mayRecover({...s,holdCount:1}, state, now), false);
   assert.equal(mayRecover(s, {...state,lastRestartAt:now-10*60_000}, now), false);
 });
 test('summary counts individual offer states only', () => {
