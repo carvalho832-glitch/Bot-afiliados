@@ -235,7 +235,7 @@
     <script src="app-dialog.js?v=93"></script>
     <script src="shopee-helper.js?v=93"></script>
     <script src="magalu-helper.js?v=93"></script>
-    <script src="openai-client.js?v=93"></script>
+    <script src="openai-client.js?v=96"></script>
     <script src="product-message-patch.js?v=93"></script>
     <script src="bot-queue-integration.js?v=93"></script>
     <script src="embedded-panel-navigation.js?v=94"></script>
@@ -247,9 +247,9 @@
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=93', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=96, { updateViaCache: 'none' })
                     .then(reg => {
-                        console.log('PWA v93 ativado!', reg);
+                        console.log('PWA v96 ativado!', reg);
                         reg.update();
                     })
                     .catch(err => console.log('Falha no PWA:', err));
