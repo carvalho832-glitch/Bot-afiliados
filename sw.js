@@ -249,7 +249,7 @@ self.addEventListener('fetch', (event) => {
     // O SW redireciona SOMENTE geração de mensagens, sem tocar em grupos nem envios.
     const legacyAi = event.request.method === 'POST' &&
         [API_ERRADA, API_CORRETA].includes(requestUrl.origin) &&
-        requestUrl.pathname.replace(/\\/+$/, '') === '/gerar-mensagem';
+        requestUrl.pathname === '/gerar-mensagem';
     if (legacyAi) {
         event.respondWith((async () => {
             try {
