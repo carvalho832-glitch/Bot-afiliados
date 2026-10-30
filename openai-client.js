@@ -1,5 +1,5 @@
 (() => {
-  const API_URL = 'https://bot-afiliados-1fwi.onrender.com';
+  const API_URL = 'https://usuario2.achoulevoubot.uk';
   const REQUEST_TIMEOUT_MS = 100000;
 
   const inputLink = document.getElementById('input-link');
