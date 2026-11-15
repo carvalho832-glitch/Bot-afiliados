@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v97-renata-shopee-cloud';
+const CACHE_VERSION = 'achou-levou-v98-shopee-cloud-all-profiles';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const SHOPEE_PRODUCT_PATH = '/shopee/produto';
@@ -12,19 +12,19 @@ const LOCAL_AFFILIATE_PROFILES = Object.freeze({
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v97 instalada.');
+    console.log('Achou Levou interface v98 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v97 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v98 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '97' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '98' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
@@ -274,18 +274,14 @@ self.addEventListener('fetch', (event) => {
 
     const directPath = requestUrl.pathname.replace(/\/+$/, '') || '/';
     const isShopeeProductRead = event.request.method === 'GET' &&
-        requestUrl.origin === API_CORRETA &&
+        [API_ERRADA, API_CORRETA, 'https://usuario2.achoulevoubot.uk'].includes(requestUrl.origin) &&
         directPath === SHOPEE_PRODUCT_PATH;
 
     if (isShopeeProductRead) {
-        event.respondWith((async () => {
-            // Chamadas de versoes antigas do painel da Renata tambem vao para o Google Cloud.
-            if (await perfilDoCliente(event.clientId) === 'renata') {
-                const cloudUrl = new URL(requestUrl.pathname + requestUrl.search, 'https://usuario2.achoulevoubot.uk');
-                return consultarShopeeComRecuperacao(event.request, cloudUrl);
-            }
-            return consultarShopeeLocalOuNuvem(event, requestUrl);
-        })());
+        // Inclusive o painel antigo e os perfis salvos: consulta apenas o catalogo,
+        // preservando na resposta o link curto original de cada afiliado.
+        const cloudUrl = new URL(requestUrl.pathname + requestUrl.search, 'https://usuario2.achoulevoubot.uk');
+        event.respondWith(consultarShopeeComRecuperacao(event.request, cloudUrl));
         return;
     }
 
