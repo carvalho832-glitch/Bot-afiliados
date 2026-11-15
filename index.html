@@ -11,7 +11,7 @@
     <script>
         (function () {
             try {
-                const UI_VERSION = '97';
+                const UI_VERSION = '98';
                 const VERSION_KEY = 'achou_levou_ui_version';
                 const previousVersion = localStorage.getItem(VERSION_KEY);
 
@@ -233,7 +233,7 @@
     <script src="script.js?v=93"></script>
     <script src="progress-loader.js?v=93"></script>
     <script src="app-dialog.js?v=93"></script>
-    <script src="shopee-helper.js?v=97"></script>
+    <script src="shopee-helper.js?v=98"></script>
     <script src="magalu-helper.js?v=93"></script>
     <script src="openai-client.js?v=96"></script>
     <script src="product-message-patch.js?v=93"></script>
@@ -247,7 +247,7 @@
     <script>
         if ('serviceWorker' in navigator && !location.search.includes('safe=1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=97', { updateViaCache: 'none' })
+                navigator.serviceWorker.register('./sw.js?v=98', { updateViaCache: 'none' })
                     .then(reg => {
                         console.log('PWA v96 ativado!', reg);
                         reg.update();
