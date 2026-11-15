@@ -1,5 +1,12 @@
 (() => {
-    const API_URL = 'https://bot-afiliados-1fwi.onrender.com';
+    // A captura da Renata roda na API Google Cloud, nao no Render antigo.
+    const parametros = new URLSearchParams(window.location.search);
+    const perfil = String(parametros.get('perfil') || parametros.get('bot') || parametros.get('usuario') || '').trim().toLowerCase();
+    const ehRenata = ['renata', 'usuario2', 'user2', '2'].includes(perfil) ||
+        window.location.hostname.toLowerCase() === 'usuario2.achoulevoubot.uk';
+    const API_URL = ehRenata
+        ? 'https://usuario2.achoulevoubot.uk'
+        : 'https://bot-afiliados-1fwi.onrender.com';
 
     const inputLink = document.getElementById('input-link');
     const btnPuxar = document.getElementById('btn-puxar');
