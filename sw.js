@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'achou-levou-v96-cloud-ai-fixed';
+const CACHE_VERSION = 'achou-levou-v97-renata-shopee-cloud';
 const API_ERRADA = 'https://bot-afiliados-1fvi.onrender.com';
 const API_CORRETA = 'https://bot-afiliados-1fwi.onrender.com';
 const SHOPEE_PRODUCT_PATH = '/shopee/produto';
@@ -12,19 +12,19 @@ const LOCAL_AFFILIATE_PROFILES = Object.freeze({
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 self.addEventListener('install', () => {
-    console.log('Achou Levou interface v96 instalada.');
+    console.log('Achou Levou interface v97 instalada.');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-    console.log('Achou Levou interface v96 ativada. Limpando caches antigos.');
+    console.log('Achou Levou interface v97 ativada. Limpando caches antigos.');
     event.waitUntil(
         caches.keys()
             .then(keys => Promise.all(keys.map(key => caches.delete(key))))
             .then(() => self.clients.claim())
             .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
             .then(clients => Promise.all(clients.map(client => {
-                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '96' });
+                client.postMessage({ type: 'ACHOU_LEVOU_UPDATED', version: '97' });
                 return client.navigate(client.url).catch(() => null);
             })))
     );
@@ -278,7 +278,14 @@ self.addEventListener('fetch', (event) => {
         directPath === SHOPEE_PRODUCT_PATH;
 
     if (isShopeeProductRead) {
-        event.respondWith(consultarShopeeLocalOuNuvem(event, requestUrl));
+        event.respondWith((async () => {
+            // Chamadas de versoes antigas do painel da Renata tambem vao para o Google Cloud.
+            if (await perfilDoCliente(event.clientId) === 'renata') {
+                const cloudUrl = new URL(requestUrl.pathname + requestUrl.search, 'https://usuario2.achoulevoubot.uk');
+                return consultarShopeeComRecuperacao(event.request, cloudUrl);
+            }
+            return consultarShopeeLocalOuNuvem(event, requestUrl);
+        })());
         return;
     }
 
